@@ -5,12 +5,22 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
+import Auth from "./pages/Auth";
+import Onboarding from "./pages/Onboarding";
+import Dashboard from "./pages/Dashboard";
+import DataManagement from "./pages/DataManagement";
+import CsvImport from "./pages/CsvImport";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
       <Route path={"/"} component={Home} />
+      <Route path={"/auth"} component={Auth} />
+      <Route path={"/onboarding"} component={Onboarding} />
+      <Route path={"/dashboard/:businessId"} component={Dashboard} />
+      <Route path={"/data/:businessId"} component={DataManagement} />
+      <Route path={"/import/:businessId"} component={CsvImport} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
