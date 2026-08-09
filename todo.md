@@ -17,7 +17,7 @@
 - [x] Implement business goals selection and ranking (multi-select with prioritization)
 - [x] Seed demo data for newly onboarded businesses
 - [x] Implement protected routes and business data isolation
-- [ ] Create user profile page
+- [x] Create user profile page
 
 ## Phase 4: Core Data Modules
 - [x] Build Customers CRUD (list, create, read, update, delete)

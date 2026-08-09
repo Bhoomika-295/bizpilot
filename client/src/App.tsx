@@ -10,6 +10,7 @@ import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import DataManagement from "./pages/DataManagement";
 import CsvImport from "./pages/CsvImport";
+import UserProfile from "./pages/UserProfile";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -18,6 +19,7 @@ function Router() {
       <Route path={"/"} component={Home} />
       <Route path={"/auth"} component={Auth} />
       <Route path={"/onboarding"} component={Onboarding} />
+      <Route path={"/profile"} component={UserProfile} />
       <Route path={"/dashboard/:businessId"} component={Dashboard} />
       <Route path={"/data/:businessId"} component={DataManagement} />
       <Route path={"/import/:businessId"} component={CsvImport} />
