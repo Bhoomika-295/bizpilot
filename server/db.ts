@@ -925,6 +925,10 @@ export async function createMarketSignal(
     relatedEntity: string;
     snippet?: string;
     relevanceStatus?: string;
+    relevanceLevel?: string;
+    impactArea?: string;
+    importanceScore?: number;
+    explanation?: string;
     externalId?: string;
   }
 ) {
@@ -940,6 +944,10 @@ export async function createMarketSignal(
     relatedEntity: data.relatedEntity,
     snippet: data.snippet || null,
     relevanceStatus: data.relevanceStatus || "relevant",
+    relevanceLevel: data.relevanceLevel || "LOW",
+    impactArea: data.impactArea || "General Market",
+    importanceScore: data.importanceScore || 1,
+    explanation: data.explanation || null,
     externalId: data.externalId || null,
   });
 }

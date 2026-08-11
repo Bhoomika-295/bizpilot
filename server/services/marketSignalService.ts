@@ -6,7 +6,24 @@ import {
   clearMarketSignals,
 } from "../db";
 
-export interface NormalizedMarketSignal {
+export type RelevanceLevel = "HIGH" | "MEDIUM" | "LOW";
+export type ImpactArea =
+  | "Revenue"
+  | "Customers"
+  | "Expenses"
+  | "Competition"
+  | "Operations"
+  | "Product/Service"
+  | "General Market";
+
+export interface EnrichedMarketSignalMetadata {
+  relevanceLevel: RelevanceLevel;
+  impactArea: ImpactArea;
+  importanceScore: number;
+  explanation: string;
+}
+
+export interface NormalizedMarketSignal extends EnrichedMarketSignalMetadata {
   title: string;
   source: string;
   sourceUrl: string;
@@ -18,8 +35,126 @@ export interface NormalizedMarketSignal {
 }
 
 /**
+ * Deterministic Relevance Engine
+ * Evaluates whether a signal mentions a competitor, matches the industry, or has general relevance.
+ */
+export function classifyRelevance(
+  signalText: string,
+  businessIndustry?: string | null,
+  competitorNames: string[] = []
+): { relevanceLevel: RelevanceLevel; matchedCompetitor?: string } {
+  const lowerText = signalText.toLowerCase();
+
+  // Check exact or partial competitor match
+  for (const comp of competitorNames) {
+    if (comp && comp.trim().length > 1) {
+      const compLower = comp.trim().toLowerCase();
+      if (lowerText.includes(compLower)) {
+        return { relevanceLevel: "HIGH", matchedCompetitor: comp };
+      }
+    }
+  }
+
+  // Check industry match
+  if (businessIndustry && businessIndustry.trim().length > 1) {
+    const indLower = businessIndustry.trim().toLowerCase();
+    const keywords = indLower.split(/[\s,]+/);
+    const matchCount = keywords.filter((kw) => kw.length > 2 && lowerText.includes(kw)).length;
+    if (matchCount >= 1 || lowerText.includes(indLower)) {
+      return { relevanceLevel: "MEDIUM" };
+    }
+  }
+
+  // Default / fallback
+  return { relevanceLevel: "LOW" };
+}
+
+/**
+ * Impact Area Classifier
+ * Classifies the signal into logical business impact categories based on keywords.
+ */
+export function classifyImpactArea(signalText: string, matchedCompetitor?: string): ImpactArea {
+  const lower = signalText.toLowerCase();
+
+  if (matchedCompetitor || lower.includes("competitor") || lower.includes("rival") || lower.includes("market share") || lower.includes("pricing") || lower.includes("acquisition")) {
+    return "Competition";
+  }
+  if (lower.includes("revenue") || lower.includes("sales") || lower.includes("profit") || lower.includes("growth") || lower.includes("earnings")) {
+    return "Revenue";
+  }
+  if (lower.includes("customer") || lower.includes("client") || lower.includes("consumer")  || lower.includes("buyer") || lower.includes("satisfaction")) {
+    return "Customers";
+  }
+  if (lower.includes("cost") || lower.includes("expense") || lower.includes("inflation") || lower.includes("supply chain") || lower.includes("price hike")) {
+    return "Expenses";
+  }
+  if (lower.includes("product") || lower.includes("launch") || lower.includes("service") || lower.includes("feature") || lower.includes("technology")) {
+    return "Product/Service";
+  }
+  if (lower.includes("operation") || lower.includes("hiring") || lower.includes("staff") || lower.includes("regulatory") || lower.includes("compliance")) {
+    return "Operations";
+  }
+
+  return "General Market";
+}
+
+/**
+ * Importance Scorer
+ * Computes an importance score (1-5) and transparent explanation based on relevance, recency, and evidence.
+ */
+export function calculateImportanceAndExplanation(
+  relevanceLevel: RelevanceLevel,
+  impactArea: ImpactArea,
+  publishedAt?: Date,
+  matchedCompetitor?: string
+): { importanceScore: number; explanation: string } {
+  let baseScore = 1;
+  if (relevanceLevel === "HIGH") baseScore = 4;
+  else if (relevanceLevel === "MEDIUM") baseScore = 3;
+  else baseScore = 2;
+
+  // Recency bonus
+  if (publishedAt) {
+    const ageHours = (Date.now() - publishedAt.getTime()) / (1000 * 60 * 60);
+    if (ageHours <= 24) {
+      baseScore = Math.min(5, baseScore + 1);
+    }
+  }
+
+  let explanation = "";
+  if (relevanceLevel === "HIGH" && matchedCompetitor) {
+    explanation = `This signal directly mentions tracked competitor "${matchedCompetitor}", making it highly relevant to your competitive positioning.`;
+  } else if (relevanceLevel === "MEDIUM") {
+    explanation = `This signal aligns closely with your industry category, indicating trends that may affect ${impactArea.toLowerCase()}.`;
+  } else {
+    explanation = `This is a general market signal worth monitoring for broader macroeconomic shifts.`;
+  }
+
+  return { importanceScore: baseScore, explanation };
+}
+
+export async function enrichSignalIntelligence(
+  title: string,
+  snippet: string | undefined,
+  businessIndustry?: string | null,
+  competitorNames: string[] = [],
+  publishedAt?: Date
+): Promise<EnrichedMarketSignalMetadata> {
+  const fullText = `${title} ${snippet || ""}`;
+  const { relevanceLevel, matchedCompetitor } = classifyRelevance(fullText, businessIndustry, competitorNames);
+  const impactArea = classifyImpactArea(fullText, matchedCompetitor);
+  const { importanceScore, explanation } = calculateImportanceAndExplanation(relevanceLevel, impactArea, publishedAt, matchedCompetitor);
+
+  return {
+    relevanceLevel,
+    impactArea,
+    importanceScore,
+    explanation,
+  };
+}
+
+/**
  * Fetch and normalize external market signals from GDELT 2.0 DOC API.
- * Gracefully handles network failures, timeouts, and unexpected payload structures without fake data.
  */
 export async function fetchGdeltSignals(query: string, relatedEntity: string): Promise<NormalizedMarketSignal[]> {
   const encodedQuery = encodeURIComponent(query);
@@ -40,13 +175,11 @@ export async function fetchGdeltSignals(query: string, relatedEntity: string): P
     clearTimeout(timeoutId);
 
     if (!res.ok) {
-      console.warn(`[MarketIntelligence] GDELT API returned status ${res.status} for query: ${query}`);
       return [];
     }
 
     const contentType = res.headers.get("content-type") || "";
     if (!contentType.includes("application/json")) {
-      // GDELT sometimes returns HTML error pages or rate limit blocks
       return [];
     }
 
@@ -60,7 +193,7 @@ export async function fetchGdeltSignals(query: string, relatedEntity: string): P
       const title = art.title?.trim();
       const sourceUrl = art.url?.trim();
       const source = art.source?.trim() || new URL(sourceUrl || "https://gdeltproject.org").hostname;
-      const seendate = art.seendate; // Format: YYYYMMDDTHHMMSSZ
+      const seendate = art.seendate;
 
       if (!title || !sourceUrl || seenUrls.has(sourceUrl)) {
         continue;
@@ -69,7 +202,6 @@ export async function fetchGdeltSignals(query: string, relatedEntity: string): P
 
       let publishedAt: Date | undefined = undefined;
       if (seendate && typeof seendate === "string" && seendate.length >= 15) {
-        // e.g. 20260811T120000Z
         const year = parseInt(seendate.substring(0, 4), 10);
         const month = parseInt(seendate.substring(4, 6), 10) - 1;
         const day = parseInt(seendate.substring(6, 8), 10);
@@ -82,14 +214,20 @@ export async function fetchGdeltSignals(query: string, relatedEntity: string): P
         }
       }
 
+      const snippet = art.socialimage ? undefined : `Recent coverage regarding ${relatedEntity} and industry developments.`;
+
       signals.push({
         title,
         source,
         sourceUrl,
         publishedAt,
         relatedEntity,
-        snippet: art.socialimage ? undefined : `Recent coverage regarding ${relatedEntity} and industry trends.`,
+        snippet,
         relevanceStatus: "relevant",
+        relevanceLevel: "LOW", // Will be enriched during sync
+        impactArea: "General Market",
+        importanceScore: 1,
+        explanation: "Pending classification",
         externalId: sourceUrl,
       });
     }
@@ -115,6 +253,8 @@ export async function refreshMarketSignalsForBusiness(businessId: number): Promi
   }
 
   const competitors = await getCompetitors(businessId);
+  const competitorNames = competitors.map((c) => c.name);
+
   const queriesToRun: { query: string; entity: string }[] = [];
 
   if (business.industry) {
@@ -144,21 +284,27 @@ export async function refreshMarketSignalsForBusiness(businessId: number): Promi
     allFetchedSignals.push(...signals);
   }
 
-  // Deduplicate by sourceUrl across queries
   const uniqueMap = new Map<string, NormalizedMarketSignal>();
   for (const sig of allFetchedSignals) {
     if (!uniqueMap.has(sig.sourceUrl)) {
-      uniqueMap.set(sig.sourceUrl, sig);
+      // Enrich with intelligence metadata
+      const intelligence = await enrichSignalIntelligence(
+        sig.title,
+        sig.snippet,
+        business.industry,
+        competitorNames,
+        sig.publishedAt
+      );
+      uniqueMap.set(sig.sourceUrl, {
+        ...sig,
+        ...intelligence,
+      });
     }
   }
 
   const uniqueSignals = Array.from(uniqueMap.values());
 
-  // Store in database
-  // If external provider returned results, persist them. If external provider failed/returned empty,
-  // we keep previously stored signals available and report status.
   if (uniqueSignals.length > 0) {
-    // Clear old signals or retain latest? Keeping latest 30 signals per business is clean.
     await clearMarketSignals(businessId);
     for (const sig of uniqueSignals) {
       await createMarketSignal(businessId, {
@@ -169,13 +315,17 @@ export async function refreshMarketSignalsForBusiness(businessId: number): Promi
         relatedEntity: sig.relatedEntity,
         snippet: sig.snippet,
         relevanceStatus: sig.relevanceStatus,
+        relevanceLevel: sig.relevanceLevel,
+        impactArea: sig.impactArea,
+        importanceScore: sig.importanceScore,
+        explanation: sig.explanation,
         externalId: sig.externalId,
       });
     }
     return {
       success: true,
       signalCount: uniqueSignals.length,
-      message: `Successfully synchronized ${uniqueSignals.length} market signals.`,
+      message: `Successfully synchronized ${uniqueSignals.length} market signals with relevance intelligence.`,
     };
   }
 

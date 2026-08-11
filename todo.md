@@ -197,3 +197,19 @@
 - [x] Pass full test suite (32 tests passed), TypeScript checks, and production build
 - [x] Document authenticated visual verification as environment-limited (no owned preview business data)
 - [x] Save Day 9 checkpoint and stop without starting Day 10
+
+## Day 10: Market Signal Relevance & Business Impact
+- [x] Inspect existing market signal, competitor, and briefing architecture
+- [x] Add deterministic relevance engine (`classifyRelevance`: HIGH for exact competitor match, MEDIUM for industry keyword match, LOW for general)
+- [x] Add impact area classifier (`classifyImpactArea`: Revenue, Customers, Expenses, Competition, Operations, Product/Service, General Market)
+- [x] Add importance scorer (`calculateImportanceAndExplanation`: 1-5 score with transparent rule-based explanation)
+- [x] Extend Drizzle schema with `relevanceLevel`, `impactArea`, `importanceScore`, and `explanation` columns and run migration SQL
+- [x] Integrate enrichment into `refreshMarketSignalsForBusiness` ingestion pipeline
+- [x] Enhance DashboardV2 Market Intelligence card with relevance badges, impact areas, transparent explanations, and simple category filters (All, High relevance, Competitors, Industry, Recent)
+- [x] Add Market Watch summary header (total signals, high relevance count, competitors mentioned)
+- [x] Add External Signals section to existing Business Intelligence Briefing
+- [x] Extend unit tests for relevance, impact classification, and importance scoring (`server/marketSignal.test.ts`)
+- [x] Extend tenant authorization tests (`server/tenant.authorization.test.ts`)
+- [x] Pass full test suite (37 tests passed), TypeScript checks, and production build
+- [x] Document authenticated visual verification as environment-limited (no owned preview business data)
+- [x] Save Day 10 checkpoint and stop without starting Day 11

@@ -29,6 +29,13 @@
       "when": 1786473753155,
       "tag": "0003_chemical_lightspeed",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1786474405697,
+      "tag": "0004_steady_tinkerer",
+      "breakpoints": true
     }
   ]
 }

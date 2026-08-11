@@ -89,6 +89,17 @@ describe("tenant authorization", () => {
     });
   });
 
+  it("rejects market signals access to a business the user does not own", async () => {
+    const caller = appRouter.createCaller(createContext());
+
+    await expect(
+      caller.businessMetrics.getMarketSignals({ businessId: 999999999 })
+    ).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: "You do not have access to this business.",
+    });
+  });
+
   it("does not expose missing records through record-scoped routes", async () => {
     const caller = appRouter.createCaller(createContext());
 
