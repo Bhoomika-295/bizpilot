@@ -21,16 +21,32 @@ import {
 } from "@/components/ui/sidebar";
 import { startLogin } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, Users } from "lucide-react";
+import {
+  Database,
+  FileUp,
+  LayoutDashboard,
+  LogOut,
+  PanelLeft,
+  UserCircle,
+  Users,
+} from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useParams } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
 
-const menuItems = [
-  { icon: LayoutDashboard, label: "Page 1", path: "/" },
-  { icon: Users, label: "Page 2", path: "/some-path" },
-];
+function getMenuItems(businessId?: string) {
+  if (!businessId) {
+    return [{ icon: UserCircle, label: "Profile", path: "/profile" }];
+  }
+
+  return [
+    { icon: LayoutDashboard, label: "Dashboard", path: `/dashboard/${businessId}` },
+    { icon: Users, label: "Customers", path: `/customers/${businessId}` },
+    { icon: Database, label: "Data", path: `/data/${businessId}` },
+    { icon: FileUp, label: "Import CSV", path: `/import/${businessId}` },
+  ];
+}
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
 const DEFAULT_WIDTH = 280;
@@ -106,6 +122,8 @@ function DashboardLayoutContent({
 }: DashboardLayoutContentProps) {
   const { user, logout } = useAuth();
   const [location, setLocation] = useLocation();
+  const { businessId } = useParams<{ businessId?: string }>();
+  const menuItems = getMenuItems(businessId);
   const { state, toggleSidebar } = useSidebar();
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);

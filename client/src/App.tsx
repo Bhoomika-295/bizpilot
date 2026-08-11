@@ -7,10 +7,11 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
-import Dashboard from "./pages/Dashboard";
+import DashboardV2 from "./pages/DashboardV2";
 import DataManagement from "./pages/DataManagement";
 import CsvImport from "./pages/CsvImport";
 import UserProfile from "./pages/UserProfile";
+import CustomersV2 from "./pages/CustomersV2";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -20,7 +21,8 @@ function Router() {
       <Route path={"/auth"} component={Auth} />
       <Route path={"/onboarding"} component={Onboarding} />
       <Route path={"/profile"} component={UserProfile} />
-      <Route path={"/dashboard/:businessId"} component={Dashboard} />
+      <Route path={"/dashboard/:businessId"} component={DashboardV2} />
+      <Route path={"/customers/:businessId"} component={CustomersV2} />
       <Route path={"/data/:businessId"} component={DataManagement} />
       <Route path={"/import/:businessId"} component={CsvImport} />
       <Route path={"/404"} component={NotFound} />

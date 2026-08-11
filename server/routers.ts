@@ -5,6 +5,30 @@ import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
 import { TRPCError } from "@trpc/server";
+import { businessMetricsRouter } from "./routers/businessMetrics";
+import { verifyBusinessOwnership } from "./services/businessDataService";
+
+async function requireBusinessAccess(userId: number, businessId: number) {
+  try {
+    return await verifyBusinessOwnership(userId, businessId);
+  } catch {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "You do not have access to this business.",
+    });
+  }
+}
+
+async function requireRecordBusiness(
+  userId: number,
+  record: { businessId: number } | undefined
+) {
+  if (!record) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Record not found." });
+  }
+  await requireBusinessAccess(userId, record.businessId);
+  return record;
+}
 
 export const appRouter = router({
   system: systemRouter,
@@ -49,7 +73,8 @@ export const appRouter = router({
 
     get: protectedProcedure
       .input(z.object({ businessId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
+        await requireBusinessAccess(ctx.user.id, input.businessId);
         return await db.getBusinessById(input.businessId);
       }),
 
@@ -69,7 +94,8 @@ export const appRouter = router({
           }),
         })
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        await requireBusinessAccess(ctx.user.id, input.businessId);
         return await db.updateBusiness(input.businessId, input.data);
       }),
   }),
@@ -88,7 +114,8 @@ export const appRouter = router({
           priority: z.number().optional(),
         })
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        await requireBusinessAccess(ctx.user.id, input.businessId);
         return await db.createBusinessGoal(
           input.businessId,
           input.goal,
@@ -98,7 +125,8 @@ export const appRouter = router({
 
     list: protectedProcedure
       .input(z.object({ businessId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
+        await requireBusinessAccess(ctx.user.id, input.businessId);
         return await db.getBusinessGoals(input.businessId);
       }),
   }),
@@ -122,20 +150,23 @@ export const appRouter = router({
           notes: z.string().optional(),
         })
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        await requireBusinessAccess(ctx.user.id, input.businessId);
         return await db.createCustomer(input.businessId, input);
       }),
 
     list: protectedProcedure
       .input(z.object({ businessId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
+        await requireBusinessAccess(ctx.user.id, input.businessId);
         return await db.getCustomers(input.businessId);
       }),
 
     get: protectedProcedure
       .input(z.object({ customerId: z.number() }))
-      .query(async ({ input }) => {
-        return await db.getCustomerById(input.customerId);
+      .query(async ({ ctx, input }) => {
+        const customer = await db.getCustomerById(input.customerId);
+        return await requireRecordBusiness(ctx.user.id, customer);
       }),
 
     update: protectedProcedure
@@ -153,13 +184,17 @@ export const appRouter = router({
           }),
         })
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        const customer = await db.getCustomerById(input.customerId);
+        await requireRecordBusiness(ctx.user.id, customer);
         return await db.updateCustomer(input.customerId, input.data);
       }),
 
     delete: protectedProcedure
       .input(z.object({ customerId: z.number() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        const customer = await db.getCustomerById(input.customerId);
+        await requireRecordBusiness(ctx.user.id, customer);
         return await db.deleteCustomer(input.customerId);
       }),
   }),
@@ -182,20 +217,23 @@ export const appRouter = router({
           status: z.enum(["active", "inactive"]).optional(),
         })
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        await requireBusinessAccess(ctx.user.id, input.businessId);
         return await db.createProduct(input.businessId, input);
       }),
 
     list: protectedProcedure
       .input(z.object({ businessId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
+        await requireBusinessAccess(ctx.user.id, input.businessId);
         return await db.getProducts(input.businessId);
       }),
 
     get: protectedProcedure
       .input(z.object({ productId: z.number() }))
-      .query(async ({ input }) => {
-        return await db.getProductById(input.productId);
+      .query(async ({ ctx, input }) => {
+        const product = await db.getProductById(input.productId);
+        return await requireRecordBusiness(ctx.user.id, product);
       }),
 
     update: protectedProcedure
@@ -212,13 +250,17 @@ export const appRouter = router({
           }),
         })
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        const product = await db.getProductById(input.productId);
+        await requireRecordBusiness(ctx.user.id, product);
         return await db.updateProduct(input.productId, input.data);
       }),
 
     delete: protectedProcedure
       .input(z.object({ productId: z.number() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        const product = await db.getProductById(input.productId);
+        await requireRecordBusiness(ctx.user.id, product);
         return await db.deleteProduct(input.productId);
       }),
   }),
@@ -243,25 +285,30 @@ export const appRouter = router({
           source: z.string().optional(),
         })
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        await requireBusinessAccess(ctx.user.id, input.businessId);
         return await db.createTransaction(input.businessId, input);
       }),
 
     list: protectedProcedure
       .input(z.object({ businessId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
+        await requireBusinessAccess(ctx.user.id, input.businessId);
         return await db.getTransactions(input.businessId);
       }),
 
     get: protectedProcedure
       .input(z.object({ transactionId: z.number() }))
-      .query(async ({ input }) => {
-        return await db.getTransactionById(input.transactionId);
+      .query(async ({ ctx, input }) => {
+        const transaction = await db.getTransactionById(input.transactionId);
+        return await requireRecordBusiness(ctx.user.id, transaction);
       }),
 
     delete: protectedProcedure
       .input(z.object({ transactionId: z.number() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        const transaction = await db.getTransactionById(input.transactionId);
+        await requireRecordBusiness(ctx.user.id, transaction);
         return await db.deleteTransaction(input.transactionId);
       }),
   }),
@@ -284,25 +331,30 @@ export const appRouter = router({
           source: z.string().optional(),
         })
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        await requireBusinessAccess(ctx.user.id, input.businessId);
         return await db.createExpense(input.businessId, input);
       }),
 
     list: protectedProcedure
       .input(z.object({ businessId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
+        await requireBusinessAccess(ctx.user.id, input.businessId);
         return await db.getExpenses(input.businessId);
       }),
 
     get: protectedProcedure
       .input(z.object({ expenseId: z.number() }))
-      .query(async ({ input }) => {
-        return await db.getExpenseById(input.expenseId);
+      .query(async ({ ctx, input }) => {
+        const expense = await db.getExpenseById(input.expenseId);
+        return await requireRecordBusiness(ctx.user.id, expense);
       }),
 
     delete: protectedProcedure
       .input(z.object({ expenseId: z.number() }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        const expense = await db.getExpenseById(input.expenseId);
+        await requireRecordBusiness(ctx.user.id, expense);
         return await db.deleteExpense(input.expenseId);
       }),
   }),
@@ -315,7 +367,8 @@ export const appRouter = router({
   metrics: router({
     getBusinessMetrics: protectedProcedure
       .input(z.object({ businessId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
+        await requireBusinessAccess(ctx.user.id, input.businessId);
         return await db.getBusinessMetrics(input.businessId);
       }),
   }),
@@ -337,13 +390,15 @@ export const appRouter = router({
           source: z.string().optional(),
         })
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        await requireBusinessAccess(ctx.user.id, input.businessId);
         return await db.createBusinessEvent(input.businessId, input);
       }),
 
     list: protectedProcedure
       .input(z.object({ businessId: z.number(), limit: z.number().optional() }))
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
+        await requireBusinessAccess(ctx.user.id, input.businessId);
         return await db.getBusinessEvents(input.businessId, input.limit);
       }),
   }),
@@ -368,13 +423,15 @@ export const appRouter = router({
           risk: z.string().optional(),
         })
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        await requireBusinessAccess(ctx.user.id, input.businessId);
         return await db.createRecommendation(input.businessId, input);
       }),
 
     list: protectedProcedure
       .input(z.object({ businessId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
+        await requireBusinessAccess(ctx.user.id, input.businessId);
         return await db.getRecommendations(input.businessId);
       }),
   }),
@@ -400,13 +457,15 @@ export const appRouter = router({
           confidence: z.number().optional(),
         })
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        await requireBusinessAccess(ctx.user.id, input.businessId);
         return await db.createStrategy(input.businessId, input);
       }),
 
     list: protectedProcedure
       .input(z.object({ businessId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
+        await requireBusinessAccess(ctx.user.id, input.businessId);
         return await db.getStrategies(input.businessId);
       }),
   }),
@@ -431,16 +490,20 @@ export const appRouter = router({
           metadata: z.record(z.string(), z.any()).optional(),
         })
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        await requireBusinessAccess(ctx.user.id, input.businessId);
         return await db.createExternalDataSource(input.businessId, input);
       }),
 
     list: protectedProcedure
       .input(z.object({ businessId: z.number() }))
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
+        await requireBusinessAccess(ctx.user.id, input.businessId);
         return await db.getExternalDataSources(input.businessId);
       }),
   }),
+
+  businessMetrics: businessMetricsRouter,
 });
 
 export type AppRouter = typeof appRouter;
