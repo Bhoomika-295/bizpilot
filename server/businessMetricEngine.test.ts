@@ -12,6 +12,7 @@ vi.mock("./services/businessDataService", () => ({
 import {
   calculateBusinessHealthScore,
   calculateBusinessMetrics,
+  detectBusinessChanges,
 } from "./services/businessMetricEngine";
 import * as dataService from "./services/businessDataService";
 
@@ -133,6 +134,102 @@ describe("business metric engine", () => {
     expect(score.hasEnoughData).toBe(true);
     expect(score.score).toBe(30);
     expect(score.factors.some((factor) => factor.summary === "Revenue is declining.")).toBe(true);
+  });
+
+  it("detects meaningful internal changes from current and previous metric periods", () => {
+    const result = detectBusinessChanges({
+      revenue: {
+        value: 1200,
+        previousValue: 1000,
+        change: 200,
+        percentChange: 20,
+        hasData: true,
+        hasPreviousData: true,
+      },
+      expenses: {
+        value: 900,
+        previousValue: 1000,
+        change: -100,
+        percentChange: -10,
+        hasData: true,
+        hasPreviousData: true,
+      },
+      estimatedProfit: {
+        value: 300,
+        previousValue: 0,
+        change: 300,
+        percentChange: 0,
+        hasData: true,
+        hasPreviousData: false,
+      },
+      transactionCount: {
+        value: 12,
+        previousValue: 10,
+        change: 2,
+        percentChange: 20,
+        hasData: true,
+        hasPreviousData: true,
+      },
+      customers: {
+        total: 4,
+        active: 3,
+        inactive: 1,
+        previousActive: 2,
+        activeChange: 1,
+        activePercentChange: 50,
+        hasData: true,
+        hasPreviousData: true,
+      },
+      averageTransactionValue: 100,
+      lastUpdated: new Date("2026-01-31T00:00:00.000Z"),
+    });
+
+    expect(result.status).toBe("changes_detected");
+    expect(result.thresholdPercent).toBe(5);
+    expect(result.changes.map((change) => change.metric)).toEqual([
+      "revenue",
+      "expenses",
+      "transactionCount",
+      "customers",
+    ]);
+    expect(result.changes[0]).toMatchObject({
+      direction: "increase",
+      absoluteChange: 200,
+      percentChange: 20,
+    });
+  });
+
+  it("does not overstate small period movements", () => {
+    const result = detectBusinessChanges({
+      revenue: { value: 1040, previousValue: 1000, change: 40, percentChange: 4, hasData: true, hasPreviousData: true },
+      expenses: { value: 980, previousValue: 1000, change: -20, percentChange: -2, hasData: true, hasPreviousData: true },
+      estimatedProfit: { value: 60, previousValue: 0, change: 60, percentChange: 0, hasData: true, hasPreviousData: false },
+      transactionCount: { value: 10, previousValue: 10, change: 0, percentChange: 0, hasData: true, hasPreviousData: true },
+      customers: { total: 2, active: 2, inactive: 0, previousActive: 2, activeChange: 0, activePercentChange: 0, hasData: true, hasPreviousData: true },
+      averageTransactionValue: 104,
+      lastUpdated: new Date("2026-01-31T00:00:00.000Z"),
+    });
+
+    expect(result.status).toBe("no_significant_changes");
+    expect(result.changes).toEqual([]);
+  });
+
+  it("returns an honest insufficient-data state without a comparable baseline", () => {
+    const result = detectBusinessChanges({
+      revenue: { value: 1000, previousValue: 0, change: 1000, percentChange: 0, hasData: true, hasPreviousData: false },
+      expenses: { value: 200, previousValue: 0, change: 200, percentChange: 0, hasData: true, hasPreviousData: false },
+      estimatedProfit: { value: 800, previousValue: 0, change: 800, percentChange: 0, hasData: true, hasPreviousData: false },
+      transactionCount: { value: 5, previousValue: 0, change: 5, percentChange: 0, hasData: true, hasPreviousData: false },
+      customers: { total: 2, active: 2, inactive: 0, previousActive: 0, activeChange: 2, activePercentChange: 0, hasData: true, hasPreviousData: false },
+      averageTransactionValue: 200,
+      lastUpdated: new Date("2026-01-31T00:00:00.000Z"),
+    });
+
+    expect(result).toMatchObject({
+      status: "insufficient_data",
+      thresholdPercent: 5,
+      changes: [],
+    });
   });
 
   it("returns an honest insufficient-data state when no comparable records exist", async () => {

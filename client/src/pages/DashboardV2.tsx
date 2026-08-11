@@ -19,7 +19,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, TrendingUp, TrendingDown, AlertCircle, CheckCircle } from "lucide-react";
+import {
+  Loader2,
+  TrendingUp,
+  TrendingDown,
+  AlertCircle,
+  CheckCircle,
+  Minus,
+} from "lucide-react";
 import { useState } from "react";
 
 type PeriodType = "last30" | "previous30";
@@ -61,16 +68,30 @@ export default function DashboardV2() {
     { enabled: !!businessId && isAuthenticated }
   );
 
+  const changesQuery = trpc.businessMetrics.getChanges.useQuery(
+    {
+      businessId: parseInt(businessId || "0"),
+      periodStartDate,
+      periodEndDate,
+    },
+    { enabled: !!businessId && isAuthenticated }
+  );
+
   const isLoading =
     metricsQuery.isLoading ||
     healthScoreQuery.isLoading ||
-    freshnessQuery.isLoading;
+    freshnessQuery.isLoading ||
+    changesQuery.isLoading;
   const queryError =
-    metricsQuery.error || healthScoreQuery.error || freshnessQuery.error;
+    metricsQuery.error ||
+    healthScoreQuery.error ||
+    freshnessQuery.error ||
+    changesQuery.error;
   const isAccessError = [
     metricsQuery.error,
     healthScoreQuery.error,
     freshnessQuery.error,
+    changesQuery.error,
   ].some((error) => {
     const data = (error as { data?: { code?: string } } | null | undefined)?.data;
     return data?.code === "FORBIDDEN" || error?.message?.includes("access");
@@ -100,6 +121,7 @@ export default function DashboardV2() {
                   void metricsQuery.refetch();
                   void healthScoreQuery.refetch();
                   void freshnessQuery.refetch();
+                  void changesQuery.refetch();
                 }}
               >
                 Try again
@@ -124,6 +146,7 @@ export default function DashboardV2() {
   const metrics = metricsQuery.data;
   const healthScore = healthScoreQuery.data;
   const freshness = freshnessQuery.data;
+  const changes = changesQuery.data;
 
   return (
     <DashboardLayout>
@@ -357,44 +380,65 @@ export default function DashboardV2() {
           </div>
         )}
 
-        {/* Business Signals */}
-        {metrics && healthScore && (
+        {/* Internal Business Changes */}
+        {changes && (
           <Card>
-            <CardHeader>
-              <CardTitle>Internal Business Signals</CardTitle>
+            <CardHeader className="space-y-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <CardTitle>What Changed</CardTitle>
+                  <CardDescription className="mt-1">
+                    {changes.periodLabel}
+                  </CardDescription>
+                </div>
+                <Badge
+                  variant="outline"
+                  className="border-slate-300 bg-slate-50 text-slate-700"
+                >
+                  INTERNAL BUSINESS SIGNAL
+                </Badge>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                <SignalItem
-                  positive={metrics.revenue.percentChange > 0}
-                  text={
-                    metrics.revenue.percentChange > 0
-                      ? `Revenue increased by ${Math.abs(metrics.revenue.percentChange).toFixed(1)}%`
-                      : `Revenue decreased by ${Math.abs(metrics.revenue.percentChange).toFixed(1)}%`
-                  }
-                />
-                <SignalItem
-                  positive={metrics.transactionCount.percentChange > 0}
-                  text={
-                    metrics.transactionCount.percentChange > 0
-                      ? `Transaction volume increased by ${Math.abs(metrics.transactionCount.percentChange).toFixed(1)}%`
-                      : `Transaction volume decreased by ${Math.abs(metrics.transactionCount.percentChange).toFixed(1)}%`
-                  }
-                />
-                <SignalItem
-                  positive={metrics.expenses.percentChange < 0}
-                  text={
-                    metrics.expenses.percentChange < 0
-                      ? `Expenses decreased by ${Math.abs(metrics.expenses.percentChange).toFixed(1)}%`
-                      : `Expenses increased by ${Math.abs(metrics.expenses.percentChange).toFixed(1)}%`
-                  }
-                  attention={metrics.expenses.percentChange > metrics.revenue.percentChange}
-                />
-                <SignalItem
-                  positive={metrics.customers.active > metrics.customers.inactive}
-                  text={`${metrics.customers.active} active customers vs ${metrics.customers.inactive} inactive`}
-                />
-              </div>
+              {changes.status === "insufficient_data" ? (
+                <Alert className="border-slate-200 bg-slate-50">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Not enough historical data to detect changes. Add records in comparable periods to establish a baseline.
+                  </AlertDescription>
+                </Alert>
+              ) : changes.status === "no_significant_changes" ? (
+                <Alert className="border-slate-200 bg-white">
+                  <Minus className="h-4 w-4" />
+                  <AlertDescription>No significant changes detected.</AlertDescription>
+                </Alert>
+              ) : (
+                <div className="space-y-2">
+                  {changes.changes.map((change) => {
+                    const isIncrease = change.direction === "increase";
+                    const Icon = isIncrease ? TrendingUp : TrendingDown;
+                    return (
+                      <div
+                        key={change.metric}
+                        className="flex items-start gap-3 rounded-md border border-slate-200 bg-white px-3 py-3"
+                      >
+                        <Icon
+                          className={`mt-0.5 h-4 w-4 ${isIncrease ? "text-emerald-600" : "text-amber-600"}`}
+                          aria-hidden="true"
+                        />
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">
+                            {change.label}
+                          </p>
+                          <p className="mt-1 text-sm text-slate-600">
+                            {change.summary}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         )}

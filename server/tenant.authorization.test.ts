@@ -63,6 +63,21 @@ describe("tenant authorization", () => {
     });
   });
 
+  it("rejects internal change access to a business the user does not own", async () => {
+    const caller = appRouter.createCaller(createContext());
+
+    await expect(
+      caller.businessMetrics.getChanges({
+        businessId: 999999999,
+        periodStartDate: new Date("2026-01-01T00:00:00.000Z"),
+        periodEndDate: new Date("2026-01-31T00:00:00.000Z"),
+      })
+    ).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: "You do not have access to this business.",
+    });
+  });
+
   it("does not expose missing records through record-scoped routes", async () => {
     const caller = appRouter.createCaller(createContext());
 

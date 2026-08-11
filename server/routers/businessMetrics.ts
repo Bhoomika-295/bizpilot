@@ -4,6 +4,7 @@ import { protectedProcedure, router } from "../_core/trpc";
 import {
   calculateBusinessMetrics,
   calculateBusinessHealthScore,
+  detectBusinessChanges,
   getDataFreshness,
 } from "../services/businessMetricEngine";
 import {
@@ -77,6 +78,29 @@ export const businessMetricsRouter = router({
       );
 
       return healthScore;
+    }),
+
+  /**
+   * Detect meaningful internal changes from the current and previous comparable periods.
+   */
+  getChanges: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+        periodStartDate: z.date(),
+        periodEndDate: z.date(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+
+      const metrics = await calculateBusinessMetrics(
+        input.businessId,
+        input.periodStartDate,
+        input.periodEndDate
+      );
+
+      return detectBusinessChanges(metrics);
     }),
 
   /**

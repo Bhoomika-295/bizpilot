@@ -130,3 +130,24 @@
 - [x] Use existing deterministic unit tests, real persistence tests, and tenant-authorization test suite as the verification evidence
 - [x] Document authenticated visual verification as environment-limited due to required browser sign-in
 - [x] Make no further implementation or feature changes
+
+## Day 5: Business Change Detection
+- [x] Inspect and reuse existing metric, freshness, dashboard, and authorization services
+- [x] Implement one reusable internal change-detection calculation outside React
+- [x] Compare current period with previous comparable period using existing business metrics
+- [x] Use an easy-to-change meaningful-change threshold and avoid hardcoded statements
+- [x] Add compact What Changed section to the existing dashboard
+- [x] Label the section as Internal Business Signal and distinguish it from external market signals
+- [x] Handle insufficient historical data and no-significant-change states honestly
+- [x] Verify a stored transaction update changes the detected internal signal through a persistence-backed protected getChanges integration test
+- [x] Test metric alignment, no-change behavior, insufficient data, and tenant authorization
+- [x] Run type checks, full tests, production build, and document visual verification as environment-limited
+- [x] Save the Day 5 checkpoint and stop without starting Day 6
+
+### Day 5 Verification Follow-up
+- [x] Document that an owned-dashboard screenshot with persisted business data is environment-limited because the current preview route has no owned business data
+
+### Day 5 Verification Follow-up
+- [x] Document that What Changed could not be captured on an owned dashboard because the current preview route has no owned business data; authenticated visual state remains environment-limited
+- [x] Add an integration or endpoint-level test proving persisted transaction changes alter the protected getChanges output
+- [x] Obtain explicit approval to treat Day 5 owned-dashboard visual verification as environment-limited if no owned preview business is available

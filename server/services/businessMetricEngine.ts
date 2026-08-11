@@ -33,10 +33,37 @@ export interface BusinessMetrics {
     total: number;
     active: number;
     inactive: number;
+    previousActive: number;
+    activeChange: number;
+    activePercentChange: number;
     hasData: boolean;
+    hasPreviousData: boolean;
   };
   averageTransactionValue: number;
   lastUpdated: Date;
+}
+
+export const BUSINESS_CHANGE_THRESHOLD_PERCENT = 5;
+
+export type BusinessChangeStatus =
+  | "changes_detected"
+  | "no_significant_changes"
+  | "insufficient_data";
+
+export interface BusinessChange {
+  metric: "revenue" | "expenses" | "transactionCount" | "customers";
+  label: string;
+  direction: "increase" | "decrease";
+  percentChange: number;
+  absoluteChange: number;
+  summary: string;
+}
+
+export interface BusinessChangeDetection {
+  status: BusinessChangeStatus;
+  thresholdPercent: number;
+  changes: BusinessChange[];
+  periodLabel: string;
 }
 
 export type HealthScoreDataBasis = "demo" | "real";
@@ -142,10 +169,21 @@ export async function calculateBusinessMetrics(
       .filter((id) => id !== null)
   );
   const activeCustomers = activeCustomerIds.size;
+  const previousActiveCustomerIds = new Set(
+    previousTransactions
+      .map((t) => t.customerId)
+      .filter((id) => id !== null)
+  );
+  const previousActiveCustomers = previousActiveCustomerIds.size;
   const inactiveCustomers = Math.max(
     0,
     allCustomers.length - activeCustomers
   );
+  const activeCustomerChange = activeCustomers - previousActiveCustomers;
+  const activeCustomerPercentChange =
+    previousActiveCustomers > 0
+      ? (activeCustomerChange / previousActiveCustomers) * 100
+      : 0;
 
   return {
     revenue: {
@@ -184,10 +222,102 @@ export async function calculateBusinessMetrics(
       total: allCustomers.length,
       active: activeCustomers,
       inactive: inactiveCustomers,
+      previousActive: previousActiveCustomers,
+      activeChange: activeCustomerChange,
+      activePercentChange: activeCustomerPercentChange,
       hasData: allCustomers.length > 0,
+      hasPreviousData: previousTransactions.length > 0,
     },
     averageTransactionValue,
     lastUpdated: new Date(),
+  };
+}
+
+/**
+ * Identify meaningful internal changes from the current and previous comparable periods.
+ * This intentionally uses the existing metric engine output and never external data.
+ */
+export function detectBusinessChanges(
+  metrics: BusinessMetrics,
+  thresholdPercent = BUSINESS_CHANGE_THRESHOLD_PERCENT
+): BusinessChangeDetection {
+  const candidates = [
+    {
+      metric: "revenue" as const,
+      label: "Revenue",
+      currentValue: metrics.revenue.value,
+      previousValue: metrics.revenue.previousValue,
+      percentChange: metrics.revenue.percentChange,
+      hasData: metrics.revenue.hasData,
+      hasPreviousData: metrics.revenue.hasPreviousData,
+    },
+    {
+      metric: "expenses" as const,
+      label: "Expenses",
+      currentValue: metrics.expenses.value,
+      previousValue: metrics.expenses.previousValue,
+      percentChange: metrics.expenses.percentChange,
+      hasData: metrics.expenses.hasData,
+      hasPreviousData: metrics.expenses.hasPreviousData,
+    },
+    {
+      metric: "transactionCount" as const,
+      label: "Transaction volume",
+      currentValue: metrics.transactionCount.value,
+      previousValue: metrics.transactionCount.previousValue,
+      percentChange: metrics.transactionCount.percentChange,
+      hasData: metrics.transactionCount.hasData,
+      hasPreviousData: metrics.transactionCount.hasPreviousData,
+    },
+    {
+      metric: "customers" as const,
+      label: "Customer activity",
+      currentValue: metrics.customers.active,
+      previousValue: metrics.customers.previousActive,
+      percentChange: metrics.customers.activePercentChange,
+      hasData: metrics.customers.hasData,
+      hasPreviousData: metrics.customers.hasPreviousData,
+    },
+  ];
+
+  const comparableCandidates = candidates.filter(
+    (candidate) =>
+      candidate.hasData &&
+      candidate.hasPreviousData &&
+      candidate.previousValue > 0
+  );
+
+  if (comparableCandidates.length === 0) {
+    return {
+      status: "insufficient_data",
+      thresholdPercent,
+      changes: [],
+      periodLabel: "Current period vs previous comparable period",
+    };
+  }
+
+  const changes = comparableCandidates
+    .filter(
+      (candidate) => Math.abs(candidate.percentChange) >= thresholdPercent
+    )
+    .map((candidate) => {
+      const direction = candidate.percentChange >= 0 ? "increase" : "decrease";
+      const absoluteChange = candidate.currentValue - candidate.previousValue;
+      return {
+        metric: candidate.metric,
+        label: candidate.label,
+        direction,
+        percentChange: candidate.percentChange,
+        absoluteChange,
+        summary: `${candidate.label} ${direction === "increase" ? "increased" : "decreased"} ${Math.abs(candidate.percentChange).toFixed(1)}% compared with the previous period.`,
+      } satisfies BusinessChange;
+    });
+
+  return {
+    status: changes.length > 0 ? "changes_detected" : "no_significant_changes",
+    thresholdPercent,
+    changes,
+    periodLabel: "Current period vs previous comparable period",
   };
 }
 
