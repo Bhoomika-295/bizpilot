@@ -109,12 +109,24 @@
 - [x] Verify a new transaction changes the latest timestamp after refresh
 - [x] Test no-data and old-data states
 - [x] Test tenant isolation and absence of exposed secrets
-- [x] Run type checks, unit tests, production build, and visual verification
+- [x] Run type checks, unit tests, and production build; document visual verification as environment-limited
 - [ ] Save the Day 4 checkpoint and stop without starting Day 5
 
 ### Day 4 Verification Follow-up
-- [ ] Add an integration or verified database flow proving a real transaction update changes the persisted freshness timestamp
+- [x] Add an integration or verified database flow proving a real transaction update changes the persisted freshness timestamp
 - [x] Perform and document a Day 4 secret-exposure audit for the freshness feature
-- [ ] Capture a dashboard screenshot on a valid owned business route and verify the Data Status card renders
+- [x] Document authenticated dashboard visual verification as environment-limited; rely on deterministic, persistence, and tenant-authorization tests as the Day 4 evidence
 - [x] Document that the preview database has no owned business and that no test data was inserted solely for visual verification
 - [x] Show a clear access/error state instead of an indefinite spinner when dashboard data queries are forbidden or fail
+
+### Day 4 Authenticated Verification Follow-up
+- [x] Do not authenticate or use browser takeover; the user selected the no-login alternative
+- [x] Use deterministic, persistence, and tenant-authorization tests instead of an authenticated dashboard session
+- [x] Use the persistence integration test as evidence that an updated business record changes Last updated
+- [x] Retain and document no-business and no-data coverage through existing tests and the security audit
+- [ ] Save the final Day 4 checkpoint and stop
+
+### Day 4 Verification Conclusion
+- [x] Use existing deterministic unit tests, real persistence tests, and tenant-authorization test suite as the verification evidence
+- [x] Document authenticated visual verification as environment-limited due to required browser sign-in
+- [x] Make no further implementation or feature changes
