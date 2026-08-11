@@ -60,6 +60,61 @@ export async function getUserBusinesses(userId: number): Promise<Business[]> {
     .where(eq(businesses.userId, userId));
 }
 
+const DEMO_SOURCES = new Set(["demo", "sample", "seed"]);
+
+/**
+ * Resolve the trust label for a business dataset. The explicit business flag
+ * wins, while the source fallback keeps legacy seeded workspaces honest.
+ */
+export function inferDataBasisFromSources(
+  businessIsDemo: boolean | null | undefined,
+  sources: Array<string | null | undefined>
+): "demo" | "real" {
+  if (businessIsDemo) return "demo";
+
+  const normalizedSources = sources
+    .filter((source): source is string => Boolean(source))
+    .map((source) => source.trim().toLowerCase());
+
+  if (
+    normalizedSources.length > 0 &&
+    normalizedSources.every((source) => DEMO_SOURCES.has(source))
+  ) {
+    return "demo";
+  }
+
+  return "real";
+}
+
+/**
+ * Resolve demo/real status for an authorized business using the business flag
+ * and persisted transaction/expense provenance.
+ */
+export async function getBusinessDataBasis(
+  business: Business
+): Promise<"demo" | "real"> {
+  if (business.isDemo) return "demo";
+
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const [transactionSources, expenseSources] = await Promise.all([
+    db
+      .select({ source: transactions.source })
+      .from(transactions)
+      .where(eq(transactions.businessId, business.id)),
+    db
+      .select({ source: expenses.source })
+      .from(expenses)
+      .where(eq(expenses.businessId, business.id)),
+  ]);
+
+  return inferDataBasisFromSources(business.isDemo, [
+    ...transactionSources.map((row) => row.source),
+    ...expenseSources.map((row) => row.source),
+  ]);
+}
+
 /**
  * ============================================================
  * TRANSACTION DATA ACCESS

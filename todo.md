@@ -83,3 +83,19 @@
 - [x] List environment variables
 - [x] Document current limitations
 - [x] Create API documentation for tRPC procedures
+
+## Day 3: Business Health Score
+- [x] Inspect and reuse the existing backend health-score service and dashboard integration
+- [x] Ensure the score is a real 0–100 calculation from stored revenue, expense, transaction, and customer signals
+- [x] Ensure missing or insufficient data returns an honest “Not enough data” state
+- [x] Ensure the score explanation is generated from actual score factors
+- [x] Ensure the score is labeled “BizPilot Business Health Score” and identifies demo versus real business data
+- [x] Verify the score endpoint requires authentication and enforces logged-in business ownership
+- [x] Verify the dashboard displays the score without moving the formula into React
+- [x] Add or update unit tests for score calculation, data changes, insufficient data, and authorization
+- [x] Run type checks, tests, production build, and dashboard visual verification
+- [ ] Save the Day 3 checkpoint and stop without starting Day 4
+
+### Day 3 Trust Label Follow-up
+- [x] Derive demo status from existing seeded demo-source records when a business flag is missing
+- [x] Add unit coverage for demo versus real health-score data basis

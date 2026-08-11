@@ -113,6 +113,7 @@ export default function Onboarding() {
         numberOfEmployees: formData.numberOfEmployees
           ? parseInt(formData.numberOfEmployees)
           : undefined,
+        isDemo: true,
       });
 
       const businessId = (businessResult as any).insertId;

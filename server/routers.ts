@@ -60,6 +60,7 @@ export const appRouter = router({
           currency: z.string().optional(),
           businessSize: z.string().optional(),
           numberOfEmployees: z.number().optional(),
+          isDemo: z.boolean().optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {

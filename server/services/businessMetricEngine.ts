@@ -20,6 +20,7 @@ export interface MetricResult {
   change: number;
   percentChange: number;
   hasData: boolean;
+  hasPreviousData: boolean;
 }
 
 export interface BusinessMetrics {
@@ -37,12 +38,23 @@ export interface BusinessMetrics {
   lastUpdated: Date;
 }
 
+export type HealthScoreDataBasis = "demo" | "real";
+
+export interface HealthScoreFactor {
+  name: string;
+  points: number;
+  maxPoints: number;
+  summary: string;
+}
+
 export interface BusinessHealthScore {
-  score: number;
+  score: number | null;
   maxScore: number;
-  percentage: number;
+  percentage: number | null;
   explanation: string;
   hasEnoughData: boolean;
+  dataBasis: HealthScoreDataBasis;
+  factors: HealthScoreFactor[];
 }
 
 /**
@@ -141,6 +153,7 @@ export async function calculateBusinessMetrics(
       change: revenueChange,
       percentChange: revenuePercentChange,
       hasData: currentTransactions.length > 0,
+      hasPreviousData: previousTransactions.length > 0,
     },
     expenses: {
       value: currentExpenses_total,
@@ -148,6 +161,7 @@ export async function calculateBusinessMetrics(
       change: expenseChange,
       percentChange: expensePercentChange,
       hasData: currentExpenses.length > 0,
+      hasPreviousData: previousExpenses.length > 0,
     },
     estimatedProfit: {
       value: estimatedProfit,
@@ -155,6 +169,7 @@ export async function calculateBusinessMetrics(
       change: profitChange,
       percentChange: profitPercentChange,
       hasData: currentTransactions.length > 0 || currentExpenses.length > 0,
+      hasPreviousData: previousTransactions.length > 0 || previousExpenses.length > 0,
     },
     transactionCount: {
       value: currentTransactions.length,
@@ -162,6 +177,7 @@ export async function calculateBusinessMetrics(
       change: transactionCountChange,
       percentChange: transactionPercentChange,
       hasData: currentTransactions.length > 0,
+      hasPreviousData: previousTransactions.length > 0,
     },
     customers: {
       total: allCustomers.length,
@@ -189,7 +205,8 @@ export async function calculateBusinessMetrics(
 export async function calculateBusinessHealthScore(
   businessId: number,
   periodStartDate: Date,
-  periodEndDate: Date
+  periodEndDate: Date,
+  dataBasis: HealthScoreDataBasis = "real"
 ): Promise<BusinessHealthScore> {
   const metrics = await calculateBusinessMetrics(
     businessId,
@@ -197,112 +214,84 @@ export async function calculateBusinessHealthScore(
     periodEndDate
   );
 
-  // Check if we have enough data
-  const totalDataPoints =
-    (metrics.revenue.hasData ? 1 : 0) +
-    (metrics.expenses.hasData ? 1 : 0) +
-    (metrics.customers.hasData ? 1 : 0) +
-    (metrics.transactionCount.hasData ? 1 : 0);
+  // A trend is only meaningful when both periods contain the relevant data.
+  // This prevents a missing previous period from being treated as "stable".
+  const factors: HealthScoreFactor[] = [];
 
-  if (totalDataPoints === 0) {
+  if (metrics.revenue.hasData && metrics.revenue.hasPreviousData) {
+    const points = pointsForRevenueTrend(metrics.revenue.percentChange);
+    factors.push({
+      name: "Revenue trend",
+      points,
+      maxPoints: 25,
+      summary: revenueSummary(metrics.revenue.percentChange),
+    });
+  }
+
+  if (metrics.expenses.hasData && metrics.expenses.hasPreviousData) {
+    const points = pointsForExpenseTrend(metrics.expenses.percentChange);
+    factors.push({
+      name: "Expense trend",
+      points,
+      maxPoints: 25,
+      summary: expenseSummary(metrics.expenses.percentChange),
+    });
+  }
+
+  if (metrics.customers.hasData && metrics.customers.active > 0) {
+    const activeRatio = metrics.customers.active / metrics.customers.total;
+    const points = pointsForCustomerActivity(activeRatio);
+    factors.push({
+      name: "Customer activity",
+      points,
+      maxPoints: 25,
+      summary: customerSummary(activeRatio),
+    });
+  }
+
+  if (
+    metrics.transactionCount.hasData &&
+    metrics.transactionCount.hasPreviousData
+  ) {
+    const points = pointsForTransactionTrend(
+      metrics.transactionCount.percentChange
+    );
+    factors.push({
+      name: "Transaction trend",
+      points,
+      maxPoints: 25,
+      summary: transactionSummary(metrics.transactionCount.percentChange),
+    });
+  }
+
+  const hasEnoughData = factors.length >= 2;
+  if (!hasEnoughData) {
     return {
-      score: 0,
+      score: null,
       maxScore: 100,
-      percentage: 0,
+      percentage: null,
       explanation:
-        "Not enough data yet. Add transactions and expenses to generate a reliable health score.",
+        "Not enough data. Add records across at least two comparable business signals to calculate a meaningful score.",
       hasEnoughData: false,
+      dataBasis,
+      factors,
     };
   }
 
-  let score = 0;
-  const factors: string[] = [];
-
-  // Revenue trend (0-25 points)
-  if (metrics.revenue.hasData) {
-    if (metrics.revenue.percentChange > 10) {
-      score += 25;
-      factors.push("Revenue is increasing strongly");
-    } else if (metrics.revenue.percentChange > 0) {
-      score += 20;
-      factors.push("Revenue is improving");
-    } else if (metrics.revenue.percentChange > -10) {
-      score += 10;
-      factors.push("Revenue is stable");
-    } else {
-      score += 5;
-      factors.push("Revenue is declining");
-    }
-  }
-
-  // Expense trend (0-25 points)
-  // Lower expenses or controlled growth is better
-  if (metrics.expenses.hasData) {
-    if (metrics.expenses.percentChange < -5) {
-      score += 25;
-      factors.push("Expenses are decreasing");
-    } else if (metrics.expenses.percentChange < 5) {
-      score += 20;
-      factors.push("Expenses are well-controlled");
-    } else if (metrics.expenses.percentChange < 15) {
-      score += 10;
-      factors.push("Expenses are growing");
-    } else {
-      score += 5;
-      factors.push("Expenses are growing rapidly");
-    }
-  }
-
-  // Customer activity (0-25 points)
-  if (metrics.customers.hasData) {
-    const activeRatio =
-      metrics.customers.total > 0
-        ? metrics.customers.active / metrics.customers.total
-        : 0;
-
-    if (activeRatio > 0.7) {
-      score += 25;
-      factors.push("Customer activity is strong");
-    } else if (activeRatio > 0.5) {
-      score += 20;
-      factors.push("Customer activity is good");
-    } else if (activeRatio > 0.3) {
-      score += 10;
-      factors.push("Customer activity is moderate");
-    } else {
-      score += 5;
-      factors.push("Customer activity is low");
-    }
-  }
-
-  // Transaction activity (0-25 points)
-  if (metrics.transactionCount.hasData) {
-    if (metrics.transactionCount.percentChange > 15) {
-      score += 25;
-      factors.push("Transaction volume is increasing");
-    } else if (metrics.transactionCount.percentChange > 0) {
-      score += 20;
-      factors.push("Transaction volume is growing");
-    } else if (metrics.transactionCount.percentChange > -10) {
-      score += 10;
-      factors.push("Transaction volume is stable");
-    } else {
-      score += 5;
-      factors.push("Transaction volume is declining");
-    }
-  }
-
-  // Normalize score based on data points available
-  const normalizedScore = Math.round(
-    (score / (totalDataPoints * 25)) * 100
+  const score = Math.round(
+    (factors.reduce((total, factor) => total + factor.points, 0) /
+      (factors.length * 25)) *
+      100
   );
 
   return {
-    score: normalizedScore,
+    score,
     maxScore: 100,
-    percentage: normalizedScore,
-    explanation: generateHealthExplanation(factors, metrics),
-    hasEnoughData: totalDataPoints >= 2,
+    percentage: score,
+    explanation: generateHealthExplanation(factors, score),
+    hasEnoughData: true,
+    dataBasis,
+    factors,
   };
 }
 
@@ -326,29 +315,74 @@ function sumExpenseAmounts(expenses: any[]): number {
   }, 0);
 }
 
-/**
- * Generate human-readable health explanation
- */
+function pointsForRevenueTrend(percentChange: number): number {
+  if (percentChange > 10) return 25;
+  if (percentChange > 0) return 20;
+  if (percentChange > -10) return 10;
+  return 5;
+}
+
+function pointsForExpenseTrend(percentChange: number): number {
+  if (percentChange < -5) return 25;
+  if (percentChange < 5) return 20;
+  if (percentChange < 15) return 10;
+  return 5;
+}
+
+function pointsForCustomerActivity(activeRatio: number): number {
+  if (activeRatio > 0.7) return 25;
+  if (activeRatio > 0.5) return 20;
+  if (activeRatio > 0.3) return 10;
+  return 5;
+}
+
+function pointsForTransactionTrend(percentChange: number): number {
+  if (percentChange > 15) return 25;
+  if (percentChange > 0) return 20;
+  if (percentChange > -10) return 10;
+  return 5;
+}
+
+function revenueSummary(percentChange: number): string {
+  if (percentChange > 10) return "Revenue is increasing strongly.";
+  if (percentChange > 0) return "Revenue is improving.";
+  if (percentChange > -10) return "Revenue is stable.";
+  return "Revenue is declining.";
+}
+
+function expenseSummary(percentChange: number): string {
+  if (percentChange < -5) return "Expenses are decreasing.";
+  if (percentChange < 5) return "Expenses are well controlled.";
+  if (percentChange < 15) return "Expenses are growing.";
+  return "Expenses are growing rapidly.";
+}
+
+function customerSummary(activeRatio: number): string {
+  if (activeRatio > 0.7) return "Customer activity is strong.";
+  if (activeRatio > 0.5) return "Customer activity is good.";
+  if (activeRatio > 0.3) return "Customer activity is moderate.";
+  return "Customer activity is low.";
+}
+
+function transactionSummary(percentChange: number): string {
+  if (percentChange > 15) return "Transaction volume is increasing.";
+  if (percentChange > 0) return "Transaction volume is growing.";
+  if (percentChange > -10) return "Transaction volume is stable.";
+  return "Transaction volume is declining.";
+}
+
+/** Generate an explanation from the calculated score factors. */
 function generateHealthExplanation(
-  factors: string[],
-  metrics: BusinessMetrics
+  factors: HealthScoreFactor[],
+  score: number
 ): string {
-  if (factors.length === 0) {
-    return "Not enough data to assess health.";
-  }
+  const status = score >= 70 ? "improving" : score >= 50 ? "stable" : "needs attention";
+  const summaries = factors
+    .slice(0, 2)
+    .map((factor) => factor.summary)
+    .join(" ");
 
-  const mainFactor = factors[0];
-  const additionalFactors = factors.slice(1, 2);
-
-  let explanation = `Health is ${
-    metrics.revenue.percentChange > 5 ? "improving" : "stable"
-  }. ${mainFactor}.`;
-
-  if (additionalFactors.length > 0) {
-    explanation += ` ${additionalFactors[0]}.`;
-  }
-
-  return explanation;
+  return `Business health is ${status}. ${summaries}`;
 }
 
 /**

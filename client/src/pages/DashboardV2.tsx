@@ -2,7 +2,13 @@ import { useParams } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -97,15 +103,34 @@ export default function DashboardV2() {
 
         {/* Business Health Score */}
         {healthScore && (
-          <Card className="bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-green-600" />
-                Business Health
-              </CardTitle>
+          <Card className="border-slate-200 bg-slate-50">
+            <CardHeader className="space-y-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <CardTitle className="flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-slate-700" />
+                  BizPilot Business Health Score
+                </CardTitle>
+                <Badge
+                  variant="outline"
+                  className={
+                    healthScore.dataBasis === "demo"
+                      ? "border-amber-300 bg-amber-50 text-amber-800"
+                      : "border-emerald-300 bg-emerald-50 text-emerald-800"
+                  }
+                >
+                  {healthScore.dataBasis === "demo"
+                    ? "DEMO DATA"
+                    : "REAL BUSINESS DATA"}
+                </Badge>
+              </div>
+              <CardDescription>
+                A transparent 0–100 indicator based on stored business signals. It is not a scientifically predictive measure.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {healthScore.hasEnoughData ? (
+            <CardContent className="space-y-5">
+              {healthScore.hasEnoughData &&
+              healthScore.score !== null &&
+              healthScore.percentage !== null ? (
                 <>
                   <div className="flex items-baseline gap-4">
                     <div className="text-5xl font-bold text-slate-900">
@@ -116,18 +141,34 @@ export default function DashboardV2() {
                   <p className="text-slate-700 leading-relaxed">
                     {healthScore.explanation}
                   </p>
-                  <div className="w-full bg-slate-200 rounded-full h-2">
+                  <div className="w-full bg-slate-200 rounded-full h-2" aria-label={`Health score ${healthScore.score} out of 100`}>
                     <div
-                      className="bg-gradient-to-r from-green-500 to-green-600 h-2 rounded-full"
+                      className="bg-slate-800 h-2 rounded-full transition-[width] duration-200"
                       style={{ width: `${healthScore.percentage}%` }}
                     />
                   </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {healthScore.factors.map((factor) => (
+                      <div
+                        key={factor.name}
+                        className="rounded-md border border-slate-200 bg-white px-3 py-2"
+                      >
+                        <div className="flex items-center justify-between gap-3 text-sm">
+                          <span className="font-medium text-slate-800">{factor.name}</span>
+                          <span className="text-slate-500">
+                            {factor.points}/{factor.maxPoints}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-slate-600">{factor.summary}</p>
+                      </div>
+                    ))}
+                  </div>
                 </>
               ) : (
-                <Alert>
+                <Alert className="border-slate-200 bg-white">
                   <AlertCircle className="w-4 h-4" />
                   <AlertDescription>
-                    {healthScore.explanation}
+                    <strong>Not enough data.</strong> {healthScore.explanation}
                   </AlertDescription>
                 </Alert>
               )}

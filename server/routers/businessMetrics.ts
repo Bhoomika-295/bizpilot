@@ -1,11 +1,15 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { protectedProcedure, router } from "../_core/trpc";
 import {
   calculateBusinessMetrics,
   calculateBusinessHealthScore,
   getDataFreshness,
 } from "../services/businessMetricEngine";
-import { verifyBusinessOwnership } from "../services/businessDataService";
+import {
+  getBusinessDataBasis,
+  verifyBusinessOwnership,
+} from "../services/businessDataService";
 
 /**
  * Business Metrics Router
@@ -13,6 +17,17 @@ import { verifyBusinessOwnership } from "../services/businessDataService";
  * Provides endpoints for calculating and retrieving business metrics.
  * All endpoints verify business ownership before returning data.
  */
+
+async function requireMetricsBusinessAccess(userId: number, businessId: number) {
+  try {
+    return await verifyBusinessOwnership(userId, businessId);
+  } catch {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "You do not have access to this business.",
+    });
+  }
+}
 
 export const businessMetricsRouter = router({
   /**
@@ -28,7 +43,7 @@ export const businessMetricsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       // Verify ownership
-      await verifyBusinessOwnership(ctx.user.id, input.businessId);
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
 
       const metrics = await calculateBusinessMetrics(
         input.businessId,
@@ -51,13 +66,14 @@ export const businessMetricsRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      // Verify ownership
-      await verifyBusinessOwnership(ctx.user.id, input.businessId);
+      const business = await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      const dataBasis = await getBusinessDataBasis(business);
 
       const healthScore = await calculateBusinessHealthScore(
         input.businessId,
         input.periodStartDate,
-        input.periodEndDate
+        input.periodEndDate,
+        dataBasis
       );
 
       return healthScore;
@@ -74,7 +90,7 @@ export const businessMetricsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       // Verify ownership
-      await verifyBusinessOwnership(ctx.user.id, input.businessId);
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
 
       const freshness = await getDataFreshness(input.businessId);
 
@@ -92,8 +108,8 @@ export const businessMetricsRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      // Verify ownership
-      await verifyBusinessOwnership(ctx.user.id, input.businessId);
+      const business = await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      const dataBasis = await getBusinessDataBasis(business);
 
       const now = new Date();
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -102,7 +118,12 @@ export const businessMetricsRouter = router({
       const [currentMetrics, previousMetrics, healthScore] = await Promise.all([
         calculateBusinessMetrics(input.businessId, thirtyDaysAgo, now),
         calculateBusinessMetrics(input.businessId, sixtyDaysAgo, thirtyDaysAgo),
-        calculateBusinessHealthScore(input.businessId, thirtyDaysAgo, now),
+        calculateBusinessHealthScore(
+          input.businessId,
+          thirtyDaysAgo,
+          now,
+          dataBasis
+        ),
       ]);
 
       return {
