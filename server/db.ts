@@ -1009,3 +1009,67 @@ export async function updateRecommendationOutcome(
     })
     .where(eq(recommendations.id, recommendationId));
 }
+
+import { businessSituations, type InsertBusinessSituation } from "../drizzle/schema";
+
+export async function getBusinessSituations(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(businessSituations)
+    .where(eq(businessSituations.businessId, businessId))
+    .orderBy(desc(businessSituations.updatedAt));
+}
+
+export async function getBusinessSituationById(situationId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const res = await db.select().from(businessSituations).where(eq(businessSituations.id, situationId));
+  return res[0] || null;
+}
+
+export async function upsertBusinessSituation(data: InsertBusinessSituation) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Check if active situation with same title & category already exists for business
+  const existing = await db
+    .select()
+    .from(businessSituations)
+    .where(eq(businessSituations.businessId, data.businessId));
+  const match = existing.find(
+    (s) => s.title === data.title && s.category === data.category && (s.status === "ACTIVE" || s.status === "MONITORING")
+  );
+
+  if (match) {
+    await db
+      .update(businessSituations)
+      .set({
+        summary: data.summary,
+        priority: data.priority,
+        supportingSignalsJson: data.supportingSignalsJson,
+        supportingCount: data.supportingCount,
+        freshnessInfo: data.freshnessInfo,
+        updatedAt: new Date(),
+      })
+      .where(eq(businessSituations.id, match.id));
+    return match.id;
+  }
+
+  const result = await db.insert(businessSituations).values(data);
+  return Number(result[0].insertId);
+}
+
+export async function updateBusinessSituationStatus(
+  situationId: number,
+  status: "ACTIVE" | "MONITORING" | "RESOLVED"
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return await db
+    .update(businessSituations)
+    .set({ status, updatedAt: new Date() })
+    .where(eq(businessSituations.id, situationId));
+}

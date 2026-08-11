@@ -474,3 +474,32 @@ export const marketSignals = mysqlTable(
 
 export type MarketSignal = typeof marketSignals.$inferSelect;
 export type InsertMarketSignal = typeof marketSignals.$inferInsert;
+
+/**
+ * Business Situations — groups related internal changes and external market signals
+ * into coherent operating situations (Growth, Decline, Cost Pressure, Competitive Pressure, Mixed Signals, etc.).
+ */
+export const businessSituations = mysqlTable(
+  "businessSituations",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    summary: text("summary").notNull(),
+    priority: varchar("priority", { length: 50 }).notNull().default("MEDIUM"), // LOW, MEDIUM, HIGH
+    status: varchar("status", { length: 50 }).notNull().default("ACTIVE"), // ACTIVE, MONITORING, RESOLVED
+    category: varchar("category", { length: 100 }).notNull().default("Stable"), // Growth, Decline, Cost Pressure, Competitive Pressure, Mixed Signals, etc.
+    supportingSignalsJson: text("supportingSignalsJson").notNull(), // JSON array of internal/external evidence items
+    supportingCount: int("supportingCount").notNull().default(0),
+    freshnessInfo: varchar("freshnessInfo", { length: 255 }),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("businessId_idx").on(table.businessId),
+    statusIdx: index("status_idx").on(table.status),
+  })
+);
+
+export type BusinessSituation = typeof businessSituations.$inferSelect;
+export type InsertBusinessSituation = typeof businessSituations.$inferInsert;

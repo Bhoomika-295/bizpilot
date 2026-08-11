@@ -106,6 +106,23 @@ export default function DashboardV2() {
     { enabled: !!businessId && isAuthenticated }
   );
 
+  const businessSituationsQuery = trpc.businessMetrics.getBusinessSituations.useQuery(
+    {
+      businessId: parseInt(businessId || "0"),
+      periodStartDate: periodStartDate.toISOString(),
+      periodEndDate: periodEndDate.toISOString(),
+    },
+    { enabled: !!businessId && isAuthenticated }
+  );
+
+  const updateSituationStatusMutation = trpc.businessMetrics.updateBusinessSituationStatus.useMutation({
+    onSuccess: () => {
+      businessSituationsQuery.refetch();
+    },
+  });
+
+  const [selectedSituation, setSelectedSituation] = useState<any | null>(null);
+
   const [expandedEvidenceIds, setExpandedEvidenceIds] = useState<Record<number, boolean>>({});
 
   const utils = trpc.useUtils();
@@ -412,6 +429,203 @@ export default function DashboardV2() {
               )}
             </CardContent>
           </Card>
+        )}
+
+        {/* Current Business Situations (Day 13) */}
+        {businessSituationsQuery.data && businessSituationsQuery.data.length > 0 && (
+          <Card className="border-slate-300 bg-white shadow-sm">
+            <CardHeader className="space-y-3 pb-4 border-b border-slate-100">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-xl font-semibold text-slate-900">
+                      Current Business Situations
+                    </CardTitle>
+                    <Badge variant="outline" className="border-slate-300 bg-slate-50 text-slate-700">
+                      SITUATION ENGINE v1
+                    </Badge>
+                  </div>
+                  <CardDescription className="mt-1">
+                    Coherent operating situations grouped from internal changes and external market signals.
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => businessSituationsQuery.refetch()}
+                  className="border-slate-200 text-slate-700"
+                >
+                  <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                  Re-evaluate
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-5 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {businessSituationsQuery.data.map((sit: any) => {
+                  const isHigh = sit.priority === "HIGH";
+                  const isMedium = sit.priority === "MEDIUM";
+                  return (
+                    <div
+                      key={sit.id || sit.title}
+                      className="rounded-lg border border-slate-200 bg-slate-50/50 p-4 space-y-3 shadow-2xs hover:border-slate-300 transition-all flex flex-col justify-between"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold tracking-wider text-slate-500 uppercase">
+                            {sit.category}
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <Badge
+                              className={`text-xs ${
+                                isHigh
+                                  ? "bg-rose-100 text-rose-800 border-rose-200"
+                                  : isMedium
+                                  ? "bg-amber-100 text-amber-800 border-amber-200"
+                                  : "bg-slate-100 text-slate-800 border-slate-200"
+                              }`}
+                            >
+                              {sit.priority}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs border-slate-300 text-slate-700">
+                              {sit.status}
+                            </Badge>
+                          </div>
+                        </div>
+
+                        <h3 className="font-semibold text-slate-900 text-base">
+                          {sit.title}
+                        </h3>
+                        <p className="text-sm text-slate-600 leading-relaxed">
+                          {sit.summary}
+                        </p>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
+                        <span className="text-xs text-slate-500">
+                          {sit.evidenceItems ? sit.evidenceItems.length : 0} evidence items
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedSituation(sit)}
+                          className="text-slate-700 hover:text-slate-900 hover:bg-slate-200/60 h-8 px-2.5 text-xs font-medium"
+                        >
+                          View Evidence & Actions →
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Situation Detail Modal */}
+        {selectedSituation && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-slate-200 p-6 space-y-6">
+              <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      {selectedSituation.category} Situation
+                    </span>
+                    <Badge
+                      className={`text-xs ${
+                        selectedSituation.priority === "HIGH"
+                          ? "bg-rose-100 text-rose-800 border-rose-200"
+                          : selectedSituation.priority === "MEDIUM"
+                          ? "bg-amber-100 text-amber-800 border-amber-200"
+                          : "bg-slate-100 text-slate-800 border-slate-200"
+                      }`}
+                    >
+                      {selectedSituation.priority} PRIORITY
+                    </Badge>
+                  </div>
+                  <h2 className="text-xl font-bold text-slate-900 mt-1">
+                    {selectedSituation.title}
+                  </h2>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedSituation(null)}
+                  className="text-slate-500 hover:text-slate-900 h-8 w-8 p-0"
+                >
+                  ✕
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                    Operating Summary
+                  </h4>
+                  <p className="text-sm text-slate-700 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    {selectedSituation.summary}
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                    Underlying Evidence & Signals ({selectedSituation.evidenceItems?.length || 0})
+                  </h4>
+                  <div className="space-y-2">
+                    {selectedSituation.evidenceItems?.map((ev: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between text-sm bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
+                        <span className="font-medium text-slate-900">{ev.label}</span>
+                        <span className="text-slate-600">{ev.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                    Recommended Strategic Action
+                  </h4>
+                  <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    {selectedSituation.suggestedAction}
+                  </p>
+                </div>
+
+                <div className="pt-2 flex items-center justify-between border-t border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-slate-600">Lifecycle Status:</span>
+                    {(["ACTIVE", "MONITORING", "RESOLVED"] as const).map((st) => (
+                      <Button
+                        key={st}
+                        variant={selectedSituation.status === st ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                          if (selectedSituation.id) {
+                            updateSituationStatusMutation.mutate({
+                              businessId: parseInt(businessId || "0"),
+                              situationId: selectedSituation.id,
+                              status: st,
+                            });
+                            setSelectedSituation({ ...selectedSituation, status: st });
+                          }
+                        }}
+                        className="h-7 px-2.5 text-xs"
+                      >
+                        {st}
+                      </Button>
+                    ))}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedSituation(null)}
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Business Intelligence Briefing */}

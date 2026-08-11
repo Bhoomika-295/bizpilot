@@ -12,7 +12,8 @@ import {
   getBusinessDataBasis,
   verifyBusinessOwnership,
 } from "../services/businessDataService";
-import { getMarketSignals } from "../db";
+import { getMarketSignals, getBusinessSituations, updateBusinessSituationStatus } from "../db";
+import { evaluateAndUpsertBusinessSituations } from "../services/businessSituationEngine";
 import { refreshMarketSignalsForBusiness } from "../services/marketSignalService";
 import {
   generateStrategyRecommendations,
@@ -314,5 +315,60 @@ export const businessMetricsRouter = router({
     .query(async ({ ctx, input }) => {
       await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
       return await getStrategyPerformanceAnalytics(input.businessId);
+    }),
+
+  /**
+   * Get evaluated business situations for the active period
+   */
+  getBusinessSituations: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+        periodStartDate: z.string().optional(),
+        periodEndDate: z.string().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      const start = input.periodStartDate ? new Date(input.periodStartDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const end = input.periodEndDate ? new Date(input.periodEndDate) : new Date();
+      return await evaluateAndUpsertBusinessSituations(input.businessId, start, end);
+    }),
+
+  /**
+   * Get single business situation by ID with ownership verification
+   */
+  getBusinessSituationById: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+        situationId: z.number(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      const list = await getBusinessSituations(input.businessId);
+      const found = list.find((s: any) => s.id === input.situationId);
+      if (!found) {
+        throw new Error("Business situation not found or unauthorized");
+      }
+      return found;
+    }),
+
+  /**
+   * Update business situation lifecycle status
+   */
+  updateBusinessSituationStatus: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+        situationId: z.number(),
+        status: z.enum(["ACTIVE", "MONITORING", "RESOLVED"]),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      await updateBusinessSituationStatus(input.situationId, input.status);
+      return { success: true };
     }),
 });

@@ -43,6 +43,13 @@
       "when": 1786475400711,
       "tag": "0005_special_clea",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1786475877963,
+      "tag": "0006_empty_hulk",
+      "breakpoints": true
     }
   ]
 }
