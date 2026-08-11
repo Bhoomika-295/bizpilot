@@ -14,6 +14,7 @@ import {
 } from "../services/businessDataService";
 import { getMarketSignals, getBusinessSituations, updateBusinessSituationStatus } from "../db";
 import { evaluateAndUpsertBusinessSituations } from "../services/businessSituationEngine";
+import { evaluateAndRecordSituationSnapshots, getBusinessSituationTrends } from "../services/situationTrendService";
 import { refreshMarketSignalsForBusiness } from "../services/marketSignalService";
 import {
   generateStrategyRecommendations,
@@ -333,6 +334,24 @@ export const businessMetricsRouter = router({
       const start = input.periodStartDate ? new Date(input.periodStartDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       const end = input.periodEndDate ? new Date(input.periodEndDate) : new Date();
       return await evaluateAndUpsertBusinessSituations(input.businessId, start, end);
+    }),
+
+  /**
+   * Get situation trend analyses and historical timelines (Day 14)
+   */
+  getSituationTrends: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+        periodStartDate: z.string().optional(),
+        periodEndDate: z.string().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      const start = input.periodStartDate ? new Date(input.periodStartDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const end = input.periodEndDate ? new Date(input.periodEndDate) : new Date();
+      return await evaluateAndRecordSituationSnapshots(input.businessId, start, end);
     }),
 
   /**

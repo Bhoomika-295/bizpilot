@@ -237,3 +237,15 @@
 - [x] Pass full test suite (44 tests passed), TypeScript checks, and production build
 - [x] Document authenticated visual verification as environment-limited (no owned preview business data)
 - [x] Save Day 12 checkpoint and stop without starting Day 13
+
+## Day 14: Situation Timeline & Trend Intelligence v1
+- [ ] Inspect existing BusinessSituation system, Strategy Copilot context, and dashboard layout
+- [ ] Create `situationSnapshots` table schema in Drizzle and execute migration SQL via `webdev_execute_sql`
+- [ ] Add Drizzle CRUD helpers for situation snapshots in `server/db.ts`
+- [ ] Implement deterministic Trend Intelligence Engine (`server/services/situationTrendService.ts`) with historical change analysis (IMPROVING, WORSENING, STABLE, NEW, RESOLVED, RECURRING) and duplicate snapshot prevention
+- [ ] Extend Strategy Copilot context and rules to factor in situation trend direction (e.g. WORSENING vs IMPROVING cost pressure)
+- [ ] Expose protected tRPC router procedures for getting situation timeline, trend summary, business trends overview, and historical window (7/30/90 days)
+- [ ] Integrate Business Trends overview card, situation timeline detail modal, and What Changed since last review into `DashboardV2.tsx`
+- [ ] Add deterministic unit and integration tests for trend classification, recurring situation detection, snapshot deduplication, and tenant authorization (`server/situationTrend.test.ts`)
+- [ ] Run full test suite, TypeScript checks, and production build verification
+- [ ] Save Day 14 checkpoint and stop

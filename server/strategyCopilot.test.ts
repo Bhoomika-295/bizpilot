@@ -14,6 +14,11 @@ vi.mock("./services/businessDataService", () => ({
 
 vi.mock("./db", () => ({
   getMarketSignals: vi.fn().mockResolvedValue([]),
+  getBusinessSituations: vi.fn().mockResolvedValue([]),
+  upsertBusinessSituation: vi.fn().mockResolvedValue(1),
+  getSituationSnapshots: vi.fn().mockResolvedValue([]),
+  getBusinessSituationSnapshots: vi.fn().mockResolvedValue([]),
+  createSituationSnapshot: vi.fn().mockResolvedValue(1),
   createRecommendation: vi.fn().mockResolvedValue([{ insertId: 1 }]),
   getRecommendations: vi.fn().mockResolvedValue([]),
   updateRecommendationStatus: vi.fn().mockResolvedValue(true),

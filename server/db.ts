@@ -1073,3 +1073,87 @@ export async function updateBusinessSituationStatus(
     .set({ status, updatedAt: new Date() })
     .where(eq(businessSituations.id, situationId));
 }
+
+import { situationSnapshots, type InsertSituationSnapshot } from "../drizzle/schema";
+
+export async function createSituationSnapshot(data: {
+  businessId: number;
+  situationId: number;
+  title: string;
+  summary: string;
+  priority: string;
+  status: string;
+  category: string;
+  trendDirection: string;
+  supportingCount: number;
+  internalEvidenceCount: number;
+  externalEvidenceCount: number;
+  metricValuesJson?: string;
+  freshnessInfo?: string;
+  timestamp?: Date;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Prevent duplicate consecutive snapshots if state is identical
+  const latest = await db
+    .select()
+    .from(situationSnapshots)
+    .where(eq(situationSnapshots.situationId, data.situationId))
+    .orderBy(desc(situationSnapshots.timestamp))
+    .limit(1);
+
+  if (
+    latest.length > 0 &&
+    latest[0].title === data.title &&
+    latest[0].summary === data.summary &&
+    latest[0].priority === data.priority &&
+    latest[0].status === data.status &&
+    latest[0].trendDirection === data.trendDirection &&
+    latest[0].supportingCount === data.supportingCount
+  ) {
+    // Duplicate state within recent refresh; skip duplicate insert
+    return latest[0].id;
+  }
+
+  const res = await db.insert(situationSnapshots).values({
+    businessId: data.businessId,
+    situationId: data.situationId,
+    title: data.title,
+    summary: data.summary,
+    priority: data.priority,
+    status: data.status,
+    category: data.category,
+    trendDirection: data.trendDirection,
+    supportingCount: data.supportingCount,
+    internalEvidenceCount: data.internalEvidenceCount,
+    externalEvidenceCount: data.externalEvidenceCount,
+    metricValuesJson: data.metricValuesJson || null,
+    freshnessInfo: data.freshnessInfo || null,
+    timestamp: data.timestamp || new Date(),
+  });
+
+  return res && Array.isArray(res) && res[0]?.insertId ? Number(res[0].insertId) : null;
+}
+
+export async function getSituationSnapshots(situationId: number, limit = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(situationSnapshots)
+    .where(eq(situationSnapshots.situationId, situationId))
+    .orderBy(desc(situationSnapshots.timestamp))
+    .limit(limit);
+}
+
+export async function getBusinessSituationSnapshots(businessId: number, limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(situationSnapshots)
+    .where(eq(situationSnapshots.businessId, businessId))
+    .orderBy(desc(situationSnapshots.timestamp))
+    .limit(limit);
+}

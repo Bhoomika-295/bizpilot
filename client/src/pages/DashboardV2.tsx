@@ -115,6 +115,15 @@ export default function DashboardV2() {
     { enabled: !!businessId && isAuthenticated }
   );
 
+  const situationTrendsQuery = trpc.businessMetrics.getSituationTrends.useQuery(
+    {
+      businessId: parseInt(businessId || "0"),
+      periodStartDate: periodStartDate.toISOString(),
+      periodEndDate: periodEndDate.toISOString(),
+    },
+    { enabled: !!businessId && isAuthenticated }
+  );
+
   const updateSituationStatusMutation = trpc.businessMetrics.updateBusinessSituationStatus.useMutation({
     onSuccess: () => {
       businessSituationsQuery.refetch();
@@ -431,87 +440,99 @@ export default function DashboardV2() {
           </Card>
         )}
 
-        {/* Current Business Situations (Day 13) */}
-        {businessSituationsQuery.data && businessSituationsQuery.data.length > 0 && (
+        {/* Business Trends & Situation Timeline (Day 14) */}
+        {situationTrendsQuery.data && situationTrendsQuery.data.length > 0 && (
           <Card className="border-slate-300 bg-white shadow-sm">
             <CardHeader className="space-y-3 pb-4 border-b border-slate-100">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
                     <CardTitle className="text-xl font-semibold text-slate-900">
-                      Current Business Situations
+                      Business Trends & Situation Timeline
                     </CardTitle>
                     <Badge variant="outline" className="border-slate-300 bg-slate-50 text-slate-700">
-                      SITUATION ENGINE v1
+                      TREND INTELLIGENCE v1
                     </Badge>
                   </div>
                   <CardDescription className="mt-1">
-                    Coherent operating situations grouped from internal changes and external market signals.
+                    Historical tracking and deterministic trend interpretation of active business situations.
                   </CardDescription>
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => businessSituationsQuery.refetch()}
+                  onClick={() => situationTrendsQuery.refetch()}
                   className="border-slate-200 text-slate-700"
                 >
                   <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                  Re-evaluate
+                  Refresh Trends
                 </Button>
               </div>
             </CardHeader>
             <CardContent className="pt-5 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {businessSituationsQuery.data.map((sit: any) => {
-                  const isHigh = sit.priority === "HIGH";
-                  const isMedium = sit.priority === "MEDIUM";
+                {situationTrendsQuery.data.map((trend: any) => {
+                  const isHigh = trend.currentPriority === "HIGH";
+                  const isMedium = trend.currentPriority === "MEDIUM";
+                  const isWorsening = trend.trendDirection === "WORSENING";
+                  const isImproving = trend.trendDirection === "IMPROVING";
+                  const isRecurring = trend.trendDirection === "RECURRING";
+
                   return (
                     <div
-                      key={sit.id || sit.title}
+                      key={trend.situationId}
                       className="rounded-lg border border-slate-200 bg-slate-50/50 p-4 space-y-3 shadow-2xs hover:border-slate-300 transition-all flex flex-col justify-between"
                     >
                       <div className="space-y-2">
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-xs font-semibold tracking-wider text-slate-500 uppercase">
-                            {sit.category}
+                            Trend: {trend.trendDirection}
                           </span>
                           <div className="flex items-center gap-1.5">
                             <Badge
                               className={`text-xs ${
-                                isHigh
+                                isWorsening
                                   ? "bg-rose-100 text-rose-800 border-rose-200"
-                                  : isMedium
+                                  : isImproving
+                                  ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                                  : isRecurring
                                   ? "bg-amber-100 text-amber-800 border-amber-200"
                                   : "bg-slate-100 text-slate-800 border-slate-200"
                               }`}
                             >
-                              {sit.priority}
+                              {trend.trendDirection}
                             </Badge>
                             <Badge variant="outline" className="text-xs border-slate-300 text-slate-700">
-                              {sit.status}
+                              {trend.currentPriority}
                             </Badge>
                           </div>
                         </div>
 
                         <h3 className="font-semibold text-slate-900 text-base">
-                          {sit.title}
+                          {trend.title}
                         </h3>
                         <p className="text-sm text-slate-600 leading-relaxed">
-                          {sit.summary}
+                          {trend.trendSummary}
                         </p>
+
+                        {trend.changesSinceLastReview && trend.changesSinceLastReview.length > 0 && (
+                          <div className="text-xs text-slate-500 pt-1 border-t border-slate-200/60">
+                            <strong>What Changed:</strong> {trend.changesSinceLastReview[0]}
+                          </div>
+                        )}
                       </div>
 
                       <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
                         <span className="text-xs text-slate-500">
-                          {sit.evidenceItems ? sit.evidenceItems.length : 0} evidence items
+                          Active for {trend.durationDays} day{trend.durationDays === 1 ? "" : "s"} ({trend.timeline.length} snapshots)
                         </span>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => setSelectedSituation(sit)}
+                          onClick={() => setSelectedSituation(trend)}
                           className="text-slate-700 hover:text-slate-900 hover:bg-slate-200/60 h-8 px-2.5 text-xs font-medium"
                         >
-                          View Evidence & Actions →
+                          View Timeline & History →
                         </Button>
                       </div>
                     </div>
@@ -522,7 +543,7 @@ export default function DashboardV2() {
           </Card>
         )}
 
-        {/* Situation Detail Modal */}
+        {/* Situation Timeline & Trend Detail Modal (Day 14) */}
         {selectedSituation && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
             <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-slate-200 p-6 space-y-6">
@@ -530,18 +551,18 @@ export default function DashboardV2() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                      {selectedSituation.category} Situation
+                      Trend: {selectedSituation.trendDirection || selectedSituation.category}
                     </span>
                     <Badge
                       className={`text-xs ${
-                        selectedSituation.priority === "HIGH"
+                        (selectedSituation.currentPriority || selectedSituation.priority) === "HIGH"
                           ? "bg-rose-100 text-rose-800 border-rose-200"
-                          : selectedSituation.priority === "MEDIUM"
+                          : (selectedSituation.currentPriority || selectedSituation.priority) === "MEDIUM"
                           ? "bg-amber-100 text-amber-800 border-amber-200"
                           : "bg-slate-100 text-slate-800 border-slate-200"
                       }`}
                     >
-                      {selectedSituation.priority} PRIORITY
+                      {selectedSituation.currentPriority || selectedSituation.priority} PRIORITY
                     </Badge>
                   </div>
                   <h2 className="text-xl font-bold text-slate-900 mt-1">
@@ -558,37 +579,59 @@ export default function DashboardV2() {
                 </Button>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <div>
                   <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
-                    Operating Summary
+                    Trend & Summary
                   </h4>
                   <p className="text-sm text-slate-700 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-200">
-                    {selectedSituation.summary}
+                    {selectedSituation.trendSummary || selectedSituation.summary}
                   </p>
                 </div>
+
+                {selectedSituation.changesSinceLastReview && selectedSituation.changesSinceLastReview.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                      What Changed Since Last Review
+                    </h4>
+                    <ul className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1">
+                      {selectedSituation.changesSinceLastReview.map((ch: string, idx: number) => (
+                        <li key={idx} className="flex items-center gap-2">
+                          <span className="h-1.5 w-1.5 rounded-full bg-slate-500" />
+                          <span>{ch}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
                 <div>
                   <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
-                    Underlying Evidence & Signals ({selectedSituation.evidenceItems?.length || 0})
+                    Situation History Timeline ({selectedSituation.timeline?.length || 1} snapshots)
                   </h4>
-                  <div className="space-y-2">
-                    {selectedSituation.evidenceItems?.map((ev: any, idx: number) => (
-                      <div key={idx} className="flex items-center justify-between text-sm bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
-                        <span className="font-medium text-slate-900">{ev.label}</span>
-                        <span className="text-slate-600">{ev.value}</span>
+                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    {selectedSituation.timeline && selectedSituation.timeline.length > 0 ? (
+                      selectedSituation.timeline.map((snap: any, idx: number) => (
+                        <div key={idx} className="flex items-center justify-between text-xs bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
+                          <div className="space-y-0.5">
+                            <div className="font-semibold text-slate-900">
+                              {snap.trendDirection} ({snap.priority}) — {snap.summary}
+                            </div>
+                            <div className="text-slate-500">
+                              {new Date(snap.timestamp).toLocaleString()} • {snap.supportingCount} supporting signals
+                            </div>
+                          </div>
+                          <Badge variant="outline" className="text-2xs border-slate-300 text-slate-700">
+                            {snap.status}
+                          </Badge>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-xs text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        Initial observation recorded.
                       </div>
-                    ))}
+                    )}
                   </div>
-                </div>
-
-                <div>
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
-                    Recommended Strategic Action
-                  </h4>
-                  <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-200">
-                    {selectedSituation.suggestedAction}
-                  </p>
                 </div>
 
                 <div className="pt-2 flex items-center justify-between border-t border-slate-100">
@@ -597,16 +640,21 @@ export default function DashboardV2() {
                     {(["ACTIVE", "MONITORING", "RESOLVED"] as const).map((st) => (
                       <Button
                         key={st}
-                        variant={selectedSituation.status === st ? "default" : "outline"}
+                        variant={(selectedSituation.currentStatus || selectedSituation.status) === st ? "default" : "outline"}
                         size="sm"
                         onClick={() => {
-                          if (selectedSituation.id) {
+                          const sitId = selectedSituation.situationId || selectedSituation.id;
+                          if (sitId) {
                             updateSituationStatusMutation.mutate({
                               businessId: parseInt(businessId || "0"),
-                              situationId: selectedSituation.id,
+                              situationId: sitId,
                               status: st,
                             });
-                            setSelectedSituation({ ...selectedSituation, status: st });
+                            setSelectedSituation({
+                              ...selectedSituation,
+                              currentStatus: st,
+                              status: st,
+                            });
                           }
                         }}
                         className="h-7 px-2.5 text-xs"

@@ -6,6 +6,7 @@ import {
   DataFreshness,
 } from "./businessMetricEngine";
 import { getMarketSignals, createRecommendation, getRecommendations, updateRecommendationStatus, updateRecommendationOutcome } from "../db";
+import { getBusinessSituationTrends } from "./situationTrendService";
 
 export type StrategyPriority = "HIGH" | "MEDIUM" | "LOW";
 export type StrategyStatus = "OPEN" | "DISMISSED" | "COMPLETED";
@@ -47,11 +48,12 @@ export async function generateStrategyRecommendations(
   periodStartDate: Date,
   periodEndDate: Date
 ): Promise<StrategyCopilotBriefing> {
-  const [metrics, healthScore, freshness, marketSignals] = await Promise.all([
+  const [metrics, healthScore, freshness, marketSignals, situationTrends] = await Promise.all([
     calculateBusinessMetrics(businessId, periodStartDate, periodEndDate),
     calculateBusinessHealthScore(businessId, periodStartDate, periodEndDate),
     getDataFreshness(businessId),
     getMarketSignals(businessId, 20),
+    getBusinessSituationTrends(businessId),
   ]);
 
   const changes = detectBusinessChanges(metrics);
@@ -82,19 +84,23 @@ export async function generateStrategyRecommendations(
   const expChange = changes.changes.find((c) => c.metric === "expenses");
   const custChange = changes.changes.find((c) => c.metric === "customers");
 
-  // RULE A: Expenses growing significantly faster than revenue
+  // RULE A: Expenses growing with situation trend factor
+  const costTrend = situationTrends.find((t) => t.title.toLowerCase().includes("cost") || t.title.toLowerCase().includes("expense"));
+  const costIsWorsening = costTrend?.trendDirection === "WORSENING";
+  const costIsImproving = costTrend?.trendDirection === "IMPROVING";
+
   if (expChange && expChange.direction === "increase" && expChange.percentChange >= 10) {
     const revGrowth = revChange ? revChange.percentChange : 0;
-    if (revGrowth < expChange.percentChange) {
+    if (revGrowth < expChange.percentChange && !costIsImproving) {
       generated.push({
         title: "Review rising operating expenses",
-        priority: "HIGH",
+        priority: costIsWorsening ? "HIGH" : "MEDIUM",
         recommendation: "Investigate expense growth categories to protect operating margin performance.",
-        reason: `Expenses increased ${expChange.percentChange.toFixed(1)}% while revenue growth was weaker (${revGrowth >= 0 ? "+" : ""}${revGrowth.toFixed(1)}%).`,
+        reason: `Expenses increased ${expChange.percentChange.toFixed(1)}% (trend: ${costTrend?.trendDirection || "STABLE"}).`,
         evidence: [
           { label: "Expenses trend", value: `+${expChange.percentChange.toFixed(1)}%` },
-          { label: "Revenue trend", value: `${revGrowth >= 0 ? "+" : ""}${revGrowth.toFixed(1)}%` },
-          { label: "Current Health Score", value: `${Math.round(healthScore.score ?? 50)} / 100` },
+          { label: "Situation Trend", value: costTrend?.trendDirection || "STABLE" },
+          { label: "Duration", value: `${costTrend?.durationDays || 1} days` },
         ],
         suggestedNextStep: "Review the largest expense categories from the current period and evaluate non-essential costs.",
         confidence: "High",

@@ -503,3 +503,37 @@ export const businessSituations = mysqlTable(
 
 export type BusinessSituation = typeof businessSituations.$inferSelect;
 export type InsertBusinessSituation = typeof businessSituations.$inferInsert;
+
+/**
+ * Situation Snapshots — preserves historical state snapshots of business situations
+ * over time for trend intelligence and timeline views.
+ */
+export const situationSnapshots = mysqlTable(
+  "situationSnapshots",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    situationId: int("situationId").notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    summary: text("summary").notNull(),
+    priority: varchar("priority", { length: 50 }).notNull().default("MEDIUM"), // LOW, MEDIUM, HIGH
+    status: varchar("status", { length: 50 }).notNull().default("ACTIVE"), // ACTIVE, MONITORING, RESOLVED
+    category: varchar("category", { length: 100 }).notNull().default("Stable"),
+    trendDirection: varchar("trendDirection", { length: 50 }).notNull().default("STABLE"), // IMPROVING, WORSENING, STABLE, NEW, RESOLVED, RECURRING
+    supportingCount: int("supportingCount").notNull().default(0),
+    internalEvidenceCount: int("internalEvidenceCount").notNull().default(0),
+    externalEvidenceCount: int("externalEvidenceCount").notNull().default(0),
+    metricValuesJson: text("metricValuesJson"),
+    freshnessInfo: varchar("freshnessInfo", { length: 255 }),
+    timestamp: timestamp("timestamp").defaultNow().notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("situationSnapshots_businessId_idx").on(table.businessId),
+    situationIdIdx: index("situationSnapshots_situationId_idx").on(table.situationId),
+    timestampIdx: index("situationSnapshots_timestamp_idx").on(table.timestamp),
+  })
+);
+
+export type SituationSnapshot = typeof situationSnapshots.$inferSelect;
+export type InsertSituationSnapshot = typeof situationSnapshots.$inferInsert;
