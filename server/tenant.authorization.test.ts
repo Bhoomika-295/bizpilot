@@ -129,3 +129,29 @@ describe("tenant authorization", () => {
     });
   });
 });
+
+  it("rejects record outcome access to a business the user does not own", async () => {
+    const caller = appRouter.createCaller(createContext());
+
+    await expect(
+      caller.businessMetrics.recordOutcome({
+        businessId: 999999999,
+        recommendationId: 1,
+        outcomeStatus: "Positive",
+      })
+    ).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: "You do not have access to this business.",
+    });
+  });
+
+  it("rejects performance analytics access to a business the user does not own", async () => {
+    const caller = appRouter.createCaller(createContext());
+
+    await expect(
+      caller.businessMetrics.getPerformanceAnalytics({ businessId: 999999999 })
+    ).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: "You do not have access to this business.",
+    });
+  });

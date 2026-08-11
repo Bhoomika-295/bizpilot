@@ -17,6 +17,8 @@ import { refreshMarketSignalsForBusiness } from "../services/marketSignalService
 import {
   generateStrategyRecommendations,
   setStrategyRecommendationStatus,
+  recordRecommendationOutcome,
+  getStrategyPerformanceAnalytics,
 } from "../services/strategyCopilotService";
 
 /**
@@ -271,5 +273,46 @@ export const businessMetricsRouter = router({
       await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
       await setStrategyRecommendationStatus(input.recommendationId, input.status);
       return { success: true };
+    }),
+
+  /**
+   * Record or update recommendation outcome and optional notes/metrics
+   */
+  recordOutcome: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+        recommendationId: z.number(),
+        outcomeStatus: z.enum(["Positive", "Neutral", "Negative", "Unknown"]),
+        outcomeNote: z.string().optional(),
+        metricBefore: z.number().optional(),
+        metricAfter: z.number().optional(),
+        observedChange: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      await recordRecommendationOutcome(input.recommendationId, {
+        outcomeStatus: input.outcomeStatus,
+        outcomeNote: input.outcomeNote,
+        metricBefore: input.metricBefore,
+        metricAfter: input.metricAfter,
+        observedChange: input.observedChange,
+      });
+      return { success: true };
+    }),
+
+  /**
+   * Get strategy performance summary and historical insights
+   */
+  getPerformanceAnalytics: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return await getStrategyPerformanceAnalytics(input.businessId);
     }),
 });

@@ -983,3 +983,29 @@ export async function updateRecommendationStatus(
     .set({ status, updatedAt: new Date() })
     .where(eq(recommendations.id, recommendationId));
 }
+
+export async function updateRecommendationOutcome(
+  recommendationId: number,
+  data: {
+    outcomeStatus: "Positive" | "Neutral" | "Negative" | "Unknown";
+    outcomeNote?: string;
+    metricBefore?: number;
+    metricAfter?: number;
+    observedChange?: string;
+  }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return await db
+    .update(recommendations)
+    .set({
+      outcomeStatus: data.outcomeStatus,
+      outcomeNote: data.outcomeNote || null,
+      metricBefore: data.metricBefore !== undefined ? String(data.metricBefore) : null,
+      metricAfter: data.metricAfter !== undefined ? String(data.metricAfter) : null,
+      observedChange: data.observedChange || null,
+      updatedAt: new Date(),
+    })
+    .where(eq(recommendations.id, recommendationId));
+}

@@ -225,3 +225,15 @@
 - [x] Pass full test suite (40 tests passed), TypeScript checks, and production build
 - [x] Document authenticated visual verification as environment-limited (no owned preview business data)
 - [x] Save Day 11 checkpoint and stop without starting Day 12
+
+## Day 12: Strategy Outcomes & Learning Loop v1
+- [x] Inspect recommendation schema, recommendation service, and dashboard structure
+- [x] Extend recommendations table schema in `drizzle/schema.ts` with outcome status (`Positive`, `Neutral`, `Negative`, `Unknown`), outcome notes, metric before/after, and observed change fields
+- [x] Generate Drizzle migration and apply via `webdev_execute_sql`
+- [x] Build Strategy Outcomes & Learning service (`server/services/strategyCopilotService.ts`) with effectiveness summary calculations, category breakdown, and historical insights
+- [x] Expose protected tRPC procedures (`recordOutcome`, `getPerformanceAnalytics`) with strict tenant authorization checks
+- [x] Integrate Strategy Performance Analytics card and Outcome & Learning modal into `DashboardV2.tsx`
+- [x] Add deterministic unit tests (`server/strategyOutcomes.test.ts`) and extend tenant authorization test suite (`server/tenant.authorization.test.ts`)
+- [x] Pass full test suite (44 tests passed), TypeScript checks, and production build
+- [x] Document authenticated visual verification as environment-limited (no owned preview business data)
+- [x] Save Day 12 checkpoint and stop without starting Day 13

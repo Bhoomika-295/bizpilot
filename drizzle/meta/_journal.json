@@ -36,6 +36,13 @@
       "when": 1786474405697,
       "tag": "0004_steady_tinkerer",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1786475400711,
+      "tag": "0005_special_clea",
+      "breakpoints": true
     }
   ]
 }

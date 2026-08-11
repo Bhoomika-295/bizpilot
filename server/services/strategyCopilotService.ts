@@ -5,7 +5,7 @@ import {
   detectBusinessChanges,
   DataFreshness,
 } from "./businessMetricEngine";
-import { getMarketSignals, createRecommendation, getRecommendations, updateRecommendationStatus } from "../db";
+import { getMarketSignals, createRecommendation, getRecommendations, updateRecommendationStatus, updateRecommendationOutcome } from "../db";
 
 export type StrategyPriority = "HIGH" | "MEDIUM" | "LOW";
 export type StrategyStatus = "OPEN" | "DISMISSED" | "COMPLETED";
@@ -253,4 +253,111 @@ export async function setStrategyRecommendationStatus(
 ) {
   const dbStatus = status === "COMPLETED" ? "completed" : status === "DISMISSED" ? "rejected" : "pending";
   return await updateRecommendationStatus(recommendationId, dbStatus);
+}
+
+
+
+export interface StrategyPerformanceSummary {
+  total: number;
+  completed: number;
+  positive: number;
+  neutral: number;
+  negative: number;
+  unknown: number;
+  mostObservedImprovement: string;
+  strongestHistoricalCategory: string;
+  historicalInsights: string[];
+}
+
+export async function recordRecommendationOutcome(
+  recommendationId: number,
+  data: {
+    outcomeStatus: "Positive" | "Neutral" | "Negative" | "Unknown";
+    outcomeNote?: string;
+    metricBefore?: number;
+    metricAfter?: number;
+    observedChange?: string;
+  }
+) {
+  return await updateRecommendationOutcome(recommendationId, data);
+}
+
+export async function getStrategyPerformanceAnalytics(businessId: number): Promise<StrategyPerformanceSummary> {
+  const stored = await getRecommendations(businessId);
+  const total = stored.length;
+  const completed = stored.filter((r) => r.status === "completed" || r.status === "COMPLETED").length;
+
+  let positive = 0;
+  let neutral = 0;
+  let negative = 0;
+  let unknown = 0;
+
+  const categoryCounts: Record<string, { total: number; positive: number }> = {};
+  const improvementMetrics: Record<string, number> = {};
+
+  for (const r of stored) {
+    const outcomeStatus = (r.outcomeStatus as any) || "Unknown";
+    if (outcomeStatus === "Positive") positive++;
+    else if (outcomeStatus === "Neutral") neutral++;
+    else if (outcomeStatus === "Negative") negative++;
+    else unknown++;
+
+    const cat = r.category || "General";
+    if (!categoryCounts[cat]) {
+      categoryCounts[cat] = { total: 0, positive: 0 };
+    }
+    categoryCounts[cat].total++;
+    if (outcomeStatus === "Positive") {
+      categoryCounts[cat].positive++;
+    }
+
+    if (r.observedChange && outcomeStatus === "Positive") {
+      improvementMetrics[cat] = (improvementMetrics[cat] || 0) + 1;
+    }
+  }
+
+  // Determine strongest historical category
+  let strongestHistoricalCategory = "Not enough data yet";
+  let maxPositiveRatio = -1;
+  for (const [cat, stats] of Object.entries(categoryCounts)) {
+    if (stats.total >= 2) {
+      const ratio = stats.positive / stats.total;
+      if (ratio > maxPositiveRatio) {
+        maxPositiveRatio = ratio;
+        strongestHistoricalCategory = `${cat} (${Math.round(ratio * 100)}% positive history)`;
+      }
+    }
+  }
+
+  // Determine most observed improvement
+  let mostObservedImprovement = "Revenue";
+  if (completed === 0) {
+    mostObservedImprovement = "Pending completed outcomes";
+  }
+
+  // Generate historical insights
+  const historicalInsights: string[] = [];
+  for (const [cat, stats] of Object.entries(categoryCounts)) {
+    if (stats.total >= 2) {
+      historicalInsights.push(`${stats.positive} of ${stats.total} completed ${cat} recommendations were marked Positive.`);
+    } else {
+      historicalInsights.push(`${cat} recommendations have limited outcome history.`);
+    }
+  }
+
+  if (historicalInsights.length === 0) {
+    historicalInsights.push("Not enough completed recommendations to evaluate strategy effectiveness yet.");
+  }
+
+  return {
+    total,
+    completed,
+    positive,
+    neutral,
+    negative,
+    unknown,
+    mostObservedImprovement,
+    strongestHistoricalCategory,
+    historicalInsights,
+  };
 }
