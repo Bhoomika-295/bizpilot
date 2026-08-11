@@ -81,6 +81,28 @@ export interface BusinessChangeDetection {
   periodLabel: string;
 }
 
+export interface BriefingItem {
+  metric: "revenue" | "expenses" | "transactionCount" | "customers";
+  label: string;
+  priority: BusinessSignalPriority;
+  direction: "increase" | "decrease";
+  percentChange: number;
+  currentValue: number;
+  previousValue: number;
+  absoluteChange: number;
+  explanation: string;
+  suggestedNextStep?: string;
+}
+
+export interface BusinessIntelligenceBriefing {
+  status: "ready" | "no_significant_changes" | "insufficient_data";
+  headlineSummary: string[];
+  primaryAttentionSummary: string;
+  positiveSignalSummary: string;
+  items: BriefingItem[];
+  periodLabel: string;
+}
+
 export type HealthScoreDataBasis = "demo" | "real";
 
 export interface HealthScoreFactor {
@@ -334,6 +356,153 @@ export function detectBusinessChanges(
     thresholdPercent,
     changes,
     periodLabel: "Current period vs previous comparable period",
+  };
+}
+
+function getWhyItMattersExplanation(metric: string, direction: "increase" | "decrease", percentChange: number): string {
+  const magnitude = Math.abs(percentChange).toFixed(1);
+  if (metric === "revenue") {
+    if (direction === "increase") {
+      return `Revenue is growing by ${magnitude}% compared with the previous period, which currently suggests a positive internal growth signal.`;
+    }
+    return `Revenue decreased by ${magnitude}% compared with the previous period, which may indicate softening demand or lower transaction volume.`;
+  }
+  if (metric === "expenses") {
+    if (direction === "increase") {
+      return `Expenses increased by ${magnitude}% compared with the previous period and may reduce the net benefit of current revenue growth.`;
+    }
+    return `Expenses decreased by ${magnitude}% compared with the previous period, which currently suggests improved operating efficiency.`;
+  }
+  if (metric === "transactionCount") {
+    if (direction === "increase") {
+      return `Transaction count increased by ${magnitude}% compared with the previous period, reflecting higher operational activity.`;
+    }
+    return `Transaction count decreased by ${magnitude}% compared with the previous period, which is worth investigating for customer engagement shifts.`;
+  }
+  if (metric === "customers") {
+    if (direction === "increase") {
+      return `Active customer count increased by ${magnitude}% compared with the previous period.`;
+    }
+    return `Active customer count decreased by ${magnitude}% compared with the previous period.`;
+  }
+  return `${metric} changed by ${magnitude}% compared with the previous period.`;
+}
+
+function getSuggestedNextStep(metric: string, direction: "increase" | "decrease"): string | undefined {
+  if (metric === "revenue" && direction === "decrease") {
+    return "Review recent transaction volume and customer activity.";
+  }
+  if (metric === "expenses" && direction === "increase") {
+    return "Review the largest expense categories.";
+  }
+  if (metric === "customers" && direction === "decrease") {
+    return "Review recent customer purchasing activity.";
+  }
+  if (metric === "transactionCount" && direction === "decrease") {
+    return "Review transaction logs and sales outreach.";
+  }
+  return undefined;
+}
+
+export function generateBusinessIntelligenceBriefing(
+  metrics: BusinessMetrics,
+  changeDetection: BusinessChangeDetection
+): BusinessIntelligenceBriefing {
+  if (changeDetection.status === "insufficient_data") {
+    return {
+      status: "insufficient_data",
+      headlineSummary: ["Not enough historical data to generate a reliable briefing."],
+      primaryAttentionSummary: "Add records in comparable periods to establish a reliable baseline.",
+      positiveSignalSummary: "No comparable historical baseline is available yet.",
+      items: [],
+      periodLabel: changeDetection.periodLabel,
+    };
+  }
+
+  if (changeDetection.status === "no_significant_changes" || changeDetection.changes.length === 0) {
+    return {
+      status: "no_significant_changes",
+      headlineSummary: ["No significant business changes detected in the current period."],
+      primaryAttentionSummary: "Operating metrics are stable relative to the previous period.",
+      positiveSignalSummary: "No major upward or downward shifts exceed the significance threshold.",
+      items: [],
+      periodLabel: changeDetection.periodLabel,
+    };
+  }
+
+  // Sort changes by priority: HIGH -> MEDIUM -> LOW, then by absolute magnitude descending
+  const priorityRank: Record<BusinessSignalPriority, number> = {
+    HIGH: 3,
+    MEDIUM: 2,
+    LOW: 1,
+  };
+
+  const sortedChanges = [...changeDetection.changes].sort((a, b) => {
+    const rankDiff = priorityRank[b.priority] - priorityRank[a.priority];
+    if (rankDiff !== 0) return rankDiff;
+    return Math.abs(b.percentChange) - Math.abs(a.percentChange);
+  });
+
+  const items: BriefingItem[] = sortedChanges.map((change) => {
+    const metricRecord = metrics[change.metric];
+    const currentValue = typeof metricRecord === "object" && metricRecord !== null && "value" in metricRecord
+      ? (metricRecord as MetricResult).value
+      : change.metric === "customers"
+        ? metrics.customers.active
+        : 0;
+    const previousValue = typeof metricRecord === "object" && metricRecord !== null && "previousValue" in metricRecord
+      ? (metricRecord as MetricResult).previousValue
+      : change.metric === "customers"
+        ? metrics.customers.previousActive
+        : 0;
+
+    return {
+      metric: change.metric,
+      label: change.label,
+      priority: change.priority,
+      direction: change.direction,
+      percentChange: change.percentChange,
+      currentValue,
+      previousValue,
+      absoluteChange: change.absoluteChange,
+      explanation: getWhyItMattersExplanation(change.metric, change.direction, change.percentChange),
+      suggestedNextStep: change.priority === "HIGH" ? getSuggestedNextStep(change.metric, change.direction) : undefined,
+    };
+  });
+
+  const headlineSummary: string[] = [];
+  const revChange = sortedChanges.find((c) => c.metric === "revenue");
+  const expChange = sortedChanges.find((c) => c.metric === "expenses");
+  const custChange = sortedChanges.find((c) => c.metric === "customers");
+
+  if (revChange) {
+    headlineSummary.push(`Revenue ${revChange.direction}ed ${Math.abs(revChange.percentChange).toFixed(0)}% compared with the previous period`);
+  }
+  if (expChange) {
+    headlineSummary.push(`while expenses ${expChange.direction}ed ${Math.abs(expChange.percentChange).toFixed(0)}%`);
+  }
+  if (headlineSummary.length === 0 && sortedChanges[0]) {
+    headlineSummary.push(`${sortedChanges[0].label} ${sortedChanges[0].direction}ed ${Math.abs(sortedChanges[0].percentChange).toFixed(0)}% compared with the previous period`);
+  }
+
+  const positiveItem = sortedChanges.find((c) => (c.metric === "revenue" && c.direction === "increase") || (c.metric === "expenses" && c.direction === "decrease") || (c.metric === "customers" && c.direction === "increase"));
+  const attentionItem = sortedChanges.find((c) => (c.metric === "expenses" && c.direction === "increase") || (c.metric === "revenue" && c.direction === "decrease") || c.priority === "HIGH");
+
+  const positiveSignalSummary = positiveItem
+    ? `The strongest positive signal is ${positiveItem.label.toLowerCase()} ${positiveItem.direction} (${positiveItem.percentChange > 0 ? "+" : ""}${positiveItem.percentChange.toFixed(1)}%).`
+    : "Operating trends are currently mixed or stable.";
+
+  const primaryAttentionSummary = attentionItem
+    ? `The main area requiring attention is the ${attentionItem.direction} in ${attentionItem.label.toLowerCase()} (${Math.abs(attentionItem.percentChange).toFixed(1)}%).`
+    : "No urgent attention areas identified.";
+
+  return {
+    status: "ready",
+    headlineSummary,
+    primaryAttentionSummary,
+    positiveSignalSummary,
+    items,
+    periodLabel: changeDetection.periodLabel,
   };
 }
 

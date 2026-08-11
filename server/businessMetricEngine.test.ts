@@ -286,5 +286,60 @@ describe("business metric engine", () => {
     });
     expect(score.explanation).toContain("Not enough data");
   });
+
+  it("generates correct briefing for revenue increase and expense increase with priority ordering", async () => {
+    const { generateBusinessIntelligenceBriefing } = await import("./services/businessMetricEngine");
+    const mockMetrics = {
+      revenue: { value: 1140, previousValue: 1000, change: 140, percentChange: 14, hasData: true, hasPreviousData: true },
+      expenses: { value: 560, previousValue: 500, change: 60, percentChange: 12, hasData: true, hasPreviousData: true },
+      estimatedProfit: { value: 580, previousValue: 500, change: 80, percentChange: 16, hasData: true, hasPreviousData: true },
+      transactionCount: { value: 12, previousValue: 10, change: 2, percentChange: 20, hasData: true, hasPreviousData: true },
+      customers: { total: 10, active: 8, inactive: 2, previousActive: 8, activeChange: 0, activePercentChange: 0, hasData: true, hasPreviousData: true },
+      averageTransactionValue: 95,
+      lastUpdated: new Date(),
+    };
+    const changes = {
+      status: "changes_detected" as const,
+      thresholdPercent: 5,
+      periodLabel: "Current period vs previous comparable period",
+      changes: [
+        { metric: "revenue" as const, label: "Revenue", direction: "increase" as const, percentChange: 14, absoluteChange: 140, priority: "MEDIUM" as const, summary: "Revenue increased 14%" },
+        { metric: "expenses" as const, label: "Expenses", direction: "increase" as const, percentChange: 12, absoluteChange: 60, priority: "MEDIUM" as const, summary: "Expenses increased 12%" },
+        { metric: "transactionCount" as const, label: "Transaction count", direction: "increase" as const, percentChange: 20, absoluteChange: 2, priority: "HIGH" as const, summary: "Transaction count increased 20%" },
+      ],
+    };
+
+    const briefing = generateBusinessIntelligenceBriefing(mockMetrics, changes);
+    expect(briefing.status).toBe("ready");
+    expect(briefing.items[0].metric).toBe("transactionCount"); // HIGH priority first
+    expect(briefing.items[0].priority).toBe("HIGH");
+    expect(briefing.items[1].metric).toBe("revenue"); // MEDIUM priority next
+    expect(briefing.items[1].explanation).toContain("Revenue is growing");
+    expect(briefing.items[1].currentValue).toBe(1140);
+    expect(briefing.items[1].previousValue).toBe(1000);
+  });
+
+  it("produces correct insufficient data briefing when history is missing", async () => {
+    const { generateBusinessIntelligenceBriefing } = await import("./services/businessMetricEngine");
+    const mockMetrics = {
+      revenue: { value: 1000, previousValue: 0, change: 1000, percentChange: 0, hasData: true, hasPreviousData: false },
+      expenses: { value: 500, previousValue: 0, change: 500, percentChange: 0, hasData: true, hasPreviousData: false },
+      estimatedProfit: { value: 500, previousValue: 0, change: 500, percentChange: 0, hasData: true, hasPreviousData: false },
+      transactionCount: { value: 10, previousValue: 0, change: 10, percentChange: 0, hasData: true, hasPreviousData: false },
+      customers: { total: 10, active: 8, inactive: 2, previousActive: 0, activeChange: 0, activePercentChange: 0, hasData: true, hasPreviousData: false },
+      averageTransactionValue: 100,
+      lastUpdated: new Date(),
+    };
+    const changes = {
+      status: "insufficient_data" as const,
+      thresholdPercent: 5,
+      periodLabel: "Current period vs previous comparable period",
+      changes: [],
+    };
+
+    const briefing = generateBusinessIntelligenceBriefing(mockMetrics, changes);
+    expect(briefing.status).toBe("insufficient_data");
+    expect(briefing.headlineSummary[0]).toContain("Not enough historical data");
+  });
 });
 

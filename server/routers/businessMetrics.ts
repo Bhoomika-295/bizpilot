@@ -6,6 +6,7 @@ import {
   calculateBusinessHealthScore,
   detectBusinessChanges,
   getDataFreshness,
+  generateBusinessIntelligenceBriefing,
 } from "../services/businessMetricEngine";
 import {
   getBusinessDataBasis,
@@ -101,6 +102,30 @@ export const businessMetricsRouter = router({
       );
 
       return detectBusinessChanges(metrics);
+    }),
+
+  /**
+   * Get the Intelligent Business Briefing summarizing current signals, priority, and explanations.
+   */
+  getBriefing: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+        periodStartDate: z.date(),
+        periodEndDate: z.date(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+
+      const metrics = await calculateBusinessMetrics(
+        input.businessId,
+        input.periodStartDate,
+        input.periodEndDate
+      );
+      const changes = detectBusinessChanges(metrics);
+
+      return generateBusinessIntelligenceBriefing(metrics, changes);
     }),
 
   /**

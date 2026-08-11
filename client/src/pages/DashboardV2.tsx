@@ -77,21 +77,33 @@ export default function DashboardV2() {
     { enabled: !!businessId && isAuthenticated }
   );
 
+  const briefingQuery = trpc.businessMetrics.getBriefing.useQuery(
+    {
+      businessId: parseInt(businessId || "0"),
+      periodStartDate,
+      periodEndDate,
+    },
+    { enabled: !!businessId && isAuthenticated }
+  );
+
   const isLoading =
     metricsQuery.isLoading ||
     healthScoreQuery.isLoading ||
     freshnessQuery.isLoading ||
-    changesQuery.isLoading;
+    changesQuery.isLoading ||
+    briefingQuery.isLoading;
   const queryError =
     metricsQuery.error ||
     healthScoreQuery.error ||
     freshnessQuery.error ||
-    changesQuery.error;
+    changesQuery.error ||
+    briefingQuery.error;
   const isAccessError = [
     metricsQuery.error,
     healthScoreQuery.error,
     freshnessQuery.error,
     changesQuery.error,
+    briefingQuery.error,
   ].some((error) => {
     const data = (error as { data?: { code?: string } } | null | undefined)?.data;
     return data?.code === "FORBIDDEN" || error?.message?.includes("access");
@@ -122,6 +134,7 @@ export default function DashboardV2() {
                   void healthScoreQuery.refetch();
                   void freshnessQuery.refetch();
                   void changesQuery.refetch();
+                  void briefingQuery.refetch();
                 }}
               >
                 Try again
@@ -147,6 +160,7 @@ export default function DashboardV2() {
   const healthScore = healthScoreQuery.data;
   const freshness = freshnessQuery.data;
   const changes = changesQuery.data;
+  const briefing = briefingQuery.data;
 
   return (
     <DashboardLayout>
@@ -168,6 +182,113 @@ export default function DashboardV2() {
             </SelectContent>
           </Select>
         </div>
+
+        {/* Business Intelligence Briefing */}
+        {briefing && (
+          <Card className="border-slate-300 bg-white shadow-sm">
+            <CardHeader className="space-y-3 pb-4 border-b border-slate-100">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-xl font-semibold text-slate-900">
+                      Business Intelligence Briefing
+                    </CardTitle>
+                    <Badge variant="outline" className="border-slate-300 bg-slate-50 text-slate-700">
+                      FACTUAL BRIEFING
+                    </Badge>
+                  </div>
+                  <CardDescription className="mt-1">
+                    What matters right now based on stored performance signals ({briefing.periodLabel}).
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-5 space-y-5">
+              {briefing.status === "insufficient_data" ? (
+                <Alert className="border-slate-200 bg-slate-50">
+                  <AlertCircle className="h-4 w-4 text-slate-600" />
+                  <AlertDescription className="text-slate-700">
+                    <strong>Not enough historical data to generate a reliable briefing.</strong> Add records in comparable periods to establish a baseline.
+                  </AlertDescription>
+                </Alert>
+              ) : briefing.status === "no_significant_changes" ? (
+                <Alert className="border-slate-200 bg-white">
+                  <Minus className="h-4 w-4 text-slate-500" />
+                  <AlertDescription className="text-slate-700">
+                    No significant business changes detected. Operating metrics are stable relative to the previous period.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <>
+                  <div className="rounded-lg bg-slate-50 p-4 border border-slate-200 space-y-2">
+                    <p className="text-sm font-medium text-slate-900 leading-relaxed">
+                      {briefing.headlineSummary.join(" ")}.
+                    </p>
+                    <p className="text-xs text-slate-600">
+                      {briefing.positiveSignalSummary} {briefing.primaryAttentionSummary}
+                    </p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Prioritized Signals & Explanation
+                    </h4>
+                    {briefing.items.map((item) => {
+                      const isHigh = item.priority === "HIGH";
+                      const isIncrease = item.direction === "increase";
+                      const Icon = isIncrease ? TrendingUp : TrendingDown;
+                      return (
+                        <div
+                          key={item.metric}
+                          className="rounded-lg border border-slate-200 bg-white p-4 space-y-3 shadow-2xs"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <Icon
+                                className={`h-4 w-4 ${isIncrease ? "text-emerald-600" : "text-amber-600"}`}
+                                aria-hidden="true"
+                              />
+                              <span className="text-sm font-bold text-slate-900">
+                                {item.label} {isIncrease ? "increased" : "decreased"} {Math.abs(item.percentChange).toFixed(1)}%
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                variant="outline"
+                                aria-label={`${item.priority} signal priority`}
+                                className={getSignalPriorityBadgeClass(item.priority)}
+                              >
+                                {item.priority} PRIORITY
+                              </Badge>
+                            </div>
+                          </div>
+
+                          <div className="text-sm text-slate-700 space-y-1">
+                            <p className="font-medium text-slate-900">Why it matters:</p>
+                            <p className="text-slate-600 leading-relaxed">{item.explanation}</p>
+                          </div>
+
+                          <div className="rounded-md bg-slate-50 p-3 border border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
+                            <div>
+                              <span className="font-medium text-slate-700">Evidence:</span> Current period: <strong className="text-slate-900">{item.currentValue.toLocaleString()}</strong> | Previous period: <strong className="text-slate-900">{item.previousValue.toLocaleString()}</strong> | Change: <strong className={isIncrease ? "text-emerald-700" : "text-amber-700"}>{isIncrease ? "+" : ""}{item.percentChange.toFixed(1)}%</strong>
+                            </div>
+                          </div>
+
+                          {item.suggestedNextStep && (
+                            <div className="pt-1 flex items-center justify-between text-xs text-slate-700 border-t border-slate-100">
+                              <span className="font-semibold text-slate-800">Suggested next step:</span>
+                              <span className="text-slate-600 bg-slate-100 px-2 py-1 rounded font-medium">{item.suggestedNextStep}</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Business Health Score */}
         {healthScore && (
