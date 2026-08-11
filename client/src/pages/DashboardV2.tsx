@@ -124,6 +124,15 @@ export default function DashboardV2() {
     { enabled: !!businessId && isAuthenticated }
   );
 
+  const decisionPrioritiesQuery = trpc.businessMetrics.getDecisionPriorities.useQuery(
+    {
+      businessId: parseInt(businessId || "0"),
+      periodStartDate: periodStartDate.toISOString(),
+      periodEndDate: periodEndDate.toISOString(),
+    },
+    { enabled: !!businessId && isAuthenticated }
+  );
+
   const updateSituationStatusMutation = trpc.businessMetrics.updateBusinessSituationStatus.useMutation({
     onSuccess: () => {
       businessSituationsQuery.refetch();
@@ -131,6 +140,7 @@ export default function DashboardV2() {
   });
 
   const [selectedSituation, setSelectedSituation] = useState<any | null>(null);
+  const [selectedPriority, setSelectedPriority] = useState<any | null>(null);
 
   const [expandedEvidenceIds, setExpandedEvidenceIds] = useState<Record<number, boolean>>({});
 
@@ -440,6 +450,108 @@ export default function DashboardV2() {
           </Card>
         )}
 
+        {/* Today's Strategic Focus (Day 15) */}
+        {decisionPrioritiesQuery.data && decisionPrioritiesQuery.data.length > 0 && (
+          <Card className="border-slate-300 bg-white shadow-sm">
+            <CardHeader className="space-y-3 pb-4 border-b border-slate-100">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-xl font-semibold text-slate-900">
+                      Today's Strategic Focus
+                    </CardTitle>
+                    <Badge variant="outline" className="border-slate-300 bg-slate-50 text-slate-700 font-medium">
+                      DECISION PRIORITY ENGINE v1
+                    </Badge>
+                  </div>
+                  <CardDescription className="mt-1">
+                    What deserves your attention first, ranked by impact, urgency, trends, and business health.
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => decisionPrioritiesQuery.refetch()}
+                  className="border-slate-200 text-slate-700"
+                >
+                  <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                  Refresh Priorities
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-5 space-y-4">
+              <div className="space-y-3">
+                {decisionPrioritiesQuery.data.slice(0, 3).map((item: any, idx: number) => {
+                  const isCritical = item.priorityLevel === "CRITICAL";
+                  const isHigh = item.priorityLevel === "HIGH";
+                  const isMedium = item.priorityLevel === "MEDIUM";
+                  return (
+                    <div
+                      key={item.id || idx}
+                      onClick={() => setSelectedPriority(item)}
+                      className="group cursor-pointer bg-white p-4 rounded-xl border border-slate-200 shadow-2xs hover:border-slate-400 transition-all space-y-2.5"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="flex items-center justify-center h-6 w-6 rounded-full bg-slate-100 text-slate-700 text-xs font-bold">
+                            {idx + 1}
+                          </span>
+                          <span className="font-semibold text-slate-900 text-base group-hover:text-indigo-600 transition-colors">
+                            {item.title}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className={`text-2xl font-semibold px-2 py-0.5 ${
+                              isCritical
+                                ? "border-red-300 bg-red-50 text-red-700"
+                                : isHigh
+                                ? "border-amber-300 bg-amber-50 text-amber-700"
+                                : isMedium
+                                ? "border-blue-300 bg-blue-50 text-blue-700"
+                                : "border-slate-300 bg-slate-50 text-slate-700"
+                            }`}
+                          >
+                            {item.priorityLevel}
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-slate-500 font-medium">
+                          Trend: <span className="text-slate-900 font-semibold">{item.trend}</span>
+                        </div>
+                      </div>
+
+                      <p className="text-sm text-slate-700 leading-relaxed">
+                        {item.reason}
+                      </p>
+
+                      <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-xs text-slate-600 flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <strong className="text-slate-800">Why now?</strong> {item.whyNow}
+                        </div>
+                        {item.freshnessNote && (
+                          <div className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                            {item.freshnessNote}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="pt-1 flex items-center justify-between text-xs text-slate-500">
+                        <div className="flex items-center gap-3">
+                          <span>Urgency: <strong className="text-slate-700">{item.urgency}</strong></span>
+                          <span>•</span>
+                          <span>Impact: <strong className="text-slate-700">{item.impact}</strong></span>
+                        </div>
+                        <span className="text-indigo-600 font-medium group-hover:underline">
+                          View evidence & drill-down →
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Business Trends & Situation Timeline (Day 14) */}
         {situationTrendsQuery.data && situationTrendsQuery.data.length > 0 && (
           <Card className="border-slate-300 bg-white shadow-sm">
@@ -541,6 +653,119 @@ export default function DashboardV2() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Decision Priority Evidence Drill-Down Modal (Day 15) */}
+        {selectedPriority && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+            <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-6 animate-in fade-in-50 zoom-in-95">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="border-slate-300 bg-slate-50 text-slate-700 font-medium">
+                      DECISION FOCUS
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className={`font-semibold ${
+                        selectedPriority.priorityLevel === "CRITICAL"
+                          ? "border-red-300 bg-red-50 text-red-700"
+                          : selectedPriority.priorityLevel === "HIGH"
+                          ? "border-amber-300 bg-amber-50 text-amber-700"
+                          : "border-blue-300 bg-blue-50 text-blue-700"
+                      }`}
+                    >
+                      {selectedPriority.priorityLevel} PRIORITY
+                    </Badge>
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mt-1">
+                    {selectedPriority.title}
+                  </h3>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedPriority(null)}
+                  className="text-slate-500 hover:text-slate-900 h-8 w-8 p-0"
+                >
+                  ✕
+                </Button>
+              </div>
+
+              <div className="space-y-5">
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                    Why Now?
+                  </h4>
+                  <p className="text-sm text-slate-700 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    {selectedPriority.whyNow}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Business Impact</div>
+                    <div className="text-sm font-semibold text-slate-900">{selectedPriority.impact}</div>
+                  </div>
+                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Trend Direction</div>
+                    <div className="text-sm font-semibold text-slate-900">{selectedPriority.trend}</div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                    Business Reason & Analysis
+                  </h4>
+                  <p className="text-sm text-slate-700 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    {selectedPriority.reason}
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                    Supporting Evidence & Facts
+                  </h4>
+                  <div className="space-y-2">
+                    {selectedPriority.evidence && selectedPriority.evidence.length > 0 ? (
+                      selectedPriority.evidence.map((ev: any, idx: number) => (
+                        <div key={idx} className="flex items-center justify-between text-xs bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
+                          <span className="font-medium text-slate-600">{ev.label}:</span>
+                          <span className="font-semibold text-slate-900">{ev.value}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-xs text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        No supplementary evidence recorded.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {selectedPriority.freshnessNote && (
+                  <Alert className="border-amber-200 bg-amber-50">
+                    <AlertCircle className="h-4 w-4 text-amber-600" />
+                    <AlertDescription className="text-amber-800 text-xs">
+                      <strong>Data Freshness Note:</strong> {selectedPriority.freshnessNote}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                <div className="pt-2 flex items-center justify-between border-t border-slate-100">
+                  <div className="text-xs text-slate-500">
+                    Urgency: <strong className="text-slate-700">{selectedPriority.urgency}</strong>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedPriority(null)}
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Situation Timeline & Trend Detail Modal (Day 14) */}

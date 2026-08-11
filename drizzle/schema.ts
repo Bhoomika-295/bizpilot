@@ -537,3 +537,35 @@ export const situationSnapshots = mysqlTable(
 
 export type SituationSnapshot = typeof situationSnapshots.$inferSelect;
 export type InsertSituationSnapshot = typeof situationSnapshots.$inferInsert;
+
+/**
+ * Decision Priorities — ranks top operating situations and insights for Today's Strategic Focus.
+ */
+export const decisionPriorities = mysqlTable(
+  "decisionPriorities",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    sourceType: varchar("sourceType", { length: 50 }).notNull().default("SITUATION"), // SITUATION, SIGNAL, METRIC
+    sourceId: int("sourceId"),
+    title: varchar("title", { length: 255 }).notNull(),
+    priorityLevel: varchar("priorityLevel", { length: 50 }).notNull().default("MEDIUM"), // CRITICAL, HIGH, MEDIUM, LOW
+    priorityScore: int("priorityScore").notNull().default(50),
+    urgency: varchar("urgency", { length: 100 }).notNull().default("Normal"),
+    impact: varchar("impact", { length: 100 }).notNull().default("Moderate"),
+    trend: varchar("trend", { length: 50 }).notNull().default("STABLE"), // IMPROVING, WORSENING, STABLE, NEW, RESOLVED, RECURRING
+    reason: text("reason").notNull(),
+    whyNow: text("whyNow").notNull(),
+    evidenceJson: text("evidenceJson").notNull(), // JSON array of evidence items
+    freshnessNote: varchar("freshnessNote", { length: 255 }),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("decisionPriorities_businessId_idx").on(table.businessId),
+    priorityScoreIdx: index("decisionPriorities_priorityScore_idx").on(table.priorityScore),
+  })
+);
+
+export type DecisionPriority = typeof decisionPriorities.$inferSelect;
+export type InsertDecisionPriority = typeof decisionPriorities.$inferInsert;

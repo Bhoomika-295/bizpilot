@@ -15,6 +15,7 @@ import {
 import { getMarketSignals, getBusinessSituations, updateBusinessSituationStatus } from "../db";
 import { evaluateAndUpsertBusinessSituations } from "../services/businessSituationEngine";
 import { evaluateAndRecordSituationSnapshots, getBusinessSituationTrends } from "../services/situationTrendService";
+import { getDecisionPrioritiesForTenant, evaluateAndUpsertDecisionPriorities } from "../services/decisionPriorityEngine";
 import { refreshMarketSignalsForBusiness } from "../services/marketSignalService";
 import {
   generateStrategyRecommendations,
@@ -389,5 +390,43 @@ export const businessMetricsRouter = router({
       await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
       await updateBusinessSituationStatus(input.situationId, input.status);
       return { success: true };
+    }),
+
+  /**
+   * Get decision priorities and Today's Strategic Focus
+   */
+  getDecisionPriorities: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+        periodStartDate: z.string().optional(),
+        periodEndDate: z.string().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      const start = input.periodStartDate ? new Date(input.periodStartDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const end = input.periodEndDate ? new Date(input.periodEndDate) : new Date();
+      return await evaluateAndUpsertDecisionPriorities(input.businessId, start, end);
+    }),
+
+  /**
+   * Get single decision priority detail
+   */
+  getDecisionPriorityDetail: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+        priorityId: z.number(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      const list = await getDecisionPrioritiesForTenant(input.businessId);
+      const found = list.find((p) => p.id === input.priorityId);
+      if (!found) {
+        throw new Error("Decision priority not found or unauthorized");
+      }
+      return found;
     }),
 });

@@ -239,13 +239,25 @@
 - [x] Save Day 12 checkpoint and stop without starting Day 13
 
 ## Day 14: Situation Timeline & Trend Intelligence v1
-- [ ] Inspect existing BusinessSituation system, Strategy Copilot context, and dashboard layout
-- [ ] Create `situationSnapshots` table schema in Drizzle and execute migration SQL via `webdev_execute_sql`
-- [ ] Add Drizzle CRUD helpers for situation snapshots in `server/db.ts`
-- [ ] Implement deterministic Trend Intelligence Engine (`server/services/situationTrendService.ts`) with historical change analysis (IMPROVING, WORSENING, STABLE, NEW, RESOLVED, RECURRING) and duplicate snapshot prevention
-- [ ] Extend Strategy Copilot context and rules to factor in situation trend direction (e.g. WORSENING vs IMPROVING cost pressure)
-- [ ] Expose protected tRPC router procedures for getting situation timeline, trend summary, business trends overview, and historical window (7/30/90 days)
-- [ ] Integrate Business Trends overview card, situation timeline detail modal, and What Changed since last review into `DashboardV2.tsx`
-- [ ] Add deterministic unit and integration tests for trend classification, recurring situation detection, snapshot deduplication, and tenant authorization (`server/situationTrend.test.ts`)
+- [x] Inspect existing BusinessSituation system, Strategy Copilot context, and dashboard layout
+- [x] Create `situationSnapshots` table schema in Drizzle and execute migration SQL via `webdev_execute_sql`
+- [x] Add Drizzle CRUD helpers for situation snapshots in `server/db.ts`
+- [x] Implement deterministic Trend Intelligence Engine (`server/services/situationTrendService.ts`) with historical change analysis (IMPROVING, WORSENING, STABLE, NEW, RESOLVED, RECURRING) and duplicate snapshot prevention
+- [x] Extend Strategy Copilot context and rules to factor in situation trend direction (e.g. WORSENING vs IMPROVING cost pressure)
+- [x] Expose protected tRPC router procedures for getting situation timeline, trend summary, business trends overview, and historical window (7/30/90 days)
+- [x] Integrate Business Trends overview card, situation timeline detail modal, and What Changed since last review into `DashboardV2.tsx`
+- [x] Add deterministic unit and integration tests for trend classification, recurring situation detection, snapshot deduplication, and tenant authorization (`server/situationTrend.test.ts`)
+- [x] Run full test suite, TypeScript checks, and production build verification
+- [x] Save Day 14 checkpoint and stop
+
+## Day 15: Decision Priority & Strategic Focus Engine v1
+- [ ] Inspect existing business situations, trends, signals, Strategy Copilot, and dashboard layout
+- [ ] Create `decisionPriorities` table in Drizzle schema and execute migration SQL via `webdev_execute_sql`
+- [ ] Add Drizzle CRUD helpers for decision priorities in `server/db.ts`
+- [ ] Implement deterministic Decision Priority Engine (`server/services/decisionPriorityEngine.ts`) multi-signal scoring, trend amplification, health interaction, fresh data penalties, and "Why now?" explanation generator
+- [ ] Extend Strategy Copilot service (`server/services/strategyCopilotService.ts`) to consume decision priorities and avoid recommendation fatigue
+- [ ] Expose protected tRPC router procedures (`getDecisionPriorities`, `getDecisionPriorityDetail`) in `server/routers/businessMetrics.ts`
+- [ ] Integrate "Today's Strategic Focus" (Top 3 Focus Areas) card and Evidence Drill-Down modal into `DashboardV2.tsx`
+- [ ] Add deterministic unit and integration tests for priority scoring, fatigue prevention, and tenant authorization (`server/decisionPriority.test.ts`)
 - [ ] Run full test suite, TypeScript checks, and production build verification
-- [ ] Save Day 14 checkpoint and stop
+- [ ] Save Day 15 checkpoint and stop

@@ -1157,3 +1157,87 @@ export async function getBusinessSituationSnapshots(businessId: number, limit = 
     .orderBy(desc(situationSnapshots.timestamp))
     .limit(limit);
 }
+
+import { decisionPriorities, type InsertDecisionPriority } from "../drizzle/schema";
+
+export async function upsertDecisionPriority(data: {
+  businessId: number;
+  sourceType: string;
+  sourceId?: number;
+  title: string;
+  priorityLevel: string;
+  priorityScore: number;
+  urgency: string;
+  impact: string;
+  trend: string;
+  reason: string;
+  whyNow: string;
+  evidenceJson: string;
+  freshnessNote?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Check if priority already exists for this business + source
+  const existing = await db
+    .select()
+    .from(decisionPriorities)
+    .where(
+      and(
+        eq(decisionPriorities.businessId, data.businessId),
+        eq(decisionPriorities.sourceType, data.sourceType),
+        eq(decisionPriorities.sourceId, data.sourceId || 0)
+      )
+    )
+    .limit(1);
+
+  if (existing.length > 0) {
+    await db
+      .update(decisionPriorities)
+      .set({
+        title: data.title,
+        priorityLevel: data.priorityLevel,
+        priorityScore: data.priorityScore,
+        urgency: data.urgency,
+        impact: data.impact,
+        trend: data.trend,
+        reason: data.reason,
+        whyNow: data.whyNow,
+        evidenceJson: data.evidenceJson,
+        freshnessNote: data.freshnessNote || null,
+        updatedAt: new Date(),
+      })
+      .where(eq(decisionPriorities.id, existing[0].id));
+    return existing[0].id;
+  }
+
+  const res = await db.insert(decisionPriorities).values({
+    businessId: data.businessId,
+    sourceType: data.sourceType,
+    sourceId: data.sourceId || null,
+    title: data.title,
+    priorityLevel: data.priorityLevel,
+    priorityScore: data.priorityScore,
+    urgency: data.urgency,
+    impact: data.impact,
+    trend: data.trend,
+    reason: data.reason,
+    whyNow: data.whyNow,
+    evidenceJson: data.evidenceJson,
+    freshnessNote: data.freshnessNote || null,
+  });
+
+  return res && Array.isArray(res) && res[0]?.insertId ? Number(res[0].insertId) : null;
+}
+
+export async function getDecisionPriorities(businessId: number, limit = 10) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db
+    .select()
+    .from(decisionPriorities)
+    .where(eq(decisionPriorities.businessId, businessId))
+    .orderBy(desc(decisionPriorities.priorityScore))
+    .limit(limit);
+}
