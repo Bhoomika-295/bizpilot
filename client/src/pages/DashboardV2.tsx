@@ -26,6 +26,9 @@ import {
   AlertCircle,
   CheckCircle,
   Minus,
+  ExternalLink,
+  RefreshCw,
+  Globe,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -85,6 +88,21 @@ export default function DashboardV2() {
     },
     { enabled: !!businessId && isAuthenticated }
   );
+
+  const marketSignalsQuery = trpc.businessMetrics.getMarketSignals.useQuery(
+    { businessId: parseInt(businessId || "0") },
+    { enabled: !!businessId && isAuthenticated }
+  );
+
+  const utils = trpc.useUtils();
+  const refreshSignalsMutation = trpc.businessMetrics.refreshMarketSignals.useMutation({
+    onSuccess: (data) => {
+      utils.businessMetrics.getMarketSignals.setData(
+        { businessId: parseInt(businessId || "0") },
+        { signals: data.signals, lastUpdated: data.lastUpdated }
+      );
+    },
+  });
 
   const isLoading =
     metricsQuery.isLoading ||
@@ -572,6 +590,109 @@ export default function DashboardV2() {
             </CardContent>
           </Card>
         )}
+
+        {/* Real-Time Market Signals (Day 9) */}
+        <Card>
+          <CardHeader className="space-y-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <CardTitle>Market Signals & Industry Watch</CardTitle>
+                  <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
+                    REAL-TIME
+                  </Badge>
+                </div>
+                <CardDescription className="mt-1">
+                  External news coverage and industry intelligence relevant to your business and competitors.
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                {marketSignalsQuery.data?.lastUpdated && (
+                  <span className="text-xs text-slate-500">
+                    Updated {formatLastUpdated(marketSignalsQuery.data.lastUpdated)}
+                  </span>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => refreshSignalsMutation.mutate({ businessId: parseInt(businessId || "0") })}
+                  disabled={refreshSignalsMutation.isPending}
+                  className="gap-1.5"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${refreshSignalsMutation.isPending ? "animate-spin" : ""}`} />
+                  Refresh
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {marketSignalsQuery.isLoading ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+              </div>
+            ) : marketSignalsQuery.data?.signals && marketSignalsQuery.data.signals.length > 0 ? (
+              <div className="space-y-3">
+                {marketSignalsQuery.data.signals.map((sig) => (
+                  <div
+                    key={sig.id}
+                    className="flex flex-col gap-1.5 rounded-lg border border-slate-200 bg-white p-4 shadow-xs transition-colors hover:border-slate-300"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <a
+                        href={sig.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group inline-flex items-center gap-1.5 text-sm font-semibold text-slate-900 hover:text-blue-600"
+                      >
+                        <span>{sig.title}</span>
+                        <ExternalLink className="h-3.5 w-3.5 text-slate-400 group-hover:text-blue-600" />
+                      </a>
+                      <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-600">
+                        {sig.relatedEntity}
+                      </Badge>
+                    </div>
+                    {sig.snippet && (
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        {sig.snippet}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-2 text-xs text-slate-400 pt-1">
+                      <span className="font-medium text-slate-700">{sig.source}</span>
+                      <span>•</span>
+                      <span>
+                        {sig.publishedAt
+                          ? new Date(sig.publishedAt).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })
+                          : "Recently published"}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed border-slate-200 p-6 text-center">
+                <Globe className="mx-auto h-8 w-8 text-slate-300" />
+                <h4 className="mt-2 text-sm font-medium text-slate-900">No Market Signals Available</h4>
+                <p className="mt-1 text-xs text-slate-500">
+                  Click Refresh to scan external news sources and competitor mentions for your industry.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => refreshSignalsMutation.mutate({ businessId: parseInt(businessId || "0") })}
+                  disabled={refreshSignalsMutation.isPending}
+                  className="mt-4 gap-1.5"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${refreshSignalsMutation.isPending ? "animate-spin" : ""}`} />
+                  Scan Market Signals
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Data Quality Notice */}
         <Alert className="bg-blue-50 border-blue-200">

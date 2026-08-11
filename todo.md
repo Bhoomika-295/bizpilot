@@ -186,3 +186,14 @@
 - [x] Pass full test suite (30 tests passed), TypeScript checks, and production build
 - [x] Document authenticated visual verification as environment-limited (no owned preview business data)
 - [x] Save Day 8 checkpoint and stop without starting Day 9
+
+## Day 9: Real-Time Market Signals v1
+- [x] Inspect current competitor, dashboard, database, and integration architecture
+- [x] Create `marketSignals` table in Drizzle schema and execute migration SQL
+- [x] Implement server-side GDELT API adapter (`server/services/marketSignalService.ts`) with timeout, content-type checks, deduplication, and safe fallback
+- [x] Add protected `getMarketSignals` and `refreshMarketSignals` tRPC procedures with tenant authorization
+- [x] Integrate "Market Signals & Industry Watch" card into DashboardV2 with real-time badges, source links, published timestamps, and explicit Refresh action
+- [x] Add deterministic unit and integration tests for GDELT normalization and resilience (`server/marketSignal.test.ts`)
+- [x] Pass full test suite (32 tests passed), TypeScript checks, and production build
+- [x] Document authenticated visual verification as environment-limited (no owned preview business data)
+- [x] Save Day 9 checkpoint and stop without starting Day 10

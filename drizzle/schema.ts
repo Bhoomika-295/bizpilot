@@ -435,3 +435,33 @@ export const competitors = mysqlTable(
 
 export type Competitor = typeof competitors.$inferSelect;
 export type InsertCompetitor = typeof competitors.$inferInsert;
+
+
+/**
+ * Market Signals table — stores tenant-scoped external market intelligence signals.
+ */
+export const marketSignals = mysqlTable(
+  "marketSignals",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    title: varchar("title", { length: 512 }).notNull(),
+    source: varchar("source", { length: 255 }).notNull(),
+    sourceUrl: text("sourceUrl").notNull(),
+    publishedAt: timestamp("publishedAt"),
+    discoveredAt: timestamp("discoveredAt").defaultNow().notNull(),
+    relatedEntity: varchar("relatedEntity", { length: 255 }).notNull(),
+    snippet: text("snippet"),
+    relevanceStatus: varchar("relevanceStatus", { length: 100 }).default("relevant").notNull(),
+    externalId: varchar("externalId", { length: 255 }),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("marketSignals_businessId_idx").on(table.businessId),
+    publishedAtIdx: index("marketSignals_publishedAt_idx").on(table.publishedAt),
+  })
+);
+
+export type MarketSignal = typeof marketSignals.$inferSelect;
+export type InsertMarketSignal = typeof marketSignals.$inferInsert;

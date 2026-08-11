@@ -1,5 +1,5 @@
-import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import { z } from "zod";
 import { protectedProcedure, router } from "../_core/trpc";
 import {
   calculateBusinessMetrics,
@@ -12,6 +12,8 @@ import {
   getBusinessDataBasis,
   verifyBusinessOwnership,
 } from "../services/businessDataService";
+import { getMarketSignals } from "../db";
+import { refreshMarketSignalsForBusiness } from "../services/marketSignalService";
 
 /**
  * Business Metrics Router
@@ -44,7 +46,6 @@ export const businessMetricsRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      // Verify ownership
       await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
 
       const metrics = await calculateBusinessMetrics(
@@ -68,21 +69,43 @@ export const businessMetricsRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const business = await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+
+      const business = await verifyBusinessOwnership(ctx.user.id, input.businessId);
       const dataBasis = await getBusinessDataBasis(business);
 
-      const healthScore = await calculateBusinessHealthScore(
+      const metrics = await calculateBusinessMetrics(
+        input.businessId,
+        input.periodStartDate,
+        input.periodEndDate
+      );
+
+      const score = await calculateBusinessHealthScore(
         input.businessId,
         input.periodStartDate,
         input.periodEndDate,
         dataBasis
       );
 
-      return healthScore;
+      return score;
     }),
 
   /**
-   * Detect meaningful internal changes from the current and previous comparable periods.
+   * Get data freshness indicator status
+   */
+  getDataFreshness: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return await getDataFreshness(input.businessId);
+    }),
+
+  /**
+   * Get internal business changes
    */
   getChanges: protectedProcedure
     .input(
@@ -94,18 +117,16 @@ export const businessMetricsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
-
       const metrics = await calculateBusinessMetrics(
         input.businessId,
         input.periodStartDate,
         input.periodEndDate
       );
-
       return detectBusinessChanges(metrics);
     }),
 
   /**
-   * Get the Intelligent Business Briefing summarizing current signals, priority, and explanations.
+   * Get Intelligent Business Briefing
    */
   getBriefing: protectedProcedure
     .input(
@@ -117,38 +138,17 @@ export const businessMetricsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
-
       const metrics = await calculateBusinessMetrics(
         input.businessId,
         input.periodStartDate,
         input.periodEndDate
       );
       const changes = detectBusinessChanges(metrics);
-
       return generateBusinessIntelligenceBriefing(metrics, changes);
     }),
 
   /**
-   * Get data freshness information
-   */
-  getDataFreshness: protectedProcedure
-    .input(
-      z.object({
-        businessId: z.number(),
-      })
-    )
-    .query(async ({ ctx, input }) => {
-      // Verify ownership
-      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
-
-      const freshness = await getDataFreshness(input.businessId);
-
-      return freshness;
-    }),
-
-  /**
-   * Get metrics for multiple standard periods
-   * Returns: current period, previous period, and YTD
+   * Get multi-period business metrics, previous comparison, and health score
    */
   getMetricsMultiPeriod: protectedProcedure
     .input(
@@ -157,7 +157,9 @@ export const businessMetricsRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const business = await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+
+      const business = await verifyBusinessOwnership(ctx.user.id, input.businessId);
       const dataBasis = await getBusinessDataBasis(business);
 
       const now = new Date();
@@ -180,5 +182,53 @@ export const businessMetricsRouter = router({
         previous: previousMetrics,
         healthScore,
       };
+    }),
+
+  /**
+   * Get market signals for a business
+   */
+  getMarketSignals: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      const signals = await getMarketSignals(input.businessId);
+      return {
+        signals,
+        lastUpdated: signals.length > 0 ? signals[0].discoveredAt : null,
+      };
+    }),
+
+  /**
+   * Refresh market signals for a business by fetching from external provider
+   */
+  refreshMarketSignals: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      try {
+        const result = await refreshMarketSignalsForBusiness(input.businessId);
+        const signals = await getMarketSignals(input.businessId);
+        return {
+          success: result.success,
+          message: result.message,
+          signalCount: result.signalCount,
+          signals,
+          lastUpdated: signals.length > 0 ? signals[0].discoveredAt : null,
+        };
+      } catch (error) {
+        console.error("[MarketSignals Router] Refresh error:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Market signals temporarily unavailable.",
+        });
+      }
     }),
 });

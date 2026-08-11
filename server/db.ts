@@ -16,6 +16,7 @@ import {
   externalDataSources,
   csvImports,
   competitors,
+  marketSignals,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -906,3 +907,58 @@ export async function deleteCompetitor(competitorId: number) {
 
 
 
+
+
+/**
+ * ============================================================
+ * MARKET SIGNALS OPERATIONS
+ * ============================================================
+ */
+
+export async function createMarketSignal(
+  businessId: number,
+  data: {
+    title: string;
+    source: string;
+    sourceUrl: string;
+    publishedAt?: Date;
+    relatedEntity: string;
+    snippet?: string;
+    relevanceStatus?: string;
+    externalId?: string;
+  }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return await db.insert(marketSignals).values({
+    businessId,
+    title: data.title,
+    source: data.source,
+    sourceUrl: data.sourceUrl,
+    publishedAt: data.publishedAt || null,
+    relatedEntity: data.relatedEntity,
+    snippet: data.snippet || null,
+    relevanceStatus: data.relevanceStatus || "relevant",
+    externalId: data.externalId || null,
+  });
+}
+
+export async function getMarketSignals(businessId: number, limit = 20) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db
+    .select()
+    .from(marketSignals)
+    .where(eq(marketSignals.businessId, businessId))
+    .orderBy(desc(marketSignals.publishedAt), desc(marketSignals.discoveredAt))
+    .limit(limit);
+}
+
+export async function clearMarketSignals(businessId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return await db.delete(marketSignals).where(eq(marketSignals.businessId, businessId));
+}
