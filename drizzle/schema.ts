@@ -408,3 +408,30 @@ export const csvImports = mysqlTable(
 
 export type CsvImport = typeof csvImports.$inferSelect;
 export type InsertCsvImport = typeof csvImports.$inferInsert;
+
+
+/**
+ * Competitors table — stores tenant-scoped competitor watchlist for market intelligence.
+ */
+export const competitors = mysqlTable(
+  "competitors",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    name: varchar("name", { length: 255 }).notNull(),
+    industry: varchar("industry", { length: 100 }),
+    website: varchar("website", { length: 255 }),
+    location: varchar("location", { length: 255 }),
+    notes: text("notes"),
+    status: mysqlEnum("status", ["active", "inactive"]).default("active").notNull(),
+    intelligenceStatus: varchar("intelligenceStatus", { length: 100 }).default("Not connected yet").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("competitors_businessId_idx").on(table.businessId),
+  })
+);
+
+export type Competitor = typeof competitors.$inferSelect;
+export type InsertCompetitor = typeof competitors.$inferInsert;

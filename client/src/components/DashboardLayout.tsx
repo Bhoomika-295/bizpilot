@@ -27,6 +27,7 @@ import {
   LayoutDashboard,
   LogOut,
   PanelLeft,
+  ShieldAlert,
   UserCircle,
   Users,
 } from "lucide-react";
@@ -42,6 +43,7 @@ function getMenuItems(businessId?: string) {
 
   return [
     { icon: LayoutDashboard, label: "Dashboard", path: `/dashboard/${businessId}` },
+    { icon: ShieldAlert, label: "Competitors", path: `/competitors/${businessId}` },
     { icon: Users, label: "Customers", path: `/customers/${businessId}` },
     { icon: Database, label: "Data", path: `/data/${businessId}` },
     { icon: FileUp, label: "Import CSV", path: `/import/${businessId}` },

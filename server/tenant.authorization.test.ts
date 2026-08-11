@@ -78,10 +78,26 @@ describe("tenant authorization", () => {
     });
   });
 
+  it("rejects competitor list access to a business the user does not own", async () => {
+    const caller = appRouter.createCaller(createContext());
+
+    await expect(
+      caller.competitors.list({ businessId: 999999999 })
+    ).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: "You do not have access to this business.",
+    });
+  });
+
   it("does not expose missing records through record-scoped routes", async () => {
     const caller = appRouter.createCaller(createContext());
 
     await expect(caller.customers.get({ customerId: 999999999 })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+      message: "Record not found.",
+    });
+
+    await expect(caller.competitors.get({ competitorId: 999999999 })).rejects.toMatchObject({
       code: "NOT_FOUND",
       message: "Record not found.",
     });

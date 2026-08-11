@@ -15,6 +15,7 @@ import {
   outcomes,
   externalDataSources,
   csvImports,
+  competitors,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -814,3 +815,94 @@ export async function getExternalDataSources(businessId: number) {
     .where(eq(externalDataSources.businessId, businessId))
     .orderBy(desc(externalDataSources.createdAt));
 }
+
+
+/**
+ * ============================================================
+ * COMPETITOR WATCHLIST OPERATIONS
+ * ============================================================
+ */
+
+export async function createCompetitor(
+  businessId: number,
+  data: {
+    name: string;
+    industry?: string;
+    website?: string;
+    location?: string;
+    notes?: string;
+    status?: "active" | "inactive";
+    intelligenceStatus?: string;
+  }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const [result] = await db.insert(competitors).values({
+    businessId,
+    name: data.name,
+    industry: data.industry || null,
+    website: data.website || null,
+    location: data.location || null,
+    notes: data.notes || null,
+    status: data.status || "active",
+    intelligenceStatus: data.intelligenceStatus || "Not connected yet",
+  });
+
+  return result;
+}
+
+export async function getCompetitors(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db
+    .select()
+    .from(competitors)
+    .where(eq(competitors.businessId, businessId))
+    .orderBy(desc(competitors.createdAt));
+}
+
+export async function getCompetitorById(competitorId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const result = await db
+    .select()
+    .from(competitors)
+    .where(eq(competitors.id, competitorId))
+    .limit(1);
+
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function updateCompetitor(
+  competitorId: number,
+  data: Partial<{
+    name: string;
+    industry: string;
+    website: string;
+    location: string;
+    notes: string;
+    status: "active" | "inactive";
+    intelligenceStatus: string;
+  }>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return await db
+    .update(competitors)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(competitors.id, competitorId));
+}
+
+export async function deleteCompetitor(competitorId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return await db.delete(competitors).where(eq(competitors.id, competitorId));
+}
+
+
+

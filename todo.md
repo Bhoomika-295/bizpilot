@@ -174,3 +174,15 @@
 - [x] Pass full test suite (29 tests passed), TypeScript checks, and production build
 - [x] Document authenticated visual verification as environment-limited (no owned preview business data)
 - [x] Save Day 7 checkpoint and stop without starting Day 8
+
+## Day 8: Competitor Watchlist & Market Intelligence Foundation
+- [x] Inspect existing schema, database helpers, routing, navigation, and dashboard patterns
+- [x] Add tenant-scoped competitor table in Drizzle schema and execute migration SQL
+- [x] Add backend CRUD query helpers in `server/db.ts`
+- [x] Expose protected `competitors` tRPC router procedures with strict tenant authorization checks
+- [x] Build `CompetitorsPage.tsx` with directory list, summary metrics, profile detail view, strategic notes, and add/edit modals
+- [x] Add Competitors navigation item to `DashboardLayout.tsx` and register route in `App.tsx`
+- [x] Extend tenant authorization tests in `server/tenant.authorization.test.ts` for competitor routes
+- [x] Pass full test suite (30 tests passed), TypeScript checks, and production build
+- [x] Document authenticated visual verification as environment-limited (no owned preview business data)
+- [x] Save Day 8 checkpoint and stop without starting Day 9

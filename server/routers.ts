@@ -505,6 +505,74 @@ export const appRouter = router({
   }),
 
   businessMetrics: businessMetricsRouter,
+
+  /**
+   * ============================================================
+   * COMPETITOR WATCHLIST OPERATIONS
+   * ============================================================
+   */
+  competitors: router({
+    create: protectedProcedure
+      .input(
+        z.object({
+          businessId: z.number(),
+          name: z.string().min(1),
+          industry: z.string().optional(),
+          website: z.string().optional(),
+          location: z.string().optional(),
+          notes: z.string().optional(),
+          status: z.enum(["active", "inactive"]).optional(),
+          intelligenceStatus: z.string().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        await requireBusinessAccess(ctx.user.id, input.businessId);
+        return await db.createCompetitor(input.businessId, input);
+      }),
+
+    list: protectedProcedure
+      .input(z.object({ businessId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        await requireBusinessAccess(ctx.user.id, input.businessId);
+        return await db.getCompetitors(input.businessId);
+      }),
+
+    get: protectedProcedure
+      .input(z.object({ competitorId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const competitor = await db.getCompetitorById(input.competitorId);
+        return await requireRecordBusiness(ctx.user.id, competitor);
+      }),
+
+    update: protectedProcedure
+      .input(
+        z.object({
+          competitorId: z.number(),
+          data: z.object({
+            name: z.string().min(1).optional(),
+            industry: z.string().optional(),
+            website: z.string().optional(),
+            location: z.string().optional(),
+            notes: z.string().optional(),
+            status: z.enum(["active", "inactive"]).optional(),
+            intelligenceStatus: z.string().optional(),
+          }),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const competitor = await db.getCompetitorById(input.competitorId);
+        await requireRecordBusiness(ctx.user.id, competitor);
+        return await db.updateCompetitor(input.competitorId, input.data);
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ competitorId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const competitor = await db.getCompetitorById(input.competitorId);
+        await requireRecordBusiness(ctx.user.id, competitor);
+        return await db.deleteCompetitor(input.competitorId);
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;
