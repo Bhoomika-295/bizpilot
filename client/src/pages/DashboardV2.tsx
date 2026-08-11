@@ -427,9 +427,18 @@ export default function DashboardV2() {
                           aria-hidden="true"
                         />
                         <div>
-                          <p className="text-sm font-semibold text-slate-900">
-                            {change.label}
-                          </p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-semibold text-slate-900">
+                              {change.label}
+                            </p>
+                            <Badge
+                              variant="outline"
+                              aria-label={`${change.priority} signal priority`}
+                              className={getSignalPriorityBadgeClass(change.priority)}
+                            >
+                              {change.priority}
+                            </Badge>
+                          </div>
                           <p className="mt-1 text-sm text-slate-600">
                             {change.summary}
                           </p>
@@ -458,6 +467,16 @@ export default function DashboardV2() {
 /**
  * Metric Card Component
  */
+function getSignalPriorityBadgeClass(priority: "LOW" | "MEDIUM" | "HIGH"): string {
+  if (priority === "HIGH") {
+    return "border-rose-200 bg-rose-50 text-rose-700";
+  }
+  if (priority === "MEDIUM") {
+    return "border-amber-200 bg-amber-50 text-amber-700";
+  }
+  return "border-slate-200 bg-slate-50 text-slate-600";
+}
+
 function formatLastUpdated(date: Date | string): string {
   const updatedAt = date instanceof Date ? date : new Date(date);
   const elapsedMs = Math.max(0, Date.now() - updatedAt.getTime());

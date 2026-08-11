@@ -13,6 +13,7 @@ import {
   calculateBusinessHealthScore,
   calculateBusinessMetrics,
   detectBusinessChanges,
+  getSignalPriority,
 } from "./services/businessMetricEngine";
 import * as dataService from "./services/businessDataService";
 
@@ -197,6 +198,38 @@ describe("business metric engine", () => {
       absoluteChange: 200,
       percentChange: 20,
     });
+  });
+
+  it("assigns LOW priority below the 10% magnitude threshold", () => {
+    expect(getSignalPriority(9.99)).toBe("LOW");
+    expect(getSignalPriority(-9.99)).toBe("LOW");
+  });
+
+  it("assigns MEDIUM priority from 10% through 19.99% magnitude", () => {
+    expect(getSignalPriority(10)).toBe("MEDIUM");
+    expect(getSignalPriority(-19.99)).toBe("MEDIUM");
+  });
+
+  it("assigns HIGH priority at or above the 20% magnitude threshold", () => {
+    expect(getSignalPriority(20)).toBe("HIGH");
+    expect(getSignalPriority(-25)).toBe("HIGH");
+  });
+
+  it("includes priority on detected changes based only on magnitude", () => {
+    const result = detectBusinessChanges({
+      revenue: { value: 900, previousValue: 1000, change: -100, percentChange: -10, hasData: true, hasPreviousData: true },
+      expenses: { value: 1250, previousValue: 1000, change: 250, percentChange: 25, hasData: true, hasPreviousData: true },
+      estimatedProfit: { value: 0, previousValue: 0, change: 0, percentChange: 0, hasData: true, hasPreviousData: true },
+      transactionCount: { value: 10, previousValue: 10, change: 0, percentChange: 0, hasData: true, hasPreviousData: true },
+      customers: { total: 1, active: 1, inactive: 0, previousActive: 1, activeChange: 0, activePercentChange: 0, hasData: true, hasPreviousData: true },
+      averageTransactionValue: 90,
+      lastUpdated: new Date("2026-01-31T00:00:00.000Z"),
+    });
+
+    expect(result.changes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ metric: "revenue", priority: "MEDIUM" }),
+      expect.objectContaining({ metric: "expenses", priority: "HIGH" }),
+    ]));
   });
 
   it("does not overstate small period movements", () => {

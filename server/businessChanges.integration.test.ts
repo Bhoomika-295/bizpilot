@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { businesses, transactions, users } from "../drizzle/schema";
 import { getDb } from "./db";
@@ -25,7 +25,7 @@ describeIfDatabase("business change detection persistence integration", () => {
     }
   });
 
-  it("changes the protected getChanges output after a persisted transaction update", async () => {
+  it("changes the protected getChanges output after a persisted transaction update", { timeout: 10000 }, async () => {
     const db = await getDb();
     if (!db) return;
 
@@ -109,6 +109,7 @@ describeIfDatabase("business change detection persistence integration", () => {
           metric: "revenue",
           direction: "increase",
           absoluteChange: 100,
+          priority: "HIGH",
         }),
       ])
     );

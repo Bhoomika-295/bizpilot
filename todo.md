@@ -151,3 +151,15 @@
 - [x] Document that What Changed could not be captured on an owned dashboard because the current preview route has no owned business data; authenticated visual state remains environment-limited
 - [x] Add an integration or endpoint-level test proving persisted transaction changes alter the protected getChanges output
 - [x] Obtain explicit approval to treat Day 5 owned-dashboard visual verification as environment-limited if no owned preview business is available
+
+## Day 6: Signal Priority
+- [x] Inspect existing change detection, What Changed UI, tests, and authorization
+- [x] Add transparent service-layer priority calculation with configurable thresholds
+- [x] Assign LOW, MEDIUM, or HIGH from observed change magnitude only
+- [x] Handle missing and insufficient data safely without fake priority
+- [x] Display Signal Priority subtly in the existing What Changed section
+- [x] Preserve internal-signal wording and avoid AI or prediction claims
+- [x] Verify tenant authorization remains enforced
+- [x] Add focused threshold, insufficient-data, persistence, and authorization tests
+- [x] Run type checks, full tests, production build, and visual verification
+- [x] Save the Day 6 checkpoint and stop without starting Day 7

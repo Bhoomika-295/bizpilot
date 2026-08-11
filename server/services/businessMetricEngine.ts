@@ -45,6 +45,20 @@ export interface BusinessMetrics {
 
 export const BUSINESS_CHANGE_THRESHOLD_PERCENT = 5;
 
+export const SIGNAL_PRIORITY_THRESHOLDS = {
+  mediumPercent: 10,
+  highPercent: 20,
+} as const;
+
+export type BusinessSignalPriority = "LOW" | "MEDIUM" | "HIGH";
+
+export function getSignalPriority(percentChange: number): BusinessSignalPriority {
+  const magnitude = Math.abs(percentChange);
+  if (magnitude >= SIGNAL_PRIORITY_THRESHOLDS.highPercent) return "HIGH";
+  if (magnitude >= SIGNAL_PRIORITY_THRESHOLDS.mediumPercent) return "MEDIUM";
+  return "LOW";
+}
+
 export type BusinessChangeStatus =
   | "changes_detected"
   | "no_significant_changes"
@@ -56,6 +70,7 @@ export interface BusinessChange {
   direction: "increase" | "decrease";
   percentChange: number;
   absoluteChange: number;
+  priority: BusinessSignalPriority;
   summary: string;
 }
 
@@ -309,6 +324,7 @@ export function detectBusinessChanges(
         direction,
         percentChange: candidate.percentChange,
         absoluteChange,
+        priority: getSignalPriority(candidate.percentChange),
         summary: `${candidate.label} ${direction === "increase" ? "increased" : "decreased"} ${Math.abs(candidate.percentChange).toFixed(1)}% compared with the previous period.`,
       } satisfies BusinessChange;
     });
