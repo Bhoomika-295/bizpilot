@@ -3,8 +3,9 @@ import {
   getBusinessExpenses,
   getBusinessCustomers,
   getBusinessDataStats,
-  getLastExpenseDate,
-  getLastTransactionDate,
+  getLastCustomerUpdateDate,
+  getLastExpenseUpdateDate,
+  getLastTransactionUpdateDate,
 } from "./businessDataService";
 
 /**
@@ -386,45 +387,73 @@ function generateHealthExplanation(
 }
 
 /**
- * Get data freshness information
+ * Get freshness information from the latest stored update timestamp.
+ * This is deliberately not a real-time claim: it describes persisted records only.
  */
-export async function getDataFreshness(businessId: number) {
-  const [lastTransactionDate, lastExpenseDate, stats] = await Promise.all([
-    getLastTransactionDate(businessId),
-    getLastExpenseDate(businessId),
-    getBusinessDataStats(businessId),
-  ]);
-  const latestActivityDate = [lastTransactionDate, lastExpenseDate]
-    .filter((date): date is Date => Boolean(date))
-    .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+export type DataFreshnessStatus = "up_to_date" | "needs_refresh" | "no_data";
 
-  const now = new Date();
-  let freshness = "unknown";
-  let freshnessDays = null;
+export interface DataFreshness {
+  status: DataFreshnessStatus;
+  label: string;
+  lastUpdate: Date | null;
+  daysSinceLastUpdate: number | null;
+  dataPoints: Awaited<ReturnType<typeof getBusinessDataStats>>;
+}
 
-  if (latestActivityDate) {
-    const daysSinceLastUpdate = Math.floor(
-      (now.getTime() - latestActivityDate.getTime()) / (1000 * 60 * 60 * 24)
-    );
-    freshnessDays = daysSinceLastUpdate;
+export function classifyDataFreshness(
+  latestUpdate: Date | null,
+  now = new Date()
+): Pick<DataFreshness, "status" | "label" | "daysSinceLastUpdate"> {
+  if (!latestUpdate) {
+    return {
+      status: "no_data",
+      label: "No business data available yet.",
+      daysSinceLastUpdate: null,
+    };
+  }
 
-    if (daysSinceLastUpdate === 0) {
-      freshness = "today";
-    } else if (daysSinceLastUpdate === 1) {
-      freshness = "yesterday";
-    } else if (daysSinceLastUpdate < 7) {
-      freshness = "this week";
-    } else if (daysSinceLastUpdate < 30) {
-      freshness = "this month";
-    } else {
-      freshness = "older";
-    }
+  const ageInMilliseconds = Math.max(0, now.getTime() - latestUpdate.getTime());
+  const daysSinceLastUpdate = Math.floor(
+    ageInMilliseconds / (1000 * 60 * 60 * 24)
+  );
+
+  if (ageInMilliseconds < 24 * 60 * 60 * 1000) {
+    return {
+      status: "up_to_date",
+      label: "Up to date",
+      daysSinceLastUpdate,
+    };
   }
 
   return {
-    lastUpdate: latestActivityDate,
-    freshness,
-    daysSinceLastUpdate: freshnessDays,
+    status: "needs_refresh",
+    label: "Needs refresh",
+    daysSinceLastUpdate,
+  };
+}
+
+export async function getDataFreshness(
+  businessId: number
+): Promise<DataFreshness> {
+  const [lastTransactionUpdate, lastExpenseUpdate, lastCustomerUpdate, stats] =
+    await Promise.all([
+      getLastTransactionUpdateDate(businessId),
+      getLastExpenseUpdateDate(businessId),
+      getLastCustomerUpdateDate(businessId),
+      getBusinessDataStats(businessId),
+    ]);
+
+  const latestUpdate = [
+    lastTransactionUpdate,
+    lastExpenseUpdate,
+    lastCustomerUpdate,
+  ]
+    .filter((date): date is Date => Boolean(date))
+    .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+
+  return {
+    ...classifyDataFreshness(latestUpdate),
+    lastUpdate: latestUpdate,
     dataPoints: stats,
   };
 }

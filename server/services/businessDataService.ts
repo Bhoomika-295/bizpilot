@@ -343,7 +343,62 @@ export async function getBusinessDataStats(businessId: number) {
 }
 
 /**
- * Get the most recent transaction date for a business
+ * Get the most recent stored update timestamp for transaction records.
+ * Uses the existing updatedAt column, which also reflects record creation.
+ */
+export async function getLastTransactionUpdateDate(
+  businessId: number
+): Promise<Date | null> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db
+    .select({ updatedAt: transactions.updatedAt })
+    .from(transactions)
+    .where(eq(transactions.businessId, businessId))
+    .orderBy(desc(transactions.updatedAt))
+    .limit(1);
+
+  return result.length > 0 ? result[0].updatedAt : null;
+}
+
+/** Get the most recent stored update timestamp for expense records. */
+export async function getLastExpenseUpdateDate(
+  businessId: number
+): Promise<Date | null> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db
+    .select({ updatedAt: expenses.updatedAt })
+    .from(expenses)
+    .where(eq(expenses.businessId, businessId))
+    .orderBy(desc(expenses.updatedAt))
+    .limit(1);
+
+  return result.length > 0 ? result[0].updatedAt : null;
+}
+
+/** Get the most recent stored update timestamp for customer records. */
+export async function getLastCustomerUpdateDate(
+  businessId: number
+): Promise<Date | null> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db
+    .select({ updatedAt: customers.updatedAt })
+    .from(customers)
+    .where(eq(customers.businessId, businessId))
+    .orderBy(desc(customers.updatedAt))
+    .limit(1);
+
+  return result.length > 0 ? result[0].updatedAt : null;
+}
+
+/**
+ * Get the most recent transaction business date for a business.
+ * Kept for metric and historical activity calculations.
  */
 export async function getLastTransactionDate(
   businessId: number

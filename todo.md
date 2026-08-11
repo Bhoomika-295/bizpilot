@@ -99,3 +99,22 @@
 ### Day 3 Trust Label Follow-up
 - [x] Derive demo status from existing seeded demo-source records when a business flag is missing
 - [x] Add unit coverage for demo versus real health-score data basis
+
+## Day 4: Data Freshness Indicator
+- [x] Inspect and reuse existing transaction, customer, and expense timestamps
+- [x] Implement reusable freshness calculation outside React
+- [x] Define honest freshness states for up-to-date, needs refresh, and no data
+- [x] Protect freshness reads with authentication and business ownership checks
+- [x] Add compact Data Status / Last Updated indicator to the existing dashboard
+- [x] Verify a new transaction changes the latest timestamp after refresh
+- [x] Test no-data and old-data states
+- [x] Test tenant isolation and absence of exposed secrets
+- [x] Run type checks, unit tests, production build, and visual verification
+- [ ] Save the Day 4 checkpoint and stop without starting Day 5
+
+### Day 4 Verification Follow-up
+- [ ] Add an integration or verified database flow proving a real transaction update changes the persisted freshness timestamp
+- [x] Perform and document a Day 4 secret-exposure audit for the freshness feature
+- [ ] Capture a dashboard screenshot on a valid owned business route and verify the Data Status card renders
+- [x] Document that the preview database has no owned business and that no test data was inserted solely for visual verification
+- [x] Show a clear access/error state instead of an indefinite spinner when dashboard data queries are forbidden or fail

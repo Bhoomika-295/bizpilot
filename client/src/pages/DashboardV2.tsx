@@ -28,9 +28,9 @@ export default function DashboardV2() {
   const { businessId } = useParams<{ businessId: string }>();
   const { user, isAuthenticated } = useAuth({ redirectOnUnauthenticated: true });
   const [period, setPeriod] = useState<PeriodType>("last30");
+  const [now] = useState(() => new Date());
 
-  // Calculate date ranges
-  const now = new Date();
+  // Keep query inputs stable for the lifetime of the dashboard view.
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
@@ -65,6 +65,51 @@ export default function DashboardV2() {
     metricsQuery.isLoading ||
     healthScoreQuery.isLoading ||
     freshnessQuery.isLoading;
+  const queryError =
+    metricsQuery.error || healthScoreQuery.error || freshnessQuery.error;
+  const isAccessError = [
+    metricsQuery.error,
+    healthScoreQuery.error,
+    freshnessQuery.error,
+  ].some((error) => {
+    const data = (error as { data?: { code?: string } } | null | undefined)?.data;
+    return data?.code === "FORBIDDEN" || error?.message?.includes("access");
+  });
+
+  if (queryError) {
+    return (
+      <DashboardLayout>
+        <div className="mx-auto flex min-h-[24rem] max-w-2xl items-center justify-center px-4">
+          <Alert className="border-slate-200 bg-white">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <strong className="text-slate-900">
+                  {isAccessError ? "Business unavailable" : "Dashboard unavailable"}
+                </strong>
+                <p className="mt-1 text-sm text-slate-600">
+                  {isAccessError
+                    ? "You do not have access to this business. Choose one of your businesses to continue."
+                    : "We could not load this dashboard. Try again without changing your data."}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  void metricsQuery.refetch();
+                  void healthScoreQuery.refetch();
+                  void freshnessQuery.refetch();
+                }}
+              >
+                Try again
+              </Button>
+            </AlertDescription>
+          </Alert>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -269,24 +314,42 @@ export default function DashboardV2() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-600">Transactions:</span>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span
+                      aria-hidden="true"
+                      className={`h-2.5 w-2.5 rounded-full ${
+                        freshness?.status === "up_to_date"
+                          ? "bg-emerald-500"
+                          : freshness?.status === "needs_refresh"
+                            ? "bg-amber-500"
+                            : "bg-slate-300"
+                      }`}
+                    />
+                    <span className="text-sm font-semibold text-slate-900">
+                      {freshness?.label || "No business data available yet."}
+                    </span>
+                  </div>
+                  {freshness?.lastUpdate ? (
+                    <p className="text-xs text-slate-500">
+                      Last updated {formatLastUpdated(freshness.lastUpdate)}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-slate-500">
+                      Add a transaction, expense, or customer to establish a data timestamp.
+                    </p>
+                  )}
+                  <div className="flex justify-between border-t border-slate-100 pt-2 text-sm">
+                    <span className="text-slate-600">Transactions</span>
                     <span className="font-semibold text-slate-900">
                       {freshness?.dataPoints.transactions || 0}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-600">Customers:</span>
+                    <span className="text-slate-600">Customers</span>
                     <span className="font-semibold text-slate-900">
                       {freshness?.dataPoints.customers || 0}
                     </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-600">Last Update:</span>
-                    <Badge variant="outline" className="text-xs">
-                      {freshness?.freshness || "unknown"}
-                    </Badge>
                   </div>
                 </div>
               </CardContent>
@@ -351,6 +414,30 @@ export default function DashboardV2() {
 /**
  * Metric Card Component
  */
+function formatLastUpdated(date: Date | string): string {
+  const updatedAt = date instanceof Date ? date : new Date(date);
+  const elapsedMs = Math.max(0, Date.now() - updatedAt.getTime());
+  const elapsedMinutes = Math.floor(elapsedMs / (1000 * 60));
+
+  if (elapsedMinutes < 1) return "just now";
+  if (elapsedMinutes < 60) {
+    return `${elapsedMinutes} minute${elapsedMinutes === 1 ? "" : "s"} ago`;
+  }
+
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+  if (elapsedHours < 24) {
+    return `${elapsedHours} hour${elapsedHours === 1 ? "" : "s"} ago`;
+  }
+
+  return updatedAt.toLocaleString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 function MetricCard({
   title,
   value,
