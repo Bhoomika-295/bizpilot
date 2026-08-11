@@ -94,7 +94,7 @@
 - [x] Verify the dashboard displays the score without moving the formula into React
 - [x] Add or update unit tests for score calculation, data changes, insufficient data, and authorization
 - [x] Run type checks, tests, production build, and dashboard visual verification
-- [ ] Save the Day 3 checkpoint and stop without starting Day 4
+- [x] Save the Day 3 checkpoint and stop without starting Day 4
 
 ### Day 3 Trust Label Follow-up
 - [x] Derive demo status from existing seeded demo-source records when a business flag is missing
