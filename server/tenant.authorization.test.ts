@@ -100,6 +100,21 @@ describe("tenant authorization", () => {
     });
   });
 
+  it("rejects strategy briefing access to a business the user does not own", async () => {
+    const caller = appRouter.createCaller(createContext());
+
+    await expect(
+      caller.businessMetrics.getStrategyBriefing({
+        businessId: 999999999,
+        periodStartDate: new Date(Date.now() - 30 * 86400000),
+        periodEndDate: new Date(),
+      })
+    ).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: "You do not have access to this business.",
+    });
+  });
+
   it("does not expose missing records through record-scoped routes", async () => {
     const caller = appRouter.createCaller(createContext());
 

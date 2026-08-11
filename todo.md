@@ -213,3 +213,15 @@
 - [x] Pass full test suite (37 tests passed), TypeScript checks, and production build
 - [x] Document authenticated visual verification as environment-limited (no owned preview business data)
 - [x] Save Day 10 checkpoint and stop without starting Day 11
+
+## Day 11: AI Strategy Copilot v1
+- [x] Inspect existing recommendation models, metrics engine, market signals, and dashboard layout
+- [x] Build Strategy Copilot service (`server/services/strategyCopilotService.ts`) with deterministic rule engine (expense growth, revenue/transaction decline, customer attrition, high-relevance market signals)
+- [x] Implement evidence tracing (metrics, health score, signal metadata) and confidence ratings
+- [x] Implement database recommendation persistence and status management (`OPEN`, `COMPLETED`, `DISMISSED`)
+- [x] Expose protected tRPC procedures (`getStrategyBriefing`, `updateStrategyStatus`) with strict tenant authorization checks
+- [x] Integrate Strategy Copilot card into `DashboardV2.tsx` with priority badges, evidence expanders, and interactive action buttons (Mark Completed, Dismiss, Reopen)
+- [x] Add deterministic unit tests (`server/strategyCopilot.test.ts`) and extend tenant authorization test suite (`server/tenant.authorization.test.ts`)
+- [x] Pass full test suite (40 tests passed), TypeScript checks, and production build
+- [x] Document authenticated visual verification as environment-limited (no owned preview business data)
+- [x] Save Day 11 checkpoint and stop without starting Day 12

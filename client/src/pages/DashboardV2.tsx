@@ -25,6 +25,9 @@ import {
   TrendingDown,
   AlertCircle,
   CheckCircle,
+  CheckCircle2,
+  XCircle,
+  Sparkles,
   Minus,
   ExternalLink,
   RefreshCw,
@@ -94,7 +97,27 @@ export default function DashboardV2() {
     { enabled: !!businessId && isAuthenticated }
   );
 
+  const strategyBriefingQuery = trpc.businessMetrics.getStrategyBriefing.useQuery(
+    {
+      businessId: parseInt(businessId || "0"),
+      periodStartDate,
+      periodEndDate,
+    },
+    { enabled: !!businessId && isAuthenticated }
+  );
+
+  const [expandedEvidenceIds, setExpandedEvidenceIds] = useState<Record<number, boolean>>({});
+
   const utils = trpc.useUtils();
+  const updateStrategyStatusMutation = trpc.businessMetrics.updateStrategyStatus.useMutation({
+    onSuccess: () => {
+      utils.businessMetrics.getStrategyBriefing.invalidate({
+        businessId: parseInt(businessId || "0"),
+        periodStartDate,
+        periodEndDate,
+      });
+    },
+  });
   const refreshSignalsMutation = trpc.businessMetrics.refreshMarketSignals.useMutation({
     onSuccess: (data) => {
       utils.businessMetrics.getMarketSignals.setData(
@@ -200,6 +223,196 @@ export default function DashboardV2() {
             </SelectContent>
           </Select>
         </div>
+
+        {/* Strategy Copilot (Day 11) */}
+        {strategyBriefingQuery.data && (
+          <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50/40 via-white to-slate-50 shadow-md">
+            <CardHeader className="space-y-3 pb-4 border-b border-indigo-100">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-xl font-semibold text-slate-900 flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-indigo-600" />
+                      Strategy Copilot
+                    </CardTitle>
+                    <Badge variant="outline" className="border-indigo-300 bg-indigo-50 text-indigo-700 font-medium">
+                      AI STRATEGY COPILOT V1
+                    </Badge>
+                  </div>
+                  <CardDescription className="mt-1 text-slate-600">
+                    What deserves your attention right now based on internal metrics and external market signals.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-5 space-y-4">
+              {strategyBriefingQuery.data.staleWarning && (
+                <Alert className="border-amber-200 bg-amber-50">
+                  <AlertCircle className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-amber-900 text-sm">
+                    {strategyBriefingQuery.data.staleWarning}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {strategyBriefingQuery.data.status === "insufficient_data" ? (
+                <div className="py-6 text-center text-slate-500">
+                  <p className="font-medium">Insufficient data for strategic recommendations.</p>
+                  <p className="text-sm mt-1">Connect business transactions or customers to generate grounded recommendations.</p>
+                </div>
+              ) : strategyBriefingQuery.data.recommendations.length === 0 ? (
+                <div className="py-6 text-center text-slate-500">
+                  <p className="font-medium">No critical actions required at this time.</p>
+                  <p className="text-sm mt-1">Operating performance is stable.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4">
+                  {strategyBriefingQuery.data.recommendations.map((rec, index) => {
+                    const isExpanded = expandedEvidenceIds[rec.id || index] || false;
+                    const isCompleted = rec.status === "COMPLETED";
+                    const isDismissed = rec.status === "DISMISSED";
+
+                    return (
+                      <div
+                        key={rec.id || index}
+                        className={`p-4 rounded-xl border transition-all ${
+                          isCompleted
+                            ? "border-emerald-200 bg-emerald-50/30 opacity-75"
+                            : isDismissed
+                            ? "border-slate-200 bg-slate-100 opacity-60"
+                            : "border-indigo-100 bg-white shadow-xs hover:shadow-sm"
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                variant="outline"
+                                className={
+                                  rec.priority === "HIGH"
+                                    ? "border-rose-200 bg-rose-50 text-rose-700 font-semibold"
+                                    : rec.priority === "MEDIUM"
+                                    ? "border-amber-200 bg-amber-50 text-amber-700 font-semibold"
+                                    : "border-slate-200 bg-slate-50 text-slate-600"
+                                }
+                              >
+                                {rec.priority} PRIORITY
+                              </Badge>
+                              {isCompleted && (
+                                <Badge variant="outline" className="border-emerald-300 bg-emerald-100 text-emerald-800">
+                                  COMPLETED
+                                </Badge>
+                              )}
+                              {isDismissed && (
+                                <Badge variant="outline" className="border-slate-300 bg-slate-200 text-slate-700">
+                                  DISMISSED
+                                </Badge>
+                              )}
+                            </div>
+                            <h3 className="text-base font-semibold text-slate-900 mt-1">{rec.title}</h3>
+                            <p className="text-sm text-slate-700 font-medium">{rec.recommendation}</p>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {rec.id && !isCompleted && !isDismissed && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                  onClick={() =>
+                                    updateStrategyStatusMutation.mutate({
+                                      businessId: parseInt(businessId || "0"),
+                                      recommendationId: rec.id!,
+                                      status: "COMPLETED",
+                                    })
+                                  }
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
+                                  Mark Completed
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 text-xs text-slate-500 hover:text-slate-700"
+                                  onClick={() =>
+                                    updateStrategyStatusMutation.mutate({
+                                      businessId: parseInt(businessId || "0"),
+                                      recommendationId: rec.id!,
+                                      status: "DISMISSED",
+                                    })
+                                  }
+                                >
+                                  Dismiss
+                                </Button>
+                              </>
+                            )}
+                            {rec.id && (isCompleted || isDismissed) && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 text-xs text-slate-500 hover:text-slate-700"
+                                onClick={() =>
+                                  updateStrategyStatusMutation.mutate({
+                                    businessId: parseInt(businessId || "0"),
+                                    recommendationId: rec.id!,
+                                    status: "OPEN",
+                                  })
+                                }
+                              >
+                                Reopen
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Why this recommendation */}
+                        <div className="mt-3 text-sm text-slate-600 bg-indigo-50/50 p-3 rounded-lg border border-indigo-100/60">
+                          <strong className="text-slate-800 font-semibold">Why this recommendation:</strong> {rec.reason}
+                        </div>
+
+                        {/* Suggested next step */}
+                        <div className="mt-2 text-sm text-slate-700 flex items-center gap-2">
+                          <span className="font-semibold text-slate-900">Suggested next step:</span>
+                          <span>{rec.suggestedNextStep}</span>
+                        </div>
+
+                        {/* Evidence Toggle */}
+                        <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedEvidenceIds((prev) => ({
+                                ...prev,
+                                [rec.id || index]: !prev[rec.id || index],
+                              }))
+                            }
+                            className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                          >
+                            {isExpanded ? "Hide evidence" : "View evidence"} ({rec.evidence.length} metrics)
+                          </button>
+                          <span className="text-xs text-slate-400">Confidence: {rec.confidence}</span>
+                        </div>
+
+                        {isExpanded && (
+                          <div className="mt-3 pl-3 border-l-2 border-indigo-300 space-y-1.5 text-xs bg-slate-50 p-2.5 rounded-r-lg">
+                            <div className="font-semibold text-slate-700">Underlying Evidence & Facts:</div>
+                            {rec.evidence.map((ev, evIdx) => (
+                              <div key={evIdx} className="flex justify-between text-slate-600">
+                                <span>{ev.label}:</span>
+                                <span className="font-medium text-slate-900">{ev.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Business Intelligence Briefing */}
         {briefing && (

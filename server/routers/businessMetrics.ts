@@ -14,6 +14,10 @@ import {
 } from "../services/businessDataService";
 import { getMarketSignals } from "../db";
 import { refreshMarketSignalsForBusiness } from "../services/marketSignalService";
+import {
+  generateStrategyRecommendations,
+  setStrategyRecommendationStatus,
+} from "../services/strategyCopilotService";
 
 /**
  * Business Metrics Router
@@ -230,5 +234,42 @@ export const businessMetricsRouter = router({
           message: "Market signals temporarily unavailable.",
         });
       }
+    }),
+
+  /**
+   * Get Strategy Copilot recommendations and briefing
+   */
+  getStrategyBriefing: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+        periodStartDate: z.date(),
+        periodEndDate: z.date(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return await generateStrategyRecommendations(
+        input.businessId,
+        input.periodStartDate,
+        input.periodEndDate
+      );
+    }),
+
+  /**
+   * Update Strategy Recommendation Status (OPEN, COMPLETED, DISMISSED)
+   */
+  updateStrategyStatus: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+        recommendationId: z.number(),
+        status: z.enum(["OPEN", "COMPLETED", "DISMISSED"]),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      await setStrategyRecommendationStatus(input.recommendationId, input.status);
+      return { success: true };
     }),
 });

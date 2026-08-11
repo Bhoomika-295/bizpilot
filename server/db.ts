@@ -970,3 +970,16 @@ export async function clearMarketSignals(businessId: number) {
 
   return await db.delete(marketSignals).where(eq(marketSignals.businessId, businessId));
 }
+
+export async function updateRecommendationStatus(
+  recommendationId: number,
+  status: "pending" | "accepted" | "rejected" | "completed"
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return await db
+    .update(recommendations)
+    .set({ status, updatedAt: new Date() })
+    .where(eq(recommendations.id, recommendationId));
+}
