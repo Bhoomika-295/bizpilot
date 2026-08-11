@@ -110,7 +110,7 @@
 - [x] Test no-data and old-data states
 - [x] Test tenant isolation and absence of exposed secrets
 - [x] Run type checks, unit tests, and production build; document visual verification as environment-limited
-- [ ] Save the Day 4 checkpoint and stop without starting Day 5
+- [x] Save the Day 4 checkpoint and stop without starting Day 5
 
 ### Day 4 Verification Follow-up
 - [x] Add an integration or verified database flow proving a real transaction update changes the persisted freshness timestamp
@@ -124,7 +124,7 @@
 - [x] Use deterministic, persistence, and tenant-authorization tests instead of an authenticated dashboard session
 - [x] Use the persistence integration test as evidence that an updated business record changes Last updated
 - [x] Retain and document no-business and no-data coverage through existing tests and the security audit
-- [ ] Save the final Day 4 checkpoint and stop
+- [x] Save the final Day 4 checkpoint and stop
 
 ### Day 4 Verification Conclusion
 - [x] Use existing deterministic unit tests, real persistence tests, and tenant-authorization test suite as the verification evidence
