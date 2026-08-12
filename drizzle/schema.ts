@@ -476,6 +476,110 @@ export type MarketSignal = typeof marketSignals.$inferSelect;
 export type InsertMarketSignal = typeof marketSignals.$inferInsert;
 
 /**
+ * Day 28 External World Intelligence & Early-Warning Radar.
+ * External events retain source evidence and deterministic derived context;
+ * review history preserves lifecycle decisions without deleting history.
+ */
+export const externalEvents = mysqlTable(
+  "externalEvents",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    source: varchar("source", { length: 255 }).notNull(),
+    sourceType: varchar("sourceType", { length: 50 }).notNull().default("MARKET_SIGNAL"),
+    title: varchar("title", { length: 512 }).notNull(),
+    summary: text("summary").notNull(),
+    referenceUrl: text("referenceUrl").notNull(),
+    publishedAt: timestamp("publishedAt"),
+    detectedAt: timestamp("detectedAt").defaultNow().notNull(),
+    topic: varchar("topic", { length: 160 }).notNull().default("GENERAL_MARKET"),
+    entitiesJson: text("entitiesJson"),
+    geography: varchar("geography", { length: 160 }),
+    eventType: varchar("eventType", { length: 60 }).notNull().default("OTHER"),
+    evidenceStrength: varchar("evidenceStrength", { length: 40 }).notNull().default("MEDIUM"),
+    freshness: varchar("freshness", { length: 40 }).notNull().default("CURRENT"),
+    status: varchar("status", { length: 30 }).notNull().default("NEW"),
+    normalizationKey: varchar("normalizationKey", { length: 255 }).notNull(),
+    fingerprint: varchar("fingerprint", { length: 255 }).notNull(),
+    relevanceLevel: varchar("relevanceLevel", { length: 30 }).notNull().default("UNKNOWN"),
+    relevanceReason: text("relevanceReason"),
+    impactType: varchar("impactType", { length: 30 }).notNull().default("UNKNOWN"),
+    impactAreasJson: text("impactAreasJson"),
+    strategyImpact: varchar("strategyImpact", { length: 30 }).notNull().default("UNKNOWN"),
+    strategyImpactReason: text("strategyImpactReason"),
+    objectiveImpactsJson: text("objectiveImpactsJson"),
+    trajectoryContextJson: text("trajectoryContextJson"),
+    crossSignalContextJson: text("crossSignalContextJson"),
+    trendKey: varchar("trendKey", { length: 255 }),
+    trendState: varchar("trendState", { length: 30 }).notNull().default("ONE_OFF"),
+    trendConfidence: varchar("trendConfidence", { length: 30 }).notNull().default("UNKNOWN"),
+    watchItemsJson: text("watchItemsJson"),
+    linkedStrategyIdsJson: text("linkedStrategyIdsJson"),
+    linkedSituationIdsJson: text("linkedSituationIdsJson"),
+    linkedOpportunityIdsJson: text("linkedOpportunityIdsJson"),
+    linkedMonitoringEventId: int("linkedMonitoringEventId"),
+    uncertainty: varchar("uncertainty", { length: 30 }).notNull().default("UNKNOWN"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("externalEvents_businessId_idx").on(table.businessId),
+    statusIdx: index("externalEvents_status_idx").on(table.businessId, table.status),
+    fingerprintIdx: index("externalEvents_fingerprint_idx").on(table.businessId, table.fingerprint),
+    normalizationIdx: index("externalEvents_normalization_idx").on(table.businessId, table.normalizationKey),
+    publishedAtIdx: index("externalEvents_publishedAt_idx").on(table.businessId, table.publishedAt),
+  })
+);
+export type ExternalEvent = typeof externalEvents.$inferSelect;
+export type InsertExternalEvent = typeof externalEvents.$inferInsert;
+
+export const externalEventReviews = mysqlTable(
+  "externalEventReviews",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    eventId: int("eventId").notNull(),
+    action: varchar("action", { length: 40 }).notNull(),
+    previousStatus: varchar("previousStatus", { length: 30 }),
+    newStatus: varchar("newStatus", { length: 30 }),
+    rationale: text("rationale"),
+    evidenceJson: text("evidenceJson"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("externalEventReviews_businessId_idx").on(table.businessId),
+    eventIdIdx: index("externalEventReviews_eventId_idx").on(table.businessId, table.eventId),
+    createdAtIdx: index("externalEventReviews_createdAt_idx").on(table.businessId, table.createdAt),
+  })
+);
+export type ExternalEventReview = typeof externalEventReviews.$inferSelect;
+export type InsertExternalEventReview = typeof externalEventReviews.$inferInsert;
+
+export const externalRadarSnapshots = mysqlTable(
+  "externalRadarSnapshots",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    fingerprint: varchar("fingerprint", { length: 255 }).notNull(),
+    eventIdsJson: text("eventIdsJson").notNull(),
+    radarJson: text("radarJson").notNull(),
+    earlyWarningsJson: text("earlyWarningsJson").notNull(),
+    trendGroupsJson: text("trendGroupsJson").notNull(),
+    sourceFreshnessJson: text("sourceFreshnessJson").notNull(),
+    lastEvaluatedAt: timestamp("lastEvaluatedAt").defaultNow().notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("externalRadarSnapshots_businessId_idx").on(table.businessId),
+    fingerprintIdx: index("externalRadarSnapshots_fingerprint_idx").on(table.businessId, table.fingerprint),
+    evaluatedAtIdx: index("externalRadarSnapshots_evaluatedAt_idx").on(table.businessId, table.lastEvaluatedAt),
+  })
+);
+export type ExternalRadarSnapshot = typeof externalRadarSnapshots.$inferSelect;
+export type InsertExternalRadarSnapshot = typeof externalRadarSnapshots.$inferInsert;
+
+/**
  * Business Situations — groups related internal changes and external market signals
  * into coherent operating situations (Growth, Decline, Cost Pressure, Competitive Pressure, Mixed Signals, etc.).
  */

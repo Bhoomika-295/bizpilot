@@ -172,7 +172,23 @@ export default function DashboardV2() {
     onError: (err: any) => toast.error(`Strategy review failed: ${err.message}`),
   });
 
+  const externalRadarQuery = trpc.businessMetrics.getExternalRadar.useQuery(
+    { businessId: parseInt(businessId || "0"), refresh: false },
+    { enabled: !!businessId && isAuthenticated }
+  );
+  const updateExternalEventStatusMutation = trpc.businessMetrics.updateExternalEventStatus.useMutation({
+    onSuccess: () => {
+      externalRadarQuery.refetch();
+      setSelectedExternalEvent(null);
+      setExternalEventRationale("");
+      toast.success("External intelligence status updated");
+    },
+    onError: (err: any) => toast.error(`External intelligence update failed: ${err.message}`),
+  });
+
   const [selectedStrategyHealth, setSelectedStrategyHealth] = useState<any | null>(null);
+  const [selectedExternalEvent, setSelectedExternalEvent] = useState<any | null>(null);
+  const [externalEventRationale, setExternalEventRationale] = useState("");
   const [strategyReviewReason, setStrategyReviewReason] = useState("");
   const [selectedSituation, setSelectedSituation] = useState<any | null>(null);
   const [selectedPriority, setSelectedPriority] = useState<any | null>(null);
@@ -1194,6 +1210,79 @@ export default function DashboardV2() {
                   })}
                 </div>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* External World Intelligence & Early-Warning Radar (Day 28) */}
+        {externalRadarQuery.data && (
+          <Card className="border-cyan-300 bg-gradient-to-br from-cyan-50/40 via-white to-slate-50 shadow-sm">
+            <CardHeader className="space-y-3 border-b border-cyan-100 pb-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 text-xl font-semibold text-slate-900">
+                      <Globe className="h-5 w-5 text-cyan-700" />
+                      External World Intelligence
+                    </CardTitle>
+                    <Badge variant="outline" className="border-cyan-300 bg-cyan-50 font-medium text-cyan-800">EARLY-WARNING RADAR v1</Badge>
+                  </div>
+                  <CardDescription className="mt-1 text-slate-600">
+                    Normalized market and competitor events connected to your business context. Evidence is source-traceable and never triggers automatic action.
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => externalRadarQuery.refetch()}
+                  disabled={externalRadarQuery.isFetching}
+                  className="border-cyan-200 text-cyan-800"
+                >
+                  <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${externalRadarQuery.isFetching ? "animate-spin" : ""}`} />
+                  Refresh Radar
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-5">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                <div className="rounded-lg bg-white p-3 shadow-2xs"><span className="text-xs text-slate-500">Events</span><strong className="mt-1 block text-lg text-slate-900">{externalRadarQuery.data.totalEvents}</strong></div>
+                <div className="rounded-lg bg-white p-3 shadow-2xs"><span className="text-xs text-slate-500">Relevant</span><strong className="mt-1 block text-lg text-cyan-800">{externalRadarQuery.data.relevantEventsCount}</strong></div>
+                <div className="rounded-lg bg-white p-3 shadow-2xs"><span className="text-xs text-slate-500">High relevance</span><strong className="mt-1 block text-lg text-rose-700">{externalRadarQuery.data.highRelevanceCount}</strong></div>
+                <div className="rounded-lg bg-white p-3 shadow-2xs"><span className="text-xs text-slate-500">Threats</span><strong className="mt-1 block text-lg text-orange-700">{externalRadarQuery.data.threatsCount}</strong></div>
+                <div className="rounded-lg bg-white p-3 shadow-2xs"><span className="text-xs text-slate-500">Watch queue</span><strong className="mt-1 block text-lg text-violet-700">{externalRadarQuery.data.activeWatchCount}</strong></div>
+              </div>
+              {externalRadarQuery.data.earlyWarnings?.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-900"><AlertCircle className="h-4 w-4 text-orange-600" /> Early warnings from converging evidence</div>
+                  <div className="grid gap-2 lg:grid-cols-2">
+                    {externalRadarQuery.data.earlyWarnings.slice(0, 3).map((warning: any) => (
+                      <div key={warning.id} className="rounded-xl border border-orange-200 bg-orange-50 p-3">
+                        <div className="flex items-center justify-between gap-2"><strong className="text-sm text-orange-900">{warning.title}</strong><Badge variant="outline" className="border-orange-300 text-orange-800">{warning.severity}</Badge></div>
+                        <p className="mt-1 text-xs leading-relaxed text-orange-900/80">{warning.summary}</p>
+                        <p className="mt-2 text-xs text-orange-900/70">Review: {warning.recommendedReview}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {externalRadarQuery.data.events.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2"><span className="text-sm font-semibold text-slate-900">Latest normalized external events</span><span className="text-xs text-slate-500">Source freshness: {externalRadarQuery.data.sourceFreshness.status}</span></div>
+                  {externalRadarQuery.data.events.slice(0, 6).map((event: any) => {
+                    const tone = event.relevanceLevel === "HIGH_RELEVANCE" ? "border-rose-300 bg-rose-50 text-rose-800" : event.relevanceLevel === "MEDIUM_RELEVANCE" ? "border-amber-300 bg-amber-50 text-amber-800" : "border-slate-300 bg-slate-50 text-slate-700";
+                    return (
+                      <button key={event.id} type="button" onClick={() => setSelectedExternalEvent(event)} className="group w-full rounded-xl border border-slate-200 bg-white p-3 text-left transition-all hover:border-cyan-300 hover:shadow-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex min-w-0 items-center gap-2"><span className="truncate text-sm font-semibold text-slate-900 group-hover:text-cyan-800">{event.title}</span><Badge variant="outline" className={`shrink-0 text-[10px] font-semibold ${tone}`}>{event.relevanceLevel.replaceAll("_", " ")}</Badge></div><span className="text-xs text-slate-500">{event.source}</span></div>
+                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-600">{event.summary}</p>
+                        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500"><span>{event.impactType}</span><span>{event.eventType.replaceAll("_", " ")}</span><span>{formatLastUpdated(event.publishedAt || event.detectedAt)}</span><span className="ml-auto text-cyan-700 group-hover:underline">Inspect evidence →</span></div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 py-6 text-center text-sm text-slate-500">No external events are available yet. Refresh after market or competitor signals are collected.</div>
+              )}
+              <p className="text-xs text-slate-500">Radar generated {formatLastUpdated(externalRadarQuery.data.generatedAt)} · {externalRadarQuery.data.sourceFreshness.activeSourcesCount} source(s) represented · verify source links before taking action.</p>
             </CardContent>
           </Card>
         )}
@@ -2639,6 +2728,86 @@ export default function DashboardV2() {
                           <Button key={action} size="sm" variant={action === "REPLACE" ? "destructive" : "outline"} disabled={recordStrategyReviewMutation.isPending || strategyReviewReason.trim().length < 3} onClick={() => recordStrategyReviewMutation.mutate({ businessId: parseInt(businessId || "0"), strategyId: card.strategyId, action, reason: strategyReviewReason.trim(), evidenceSummary: card.evidenceSummary })}>{action}</Button>
                         ))}
                         <Button variant="ghost" size="sm" onClick={() => setSelectedStrategyHealth(null)}>Close</Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* External Event Evidence Review Workspace (Day 28) */}
+        {selectedExternalEvent && (() => {
+          const event = selectedExternalEvent;
+          const impactAreas = Array.isArray(event.impactAreas) ? event.impactAreas : [];
+          const objectiveImpacts = Array.isArray(event.objectiveImpacts) ? event.objectiveImpacts : [];
+          const reviewStatus = (status: "REVIEWED" | "RELEVANT" | "MONITORING" | "RESOLVED" | "ARCHIVED", action: string) => {
+            updateExternalEventStatusMutation.mutate({
+              businessId: parseInt(businessId || "0"),
+              eventId: event.id,
+              status,
+              action,
+              rationale: externalEventRationale.trim() || undefined,
+            });
+          };
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" onClick={() => setSelectedExternalEvent(null)}>
+              <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(clickEvent) => clickEvent.stopPropagation()}>
+                <div className="flex items-start justify-between gap-4 border-b border-cyan-100 bg-cyan-50/60 p-6">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-cyan-800">External Evidence Review</span>
+                      <Badge variant="outline" className="border-cyan-300 bg-white text-cyan-800">{event.relevanceLevel.replaceAll("_", " ")}</Badge>
+                      <Badge variant="outline" className="border-slate-300 bg-white text-slate-700">{event.status}</Badge>
+                    </div>
+                    <h2 className="mt-1 text-2xl font-bold text-slate-900">{event.title}</h2>
+                    <p className="mt-1 max-w-2xl text-sm text-slate-600">Review the source, relevance explanation, and connected business evidence before moving this event into an active monitoring state.</p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedExternalEvent(null)} className="h-8 w-8 p-0 text-slate-500">✕</Button>
+                </div>
+                <div className="space-y-6 p-6">
+                  <div className="grid gap-3 sm:grid-cols-4">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><div className="text-xs text-slate-500">Event type</div><div className="mt-1 text-sm font-bold text-slate-900">{event.eventType.replaceAll("_", " ")}</div></div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><div className="text-xs text-slate-500">Impact</div><div className="mt-1 text-sm font-bold text-slate-900">{event.impactType}</div></div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><div className="text-xs text-slate-500">Strategy impact</div><div className="mt-1 text-sm font-bold text-slate-900">{event.strategyImpact}</div></div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><div className="text-xs text-slate-500">Freshness</div><div className="mt-1 text-sm font-bold text-slate-900">{event.freshness}</div></div>
+                  </div>
+
+                  <div className="grid gap-5 md:grid-cols-2">
+                    <div>
+                      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Source evidence</h4>
+                      <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                        <p className="leading-relaxed">{event.summary}</p>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500"><span>Source: <strong className="text-slate-700">{event.source}</strong></span><span>Detected: {formatLastUpdated(event.detectedAt)}</span></div>
+                        {event.referenceUrl && event.referenceUrl !== "#" && <a href={event.referenceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-cyan-700 hover:underline">Open source <ExternalLink className="h-3 w-3" /></a>}
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Why it matters</h4>
+                      <div className="rounded-xl border border-cyan-200 bg-cyan-50/60 p-4 text-sm leading-relaxed text-cyan-950">
+                        <p>{event.relevanceReason}</p>
+                        {event.strategyImpactReason && <p className="mt-2">{event.strategyImpactReason}</p>}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-5 md:grid-cols-3">
+                    <div><h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Impact areas</h4><div className="flex flex-wrap gap-2">{impactAreas.length > 0 ? impactAreas.map((item: string) => <Badge key={item} variant="outline" className="border-slate-300 bg-slate-50 text-slate-700">{item.replaceAll("_", " ")}</Badge>) : <span className="text-sm text-slate-500">No mapped areas</span>}</div></div>
+                    <div><h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Objective links</h4><div className="flex flex-wrap gap-2">{objectiveImpacts.length > 0 ? objectiveImpacts.map((item: string) => <Badge key={item} variant="outline" className="border-violet-300 bg-violet-50 text-violet-800">{item.replaceAll("_", " ")}</Badge>) : <span className="text-sm text-slate-500">No direct objective match</span>}</div></div>
+                    <div><h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Trend context</h4><p className="text-sm leading-relaxed text-slate-700">{event.trendState?.replaceAll("_", " ")} · {event.trendConfidence} confidence · {event.uncertainty} uncertainty</p></div>
+                  </div>
+
+                  {(event.trajectoryContext || event.crossSignalContext) && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-950"><strong className="block text-xs uppercase tracking-wider text-amber-800">Connected intelligence</strong>{event.trajectoryContext && <p className="mt-1">Trajectory: {event.trajectoryContext}</p>}{event.crossSignalContext && <p className="mt-1">Cross-signal: {event.crossSignalContext}</p>}</div>}
+
+                  <div className="space-y-3 border-t border-slate-100 pt-4">
+                    <label htmlFor="external-event-rationale" className="block text-xs font-semibold uppercase tracking-wider text-slate-500">Review rationale <span className="font-normal normal-case tracking-normal">(optional)</span></label>
+                    <textarea id="external-event-rationale" value={externalEventRationale} onChange={(changeEvent) => setExternalEventRationale(changeEvent.target.value)} placeholder="Record what was verified, what should be monitored, or why this event is not relevant." className="min-h-20 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-900 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100" />
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <span className="text-xs text-slate-500">Status changes are persisted per business and never execute an external action.</span>
+                      <div className="flex flex-wrap gap-2">
+                        {(["REVIEWED", "RELEVANT", "MONITORING", "RESOLVED", "ARCHIVED"] as const).map((status) => <Button key={status} size="sm" variant={status === "ARCHIVED" ? "destructive" : "outline"} disabled={updateExternalEventStatusMutation.isPending} onClick={() => reviewStatus(status, `Moved external event to ${status.toLowerCase()}`)}>{status}</Button>)}
+                        <Button variant="ghost" size="sm" onClick={() => setSelectedExternalEvent(null)}>Close</Button>
                       </div>
                     </div>
                   </div>

@@ -419,3 +419,19 @@
 - [x] Integrate "Strategy Health & Adaptive Monitoring" card and detail modal into `DashboardV2.tsx`
 - [x] Add deterministic unit tests, tenant isolation tests, and run test suite and production build verification
 - [x] Save Day 27 checkpoint
+
+## Day 28: External World Intelligence & Early-Warning Radar v1
+- [x] Add tenant-isolated external events and radar snapshot table schema in Drizzle and generate migration SQL
+- [x] Implement deterministic External Intelligence Service (`server/services/externalIntelligenceService.ts`) synthesizing external event normalization, source traceability, business relevance matching, impact type/area classification, strategy impact, trajectory interaction, cross-signal convergence, and trend detection
+- [x] Expose protected tRPC procedures (`getExternalEvents`, `refreshExternalEvents`, `updateExternalEventStatus`) with strict tenant authorization checks
+- [x] Integrate "External World Intelligence & Early-Warning Radar" card and interactive detail modal into `DashboardV2.tsx`
+- [x] Add deterministic unit tests, tenant isolation tests, and run test suite and production build verification
+- [x] Save Day 28 checkpoint
+
+## Day 29: Business Attention Engine & Intelligence Prioritization v1
+- [ ] Add tenant-isolated attention items and review logs table schema in Drizzle and generate migration SQL
+- [ ] Implement deterministic Business Attention Service (`server/services/businessAttentionService.ts`) aggregating situations, early warnings, threat/opportunity radar, strategy health, decisions, external changes, and cross-signal clusters into Now, Next, Watch, and Background tiers with factor weighting and clear explanations
+- [ ] Expose protected tRPC procedures (`getAttentionQueue`, `refreshAttentionQueue`, `updateAttentionStatus`) with strict tenant authorization checks
+- [ ] Integrate "Business Attention Engine (Now, Next, Watch)" card and review workspace modal into `DashboardV2.tsx`
+- [ ] Add deterministic unit tests, tenant isolation tests, and run test suite and production build verification
+- [ ] Save Day 29 checkpoint

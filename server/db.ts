@@ -64,6 +64,16 @@ import {
   InsertTrajectoryForecastSnapshot,
   InsertTrajectoryLearningSignal,
   InsertTrajectoryHistory,
+  strategyHealthSnapshots,
+  externalEvents,
+  ExternalEvent,
+  InsertExternalEvent,
+  externalEventReviews,
+  InsertExternalEventReview,
+  ExternalEventReview,
+  externalRadarSnapshots,
+  InsertExternalRadarSnapshot,
+  ExternalRadarSnapshot,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -2558,3 +2568,248 @@ export async function getTrajectoryHistory(businessId: number, trajectoryId: num
     .orderBy(desc(trajectoryHistory.timestamp), desc(trajectoryHistory.id))
     .limit(Math.min(limit, 100));
 }
+
+
+/**
+ * ============================================================
+ * DAY 28: EXTERNAL WORLD INTELLIGENCE & EARLY-WARNING RADAR
+ * ============================================================
+ */
+export type ExternalEventStatus = "NEW" | "REVIEWED" | "RELEVANT" | "IRRELEVANT" | "MONITORING" | "RESOLVED" | "ARCHIVED";
+export type ExternalEventWrite = Omit<InsertExternalEvent, "id" | "createdAt" | "updatedAt">;
+
+export async function getExternalEvents(
+  businessId: number,
+  options: { limit?: number; status?: ExternalEventStatus; relevanceLevel?: string; eventType?: string } = {}
+) {
+  const db = await getDb();
+  if (!db) return [] as ExternalEvent[];
+  const conditions = [eq(externalEvents.businessId, businessId)];
+  if (options.status) conditions.push(eq(externalEvents.status, options.status));
+  if (options.relevanceLevel) conditions.push(eq(externalEvents.relevanceLevel, options.relevanceLevel));
+  if (options.eventType) conditions.push(eq(externalEvents.eventType, options.eventType));
+  return await db
+    .select()
+    .from(externalEvents)
+    .where(and(...conditions))
+    .orderBy(desc(externalEvents.updatedAt), desc(externalEvents.id))
+    .limit(Math.min(options.limit ?? 100, 200));
+}
+
+export async function getExternalEventById(businessId: number, eventId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(externalEvents)
+    .where(and(eq(externalEvents.businessId, businessId), eq(externalEvents.id, eventId)))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function getExternalEventByFingerprint(businessId: number, fingerprint: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(externalEvents)
+    .where(and(eq(externalEvents.businessId, businessId), eq(externalEvents.fingerprint, fingerprint)))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function getExternalEventsByNormalizationKey(businessId: number, normalizationKey: string) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(externalEvents)
+    .where(and(eq(externalEvents.businessId, businessId), eq(externalEvents.normalizationKey, normalizationKey)))
+    .orderBy(desc(externalEvents.detectedAt), desc(externalEvents.id))
+    .limit(20);
+}
+
+export async function createExternalEvent(data: ExternalEventWrite) {
+  const db = await getDb();
+  if (!db) return null;
+  const res = await db.insert(externalEvents).values(data);
+  const id = res && Array.isArray(res) && res[0]?.insertId ? Number(res[0].insertId) : null;
+  return id ? await getExternalEventById(data.businessId, id) : null;
+}
+
+export async function updateExternalEvent(
+  businessId: number,
+  eventId: number,
+  data: Partial<Omit<InsertExternalEvent, "id" | "businessId" | "createdAt">>
+) {
+  const db = await getDb();
+  if (!db) return null;
+  await db
+    .update(externalEvents)
+    .set({ ...data, updatedAt: new Date() })
+    .where(and(eq(externalEvents.businessId, businessId), eq(externalEvents.id, eventId)));
+  return await getExternalEventById(businessId, eventId);
+}
+
+export async function createExternalEventReview(data: Omit<InsertExternalEventReview, "id" | "createdAt">) {
+  const db = await getDb();
+  if (!db) return null;
+  const res = await db.insert(externalEventReviews).values(data);
+  const id = res && Array.isArray(res) && res[0]?.insertId ? Number(res[0].insertId) : null;
+  return id ? ({ ...data, id } as ExternalEventReview) : null;
+}
+
+export async function getExternalEventReviews(businessId: number, eventId: number, limit = 50) {
+  const db = await getDb();
+  if (!db) return [] as ExternalEventReview[];
+  return await db
+    .select()
+    .from(externalEventReviews)
+    .where(and(eq(externalEventReviews.businessId, businessId), eq(externalEventReviews.eventId, eventId)))
+    .orderBy(desc(externalEventReviews.createdAt), desc(externalEventReviews.id))
+    .limit(Math.min(limit, 100));
+}
+
+export async function getExternalRadarSnapshotByFingerprint(businessId: number, fingerprint: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(externalRadarSnapshots)
+    .where(and(eq(externalRadarSnapshots.businessId, businessId), eq(externalRadarSnapshots.fingerprint, fingerprint)))
+    .orderBy(desc(externalRadarSnapshots.lastEvaluatedAt), desc(externalRadarSnapshots.id))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function getLatestExternalRadarSnapshot(businessId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(externalRadarSnapshots)
+    .where(eq(externalRadarSnapshots.businessId, businessId))
+    .orderBy(desc(externalRadarSnapshots.lastEvaluatedAt), desc(externalRadarSnapshots.id))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function upsertExternalRadarSnapshot(data: Omit<InsertExternalRadarSnapshot, "id" | "createdAt" | "updatedAt">) {
+  const db = await getDb();
+  if (!db) return null;
+  const existing = await getExternalRadarSnapshotByFingerprint(data.businessId, data.fingerprint);
+  if (existing) {
+    await db
+      .update(externalRadarSnapshots)
+      .set({ ...data, updatedAt: new Date(), lastEvaluatedAt: data.lastEvaluatedAt || new Date() })
+      .where(and(eq(externalRadarSnapshots.businessId, data.businessId), eq(externalRadarSnapshots.id, existing.id)));
+    return await getExternalRadarSnapshotByFingerprint(data.businessId, data.fingerprint);
+  }
+  const res = await db.insert(externalRadarSnapshots).values(data);
+  const id = res && Array.isArray(res) && res[0]?.insertId ? Number(res[0].insertId) : null;
+  if (!id) return null;
+  const rows = await db
+    .select()
+    .from(externalRadarSnapshots)
+    .where(and(eq(externalRadarSnapshots.businessId, data.businessId), eq(externalRadarSnapshots.id, id)))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function getStrategiesForBusiness(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(strategies)
+    .where(eq(strategies.businessId, businessId))
+    .orderBy(desc(strategies.updatedAt), desc(strategies.id));
+}
+
+export async function getBusinessesForExternalRadar(businessId: number) {
+  return await getBusinessById(businessId);
+}
+
+export async function getCompetitorActivityByBusiness(businessId: number) {
+  return await getCompetitorActivities(businessId);
+}
+
+export async function getRecommendationsForExternalRadar(businessId: number) {
+  return await getRecommendations(businessId);
+}
+
+export async function getSituationsForExternalRadar(businessId: number) {
+  return await getBusinessSituations(businessId);
+}
+
+export async function getOpportunitiesForExternalRadar(businessId: number) {
+  return await getOpportunities(businessId);
+}
+
+export async function getOutcomesForExternalRadar(businessId: number) {
+  return await getRecentOutcomes(businessId, 20);
+}
+
+export async function getMarketSignalsForExternalRadar(businessId: number, limit = 100) {
+  return await getMarketSignals(businessId, Math.min(limit, 200));
+}
+
+export async function getCompetitorsForExternalRadar(businessId: number) {
+  return await getCompetitors(businessId);
+}
+
+export async function getCrossSignalRelationshipsForExternalRadar(businessId: number) {
+  return await getSignalRelationships(businessId, { limit: 100 });
+}
+
+export async function getTrajectoriesForExternalRadar(businessId: number) {
+  return await getBusinessTrajectories(businessId, { limit: 50 });
+}
+
+export async function getStrategyHealthSnapshotsForExternalRadar(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(strategyHealthSnapshots)
+    .where(eq(strategyHealthSnapshots.businessId, businessId))
+    .orderBy(desc(strategyHealthSnapshots.lastEvaluatedAt), desc(strategyHealthSnapshots.id))
+    .limit(50);
+}
+
+export async function getExternalEventHistoryForBusiness(businessId: number, eventId: number) {
+  return await getExternalEventReviews(businessId, eventId, 50);
+}
+
+export async function setExternalEventStatus(
+  businessId: number,
+  eventId: number,
+  status: ExternalEventStatus,
+  action: string,
+  rationale?: string
+) {
+  const existing = await getExternalEventById(businessId, eventId);
+  if (!existing) return null;
+  if (existing.status === status && !rationale) return existing;
+  const updated = await updateExternalEvent(businessId, eventId, { status });
+  await createExternalEventReview({
+    businessId,
+    eventId,
+    action,
+    previousStatus: existing.status,
+    newStatus: status,
+    rationale: rationale || null,
+    evidenceJson: JSON.stringify({ fingerprint: existing.fingerprint, referenceUrl: existing.referenceUrl }),
+  });
+  return updated;
+}
+
+/**
+ * Day 28 compatibility aliases keep the service readable while ensuring all
+ * persistence remains tenant-scoped through the shared helpers above.
+ */
+export const getExternalRadarEvents = getExternalEvents;
+export const getExternalRadarEventById = getExternalEventById;
+export const updateExternalRadarEventStatus = setExternalEventStatus;
+export const getExternalRadarEventHistory = getExternalEventHistoryForBusiness;
+export const getExternalRadarSnapshot = getLatestExternalRadarSnapshot;

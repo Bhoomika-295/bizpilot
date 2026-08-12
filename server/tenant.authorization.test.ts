@@ -155,3 +155,33 @@ describe("tenant authorization", () => {
       message: "You do not have access to this business.",
     });
   });
+
+
+describe("external radar tenant authorization", () => {
+  it("rejects external radar access to a business the user does not own", async () => {
+    const caller = appRouter.createCaller(createContext());
+
+    await expect(
+      caller.businessMetrics.getExternalRadar({ businessId: 999999999 })
+    ).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: "You do not have access to this business.",
+    });
+  });
+
+  it("rejects external event status updates for a business the user does not own", async () => {
+    const caller = appRouter.createCaller(createContext());
+
+    await expect(
+      caller.businessMetrics.updateExternalEventStatus({
+        businessId: 999999999,
+        eventId: 1,
+        status: "REVIEWED",
+        action: "Reviewed source evidence",
+      })
+    ).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: "You do not have access to this business.",
+    });
+  });
+});

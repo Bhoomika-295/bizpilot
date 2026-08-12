@@ -39,6 +39,7 @@ import {
 } from "../services/continuousMonitoringService";
 import { refreshMarketSignalsForBusiness } from "../services/marketSignalService";
 import { evaluateStrategyHealthForBusiness, recordStrategyReviewAction } from "../services/strategyHealthService";
+import { getOrRefreshExternalRadar, reviewExternalRadarEvent } from "../services/externalRadarService";
 import {
   getCrossSignalIntelligence,
   refreshCrossSignalIntelligence,
@@ -942,6 +943,31 @@ export const businessMetricsRouter = router({
       await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
       return evaluateStrategyHealthForBusiness(input.businessId);
     }),
+  /**
+   * Day 28: External World Intelligence & Early-Warning Radar Procedures
+   */
+  getExternalRadar: protectedProcedure
+    .input(z.object({ businessId: z.number(), refresh: z.boolean().optional() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return await getOrRefreshExternalRadar(input.businessId, { refresh: input.refresh });
+    }),
+
+  updateExternalEventStatus: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+        eventId: z.number(),
+        status: z.enum(["NEW", "REVIEWED", "RELEVANT", "IRRELEVANT", "MONITORING", "RESOLVED", "ARCHIVED"]),
+        action: z.string(),
+        rationale: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return await reviewExternalRadarEvent(input.businessId, input.eventId, input.status, input.action, input.rationale);
+    }),
+
   recordStrategyReview: protectedProcedure
     .input(
       z.object({
