@@ -17,6 +17,8 @@ import { evaluateAndUpsertBusinessSituations } from "../services/businessSituati
 import { evaluateAndRecordSituationSnapshots, getBusinessSituationTrends } from "../services/situationTrendService";
 import { getDecisionPrioritiesForTenant, evaluateAndUpsertDecisionPriorities } from "../services/decisionPriorityEngine";
 import { reevaluateTenantStrategies, getAdaptiveStrategyTimeline } from "../services/adaptiveStrategyService";
+import { simulateAndCreateScenario } from "../services/scenarioService";
+import { getScenarios, getScenarioById, deleteScenario } from "../db";
 import { refreshMarketSignalsForBusiness } from "../services/marketSignalService";
 import {
   generateStrategyRecommendations,
@@ -461,5 +463,76 @@ export const businessMetricsRouter = router({
     .query(async ({ ctx, input }) => {
       await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
       return await getAdaptiveStrategyTimeline(input.businessId);
+    }),
+
+  /**
+   * Get all scenarios for business (Day 17)
+   */
+  getScenarios: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return await getScenarios(input.businessId);
+    }),
+
+  /**
+   * Get single scenario by ID (Day 17)
+   */
+  getScenarioById: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+        scenarioId: z.number(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      const scenario = await getScenarioById(input.businessId, input.scenarioId);
+      if (!scenario) {
+        throw new Error("Scenario not found or unauthorized");
+      }
+      return scenario;
+    }),
+
+  /**
+   * Create and simulate a new scenario (Day 17)
+   */
+  createScenario: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+        title: z.string(),
+        description: z.string().optional(),
+        scenarioType: z.string(),
+        assumptions: z.record(z.string(), z.any()),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return await simulateAndCreateScenario(input.businessId, {
+        title: input.title,
+        description: input.description,
+        scenarioType: input.scenarioType as any,
+        assumptions: input.assumptions,
+      });
+    }),
+
+  /**
+   * Delete a scenario (Day 17)
+   */
+  deleteScenario: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+        scenarioId: z.number(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return await deleteScenario(input.businessId, input.scenarioId);
     }),
 });

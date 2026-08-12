@@ -283,3 +283,25 @@
 - [ ] Add deterministic unit and integration tests for strategy re-evaluation, stability preservation when nothing changes, evidence change replacement, and tenant authorization (`server/adaptiveStrategy.test.ts`)
 - [ ] Run full test suite, TypeScript checks, and production build verification
 - [ ] Save Day 16 checkpoint and stop
+
+## Day 16: Adaptive Strategy & Re-evaluation Engine v1
+- [x] Inspect existing Strategy Copilot, Business Situations, and Dashboard V2 layout
+- [x] Create `strategyStates` and `strategyEvents` table schema in Drizzle and execute migration SQL via `webdev_execute_sql`
+- [x] Add Drizzle CRUD helpers for strategy states and events in `server/db.ts`
+- [x] Implement deterministic Adaptive Strategy Engine (`server/services/adaptiveStrategyService.ts`) with strategy state tracking, staleness detection, and context comparison (`KEEP`, `UPDATE`, `REPLACE`, `DEPRIORITIZE`)
+- [x] Expose protected tRPC router procedures for `getAdaptiveStrategyTimeline` and `reevaluateStrategies`
+- [x] Integrate "Adaptive Strategy & Evolution Timeline" card and interactive re-evaluation trigger into `DashboardV2.tsx`
+- [x] Add deterministic unit and integration tests for strategy re-evaluation and tenant authorization (`server/adaptiveStrategy.test.ts`)
+- [x] Run full test suite, TypeScript checks, and production build verification
+- [x] Save Day 16 checkpoint and stop
+
+## Day 17: Scenario & What-If Intelligence v1
+- [ ] Inspect existing project state, database schema, and Dashboard V2 layout
+- [ ] Create `scenarios` table schema in Drizzle and execute migration SQL via `webdev_execute_sql`
+- [ ] Add Drizzle CRUD helpers for scenarios in `server/db.ts`
+- [ ] Implement deterministic Scenario Intelligence Engine (`server/services/scenarioService.ts`) with baseline comparison, impact mapping, range-based estimation, and strategic impact analysis
+- [ ] Expose protected tRPC router procedures for `getScenarios`, `createScenario`, `getScenarioById`, and `deleteScenario`
+- [ ] Integrate Scenario Intelligence card, Scenario Builder modal, and Baseline vs Scenario comparison modal into `DashboardV2.tsx`
+- [ ] Add deterministic unit and integration tests for scenario calculation, baseline isolation, and tenant authorization (`server/scenario.test.ts`)
+- [ ] Run full test suite, TypeScript checks, and production build verification
+- [ ] Save Day 17 checkpoint and stop

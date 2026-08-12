@@ -71,6 +71,13 @@
       "when": 1786522084457,
       "tag": "0009_short_ultimatum",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1786522760149,
+      "tag": "0010_glorious_magma",
+      "breakpoints": true
     }
   ]
 }

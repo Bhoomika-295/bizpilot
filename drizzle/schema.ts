@@ -625,3 +625,37 @@ export const strategyEvents = mysqlTable(
 
 export type StrategyEvent = typeof strategyEvents.$inferSelect;
 export type InsertStrategyEvent = typeof strategyEvents.$inferInsert;
+
+
+/**
+ * ============================================================
+ * DAY 17: SCENARIO & WHAT-IF INTELLIGENCE TABLE
+ * ============================================================
+ */
+
+export const scenarios = mysqlTable(
+  "scenarios",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    description: text("description"),
+    scenarioType: varchar("scenarioType", { length: 50 }).notNull().default("CUSTOM"), // PRICE_CHANGE, MARKETING_CHANGE, COST_CHANGE, DEMAND_CHANGE, COMPETITOR_CHANGE, CUSTOM
+    assumptionsJson: text("assumptionsJson").notNull(), // JSON object of controlled assumptions (e.g., priceChangePct: 10)
+    affectedAreasJson: text("affectedAreasJson").notNull(), // JSON array of potentially affected business areas
+    estimatedMetricsJson: text("estimatedMetricsJson"), // JSON object of modeled estimates vs baseline
+    affectedSituationsJson: text("affectedSituationsJson"), // JSON array of situations potentially affected
+    strategicImplicationsJson: text("strategicImplicationsJson"), // JSON object or array of strategic implications
+    evidenceQuality: varchar("evidenceQuality", { length: 50 }).notNull().default("MEDIUM EVIDENCE"), // HIGH EVIDENCE, MEDIUM EVIDENCE, LIMITED EVIDENCE
+    status: mysqlEnum("status", ["DRAFT", "ACTIVE", "ARCHIVED"]).default("ACTIVE").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("scenarios_businessId_idx").on(table.businessId),
+    statusIdx: index("scenarios_status_idx").on(table.status),
+  })
+);
+
+export type Scenario = typeof scenarios.$inferSelect;
+export type InsertScenario = typeof scenarios.$inferInsert;

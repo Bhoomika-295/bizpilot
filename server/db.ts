@@ -19,6 +19,9 @@ import {
   marketSignals,
   strategyStates,
   strategyEvents,
+  scenarios,
+  Scenario,
+  InsertScenario,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1348,4 +1351,73 @@ export async function getStrategyEvents(businessId: number, limit = 20) {
     .where(eq(strategyEvents.businessId, businessId))
     .orderBy(desc(strategyEvents.timestamp))
     .limit(limit);
+}
+
+/**
+ * ============================================================
+ * DAY 17: SCENARIO INTELLIGENCE DATABASE HELPERS
+ * ============================================================
+ */
+
+export async function getScenarios(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(scenarios)
+    .where(eq(scenarios.businessId, businessId))
+    .orderBy(desc(scenarios.createdAt));
+}
+
+export async function getScenarioById(businessId: number, scenarioId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(scenarios)
+    .where(and(eq(scenarios.id, scenarioId), eq(scenarios.businessId, businessId)))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function upsertScenario(data: {
+  businessId: number;
+  title: string;
+  description?: string;
+  scenarioType: string;
+  assumptionsJson: string;
+  affectedAreasJson: string;
+  estimatedMetricsJson?: string;
+  affectedSituationsJson?: string;
+  strategicImplicationsJson?: string;
+  evidenceQuality?: string;
+  status?: "DRAFT" | "ACTIVE" | "ARCHIVED";
+}) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const res = await db.insert(scenarios).values({
+    businessId: data.businessId,
+    title: data.title,
+    description: data.description || null,
+    scenarioType: data.scenarioType,
+    assumptionsJson: data.assumptionsJson,
+    affectedAreasJson: data.affectedAreasJson,
+    estimatedMetricsJson: data.estimatedMetricsJson || null,
+    affectedSituationsJson: data.affectedSituationsJson || null,
+    strategicImplicationsJson: data.strategicImplicationsJson || null,
+    evidenceQuality: data.evidenceQuality || "MEDIUM EVIDENCE",
+    status: data.status || "ACTIVE",
+  });
+
+  return res && Array.isArray(res) && res[0]?.insertId ? Number(res[0].insertId) : null;
+}
+
+export async function deleteScenario(businessId: number, scenarioId: number) {
+  const db = await getDb();
+  if (!db) return false;
+  const res = await db
+    .delete(scenarios)
+    .where(and(eq(scenarios.id, scenarioId), eq(scenarios.businessId, businessId)));
+  return true;
 }
