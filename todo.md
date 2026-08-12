@@ -340,3 +340,26 @@
 - [ ] Add deterministic unit and integration tests for competitor activity trend calculation, correlation, and tenant authorization (`server/competitiveIntelligence.test.ts`)
 - [ ] Run full test suite, TypeScript checks, and production build verification
 - [ ] Save Day 19 checkpoint and stop
+
+## Day 19: Competitive Strategy Intelligence Engine v2
+- [x] Inspect existing Competitor Watchlist, Market Signals, and Dashboard V2 layout
+- [x] Create `competitorActivities` table schema in Drizzle and execute migration SQL via `webdev_execute_sql`
+- [x] Add Drizzle CRUD helpers for competitor activities in `server/db.ts`
+- [x] Implement deterministic Competitive Intelligence Service (`server/services/competitiveIntelligenceService.ts`) with competitor activity tracking, trend analysis, relevance classification, and internal impact correlation
+- [x] Expose protected tRPC router procedures for `getCompetitorIntelligence` and `getCompetitorTimeline`
+- [x] Integrate "Competitive Strategy Intelligence" card and competitor timeline detail modal into `DashboardV2.tsx`
+- [x] Add deterministic unit and integration tests for competitor intelligence and tenant authorization (`server/competitiveIntelligence.test.ts`)
+- [x] Run full test suite, TypeScript checks, and production build verification
+- [x] Save Day 19 checkpoint and stop
+
+## Day 20: Decision Intelligence Engine v1
+- [x] Add tenant-isolated decision candidate and decision event schema with lifecycle status, evidence references, uncertainty, reversibility, action options, strategy alignment, dependencies, conflicts, and optional outcome linkage
+- [x] Generate and apply the Day 20 database migration safely
+- [x] Implement reusable Decision Intelligence Service using existing situations, opportunities, competitor intelligence, market signals, scenarios, strategy state, outcomes, and priority context without duplicating upstream engines
+- [x] Add deterministic decision taxonomy, ranking, urgency, evidence strength, strategic alignment, conflict, dependency, cost-of-inaction, uncertainty, and explainability logic
+- [x] Add protected tRPC procedures for decision queue, detail/evidence chain, refresh, lifecycle transitions, history, and optional outcome linking with strict businessId authorization
+- [x] Add Decision Intelligence dashboard queue showing the top 3–7 decisions needing attention
+- [x] Add decision detail view with why this matters, evidence chain, known/unknown facts, potential consequences, reversibility, strategic relationship, action options, recommended next step, and scenario exploration entry point
+- [x] Add deterministic unit, persistence, lifecycle, and tenant-isolation tests for Day 20
+- [x] Run full test suite, TypeScript checks, and production build verification
+- [x] Save Day 20 checkpoint

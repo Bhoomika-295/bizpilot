@@ -162,6 +162,31 @@ export default function DashboardV2() {
   const [isScenarioBuilderOpen, setIsScenarioBuilderOpen] = useState(false);
   const [selectedScenarioModal, setSelectedScenarioModal] = useState<any | null>(null);
   const [selectedOpportunity, setSelectedOpportunity] = useState<any | null>(null);
+  const [selectedDecision, setSelectedDecision] = useState<any | null>(null);
+
+  const decisionQueueQuery = trpc.businessMetrics.getDecisionQueue.useQuery(
+    { businessId: parseInt(businessId || "0"), limit: 7 },
+    { enabled: !!businessId && isAuthenticated }
+  );
+  const decisionDetailQuery = trpc.businessMetrics.getDecisionDetail.useQuery(
+    { businessId: parseInt(businessId || "0"), decisionId: selectedDecision?.id || 0 },
+    { enabled: !!businessId && isAuthenticated && !!selectedDecision?.id }
+  );
+  const refreshDecisionQueueMutation = trpc.businessMetrics.refreshDecisionQueue.useMutation({
+    onSuccess: (result) => {
+      decisionQueueQuery.refetch();
+      toast.success(result.message);
+    },
+    onError: (err: any) => toast.error(`Decision refresh failed: ${err.message}`),
+  });
+  const updateDecisionStatusMutation = trpc.businessMetrics.updateDecisionStatus.useMutation({
+    onSuccess: () => {
+      decisionQueueQuery.refetch();
+      decisionDetailQuery.refetch();
+      toast.success("Decision status updated");
+    },
+    onError: (err: any) => toast.error(`Decision status update failed: ${err.message}`),
+  });
 
   const opportunitiesQuery = trpc.businessMetrics.getOpportunities.useQuery(
     { businessId: parseInt(businessId || "0") },
@@ -966,6 +991,69 @@ export default function DashboardV2() {
           </CardContent>
         </Card>
 
+        {/* Decisions That Need Attention (Day 20) */}
+        {decisionQueueQuery.data && (
+          <Card className="border-slate-300 bg-white shadow-sm">
+            <CardHeader className="space-y-3 pb-4 border-b border-slate-100">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-xl font-semibold text-slate-900">Decisions That Need Attention</CardTitle>
+                    <Badge variant="outline" className="border-indigo-300 bg-indigo-50 text-indigo-700 font-medium">DECISION INTELLIGENCE v1</Badge>
+                  </div>
+                  <CardDescription className="mt-1">A ranked queue of evidence-backed questions—not automatic actions—so you can decide what deserves review first.</CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => refreshDecisionQueueMutation.mutate({ businessId: parseInt(businessId || "0") })}
+                  disabled={refreshDecisionQueueMutation.isPending}
+                  className="border-slate-200 text-slate-700"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${refreshDecisionQueueMutation.isPending ? "animate-spin" : ""}`} />
+                  Refresh Queue
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-5 space-y-4">
+              {decisionQueueQuery.data.length > 0 ? (
+                <div className="space-y-3">
+                  {decisionQueueQuery.data.slice(0, 7).map((decision: any, idx: number) => {
+                    const tone = decision.priority === "HIGH" ? "border-red-300 bg-red-50 text-red-700" : decision.priority === "MEDIUM" ? "border-amber-300 bg-amber-50 text-amber-700" : "border-slate-300 bg-slate-50 text-slate-700";
+                    return (
+                      <button
+                        type="button"
+                        key={decision.id || decision.decisionKey || idx}
+                        onClick={() => setSelectedDecision(decision)}
+                        className="group w-full text-left bg-white p-4 rounded-xl border border-slate-200 shadow-2xs hover:border-indigo-300 hover:shadow-sm transition-all space-y-2.5"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="flex shrink-0 items-center justify-center h-6 w-6 rounded-full bg-slate-100 text-slate-700 text-xs font-bold">{idx + 1}</span>
+                            <span className="font-semibold text-slate-900 text-base group-hover:text-indigo-600 transition-colors">{decision.title}</span>
+                            <Badge variant="outline" className={`shrink-0 text-xs font-semibold ${tone}`}>{decision.priority}</Badge>
+                          </div>
+                          <span className="text-xs text-slate-500 font-medium">Score {decision.priorityScore}/100</span>
+                        </div>
+                        <p className="text-sm text-slate-700 leading-relaxed">{decision.whyMatters}</p>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+                          <span>Urgency: <strong className="text-slate-700">{decision.urgency}</strong></span>
+                          <span>Impact: <strong className="text-slate-700">{decision.potentialImpact}</strong></span>
+                          <span>Evidence: <strong className="text-slate-700">{decision.evidenceStrength}</strong></span>
+                          <span>Status: <strong className="text-slate-700">{decision.status}</strong></span>
+                          <span className="ml-auto text-indigo-600 font-medium group-hover:underline">View evidence & options →</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-6 text-sm text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">No decision candidate is currently supported by meaningful verified intelligence.</div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Today's Strategic Focus (Day 15) */}
         {decisionPrioritiesQuery.data && decisionPrioritiesQuery.data.length > 0 && (
           <Card className="border-slate-300 bg-white shadow-sm">
@@ -1283,6 +1371,90 @@ export default function DashboardV2() {
             </div>
           </div>
         )}
+
+        {/* Decision Intelligence Detail Modal (Day 20) */}
+        {selectedDecision && (() => {
+          const decision: any = (decisionDetailQuery.data as any)?.decision || selectedDecision;
+          const events: any[] = (decisionDetailQuery.data as any)?.events || [];
+          const canReview = decision.status === "OPEN";
+          const canDecide = decision.status === "OPEN" || decision.status === "IN_REVIEW";
+          const canReopen = decision.status === "DEFERRED" || decision.status === "DISMISSED" || decision.status === "EXPIRED";
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+              <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-3xl max-h-[92vh] overflow-y-auto p-6 space-y-6 animate-in fade-in-50 zoom-in-95">
+                <div className="flex items-start justify-between border-b border-slate-100 pb-4 gap-4">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline" className="border-indigo-300 bg-indigo-50 text-indigo-700">DECISION INTELLIGENCE</Badge>
+                      <Badge variant="outline" className={decision.priority === "HIGH" ? "border-red-300 bg-red-50 text-red-700" : "border-amber-300 bg-amber-50 text-amber-700"}>{decision.priority} PRIORITY</Badge>
+                      <Badge variant="outline" className="border-slate-300 bg-slate-50 text-slate-700">{decision.status}</Badge>
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 mt-2">{decision.title}</h3>
+                    <p className="text-xs text-slate-500 mt-1">{decision.category} · {decision.sourceType} · Score {decision.priorityScore}/100</p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedDecision(null)} className="text-slate-500 hover:text-slate-900 h-8 w-8 p-0">✕</Button>
+                </div>
+
+                {decisionDetailQuery.isLoading && <div className="text-sm text-slate-500">Loading the evidence chain…</div>}
+                <div className="space-y-5">
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Why this matters</h4>
+                    <p className="text-sm text-slate-700 leading-relaxed bg-indigo-50 p-3 rounded-lg border border-indigo-100">{decision.whyMatters}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {[["Urgency", decision.urgency], ["Potential impact", decision.potentialImpact], ["Evidence strength", decision.evidenceStrength], ["Reversibility", decision.reversibility]].map(([label, value]) => (
+                      <div key={label} className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{label}</div>
+                        <div className="text-sm font-semibold text-slate-900 mt-1">{value}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Evidence chain</h4>
+                    <div className="space-y-2">
+                      {decision.evidenceChain?.length ? decision.evidenceChain.map((item: any, idx: number) => (
+                        <div key={`${item.type}-${item.id || idx}`} className="flex gap-3 bg-white p-3 rounded-lg border border-slate-200">
+                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-[11px] font-bold text-indigo-700">{idx + 1}</span>
+                          <div><div className="text-xs font-semibold text-slate-900">{item.label}</div><div className="text-xs text-slate-600 mt-0.5">{item.detail}</div></div>
+                        </div>
+                      )) : <div className="text-xs text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-200">No evidence chain is available.</div>}
+                    </div>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100"><h4 className="text-xs font-semibold uppercase tracking-wider text-emerald-800 mb-2">What we know</h4><ul className="space-y-1 text-sm text-emerald-950 list-disc pl-4">{(decision.whatWeKnow || []).map((item: string, idx: number) => <li key={idx}>{item}</li>)}</ul></div>
+                    <div className="bg-amber-50 p-4 rounded-lg border border-amber-100"><h4 className="text-xs font-semibold uppercase tracking-wider text-amber-800 mb-2">What we do not know</h4><ul className="space-y-1 text-sm text-amber-950 list-disc pl-4">{(decision.whatWeDontKnow || []).map((item: string, idx: number) => <li key={idx}>{item}</li>)}</ul></div>
+                  </div>
+
+                  <div><h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Potential consequences</h4><p className="text-sm text-slate-700 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-200">{decision.potentialConsequences}</p></div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2"><h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Action options</h4><Button variant="outline" size="sm" onClick={() => setIsScenarioBuilderOpen(true)} className="border-indigo-200 text-indigo-700">Explore Scenario</Button></div>
+                    <div className="grid gap-2">{(decision.actionOptions || []).map((option: any, idx: number) => <div key={idx} className="p-3 rounded-lg border border-slate-200 bg-white"><div className="text-sm font-semibold text-slate-900">{option.label}</div><div className="text-xs text-slate-600 mt-1">{option.rationale} · {option.reversible}</div></div>)}</div>
+                  </div>
+
+                  {decision.recommendedNextStep && <Alert className="border-indigo-200 bg-indigo-50"><Shield className="h-4 w-4 text-indigo-700" /><AlertDescription className="text-indigo-950 text-sm"><strong>Recommended next step:</strong> {decision.recommendedNextStep}{decision.recommendedNextStepReason ? ` ${decision.recommendedNextStepReason}` : ""}</AlertDescription></Alert>}
+                  {decision.strategicAlignmentReason && <div className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-200"><strong>Strategic relationship:</strong> {decision.strategicAlignment} — {decision.strategicAlignmentReason}</div>}
+                  {decision.dependencyText && <div className="text-sm text-amber-900 bg-amber-50 p-3 rounded-lg border border-amber-200"><strong>Dependency:</strong> {decision.dependencyText}</div>}
+                  {decision.conflictKeys?.some((key: string) => key.startsWith("CONFLICT:")) && <div className="text-sm text-red-900 bg-red-50 p-3 rounded-lg border border-red-200"><strong>Potential conflict:</strong> This decision shares a resource or topic with another decision in the queue. Review the related options before committing.</div>}
+
+                  <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+                    {canReview && <Button size="sm" onClick={() => updateDecisionStatusMutation.mutate({ businessId: parseInt(businessId || "0"), decisionId: decision.id, status: "IN_REVIEW" })}>Start review</Button>}
+                    {canDecide && <Button size="sm" variant="outline" onClick={() => updateDecisionStatusMutation.mutate({ businessId: parseInt(businessId || "0"), decisionId: decision.id, status: "DECIDED" })}>Mark decided</Button>}
+                    {canDecide && <Button size="sm" variant="outline" onClick={() => updateDecisionStatusMutation.mutate({ businessId: parseInt(businessId || "0"), decisionId: decision.id, status: "DEFERRED" })}>Defer</Button>}
+                    {canDecide && <Button size="sm" variant="outline" onClick={() => updateDecisionStatusMutation.mutate({ businessId: parseInt(businessId || "0"), decisionId: decision.id, status: "DISMISSED" })}>Dismiss</Button>}
+                    {canReopen && <Button size="sm" variant="outline" onClick={() => updateDecisionStatusMutation.mutate({ businessId: parseInt(businessId || "0"), decisionId: decision.id, status: "OPEN" })}>Reopen</Button>}
+                    <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setSelectedDecision(null)}>Close</Button>
+                  </div>
+
+                  {events.length > 0 && <div className="border-t border-slate-100 pt-4"><h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Decision history</h4><div className="space-y-2">{events.slice(0, 5).map((event: any) => <div key={event.id} className="text-xs text-slate-600 flex justify-between gap-3"><span><strong className="text-slate-800">{event.eventType}</strong>{event.newStatus ? ` · ${event.newStatus}` : ""}</span><span>{event.timestamp ? new Date(event.timestamp).toLocaleString() : ""}</span></div>)}</div></div>}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Scenario Builder / New Simulation Modal (Day 17) */}
         {isScenarioBuilderOpen && (

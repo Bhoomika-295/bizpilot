@@ -28,6 +28,10 @@ import {
   competitorActivities,
   CompetitorActivity,
   InsertCompetitorActivity,
+  decisionCandidates,
+  decisionEvents,
+  DecisionCandidate,
+  InsertDecisionCandidate,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1552,4 +1556,186 @@ export async function getCompetitorActivities(businessId: number, competitorId?:
     .from(competitorActivities)
     .where(and(...conditions))
     .orderBy(desc(competitorActivities.detectedAt));
+}
+
+/**
+ * ============================================================
+ * DECISION INTELLIGENCE OPERATIONS (DAY 20)
+ * ============================================================
+ */
+
+export type DecisionLifecycleStatus = "OPEN" | "IN_REVIEW" | "DECIDED" | "DEFERRED" | "DISMISSED" | "EXPIRED";
+
+export type DecisionCandidateWrite = Omit<InsertDecisionCandidate, "id" | "createdAt" | "updatedAt">;
+
+export async function getDecisionCandidates(businessId: number, limit = 7) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(decisionCandidates)
+    .where(eq(decisionCandidates.businessId, businessId))
+    .orderBy(desc(decisionCandidates.priorityScore), asc(decisionCandidates.id))
+    .limit(limit);
+}
+
+export async function getAllDecisionCandidates(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(decisionCandidates)
+    .where(eq(decisionCandidates.businessId, businessId))
+    .orderBy(desc(decisionCandidates.priorityScore), asc(decisionCandidates.id));
+}
+
+export async function getDecisionCandidateById(businessId: number, decisionId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(decisionCandidates)
+    .where(and(eq(decisionCandidates.businessId, businessId), eq(decisionCandidates.id, decisionId)))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function upsertDecisionCandidate(data: DecisionCandidateWrite) {
+  const db = await getDb();
+  if (!db) return { id: null, created: false, changed: false, previous: null, row: null };
+
+  const existingRows = await db
+    .select()
+    .from(decisionCandidates)
+    .where(and(eq(decisionCandidates.businessId, data.businessId), eq(decisionCandidates.decisionKey, data.decisionKey)))
+    .limit(1);
+  const existing = existingRows[0] || null;
+
+  if (existing) {
+    const changed = existing.sourceFingerprint !== data.sourceFingerprint ||
+      existing.priorityScore !== data.priorityScore ||
+      existing.urgency !== data.urgency ||
+      existing.evidenceStrength !== data.evidenceStrength ||
+      existing.whyMatters !== data.whyMatters ||
+      existing.strategicAlignment !== data.strategicAlignment ||
+      existing.dependencyText !== (data.dependencyText || null) ||
+      existing.conflictKeysJson !== (data.conflictKeysJson || null);
+
+    if (!changed) {
+      return {
+        id: existing.id,
+        created: false,
+        changed: false,
+        previous: existing,
+        row: existing,
+      };
+    }
+
+    await db
+      .update(decisionCandidates)
+      .set({
+        ...data,
+        status: existing.status,
+        outcomeId: existing.outcomeId,
+        updatedAt: new Date(),
+        lastEvaluatedAt: new Date(),
+      })
+      .where(and(eq(decisionCandidates.businessId, data.businessId), eq(decisionCandidates.id, existing.id)));
+
+    return {
+      id: existing.id,
+      created: false,
+      changed: true,
+      previous: existing,
+      row: { ...existing, ...data, status: existing.status, id: existing.id },
+    };
+  }
+
+  const res = await db.insert(decisionCandidates).values(data);
+  const id = res && Array.isArray(res) && res[0]?.insertId ? Number(res[0].insertId) : null;
+  return {
+    id,
+    created: true,
+    changed: true,
+    previous: null,
+    row: id ? ({ ...data, id } as DecisionCandidate) : null,
+  };
+}
+
+export async function updateDecisionCandidateLifecycle(
+  businessId: number,
+  decisionId: number,
+  status: DecisionLifecycleStatus,
+  outcomeId?: number | null,
+  detailsJson?: string
+) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const existing = await getDecisionCandidateById(businessId, decisionId);
+  if (!existing) return null;
+  if (existing.status === status && (outcomeId === undefined || existing.outcomeId === outcomeId)) return existing;
+
+  await db
+    .update(decisionCandidates)
+    .set({
+      status,
+      outcomeId: outcomeId === undefined ? existing.outcomeId : outcomeId,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(decisionCandidates.businessId, businessId), eq(decisionCandidates.id, decisionId)));
+
+  await createDecisionEvent({
+    businessId,
+    decisionId,
+    eventType: "LIFECYCLE_CHANGED",
+    previousStatus: existing.status,
+    newStatus: status,
+    detailsJson: detailsJson || JSON.stringify({ outcomeId: outcomeId ?? existing.outcomeId ?? null }),
+  });
+
+  return await getDecisionCandidateById(businessId, decisionId);
+}
+
+export async function createDecisionEvent(data: {
+  businessId: number;
+  decisionId: number;
+  eventType: string;
+  previousStatus?: string | null;
+  newStatus?: string | null;
+  detailsJson?: string | null;
+}) {
+  const db = await getDb();
+  if (!db) return null;
+  const res = await db.insert(decisionEvents).values({
+    businessId: data.businessId,
+    decisionId: data.decisionId,
+    eventType: data.eventType,
+    previousStatus: data.previousStatus || null,
+    newStatus: data.newStatus || null,
+    detailsJson: data.detailsJson || null,
+  });
+  return res && Array.isArray(res) && res[0]?.insertId ? Number(res[0].insertId) : null;
+}
+
+export async function getDecisionEvents(businessId: number, decisionId: number, limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(decisionEvents)
+    .where(and(eq(decisionEvents.businessId, businessId), eq(decisionEvents.decisionId, decisionId)))
+    .orderBy(desc(decisionEvents.timestamp))
+    .limit(limit);
+}
+
+export async function getOutcomeByIdForBusiness(businessId: number, outcomeId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(outcomes)
+    .where(and(eq(outcomes.businessId, businessId), eq(outcomes.id, outcomeId)))
+    .limit(1);
+  return rows[0] || null;
 }

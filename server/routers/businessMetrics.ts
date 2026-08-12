@@ -21,6 +21,15 @@ import { simulateAndCreateScenario } from "../services/scenarioService";
 import { getScenarios, getScenarioById, deleteScenario, getOpportunities, getOpportunityById, updateOpportunityStatus } from "../db";
 import { evaluateAndDetectOpportunities } from "../services/opportunityService";
 import { evaluateCompetitorIntelligence } from "../services/competitiveIntelligenceService";
+import {
+  getDecisionQueue,
+  getDecisionDetail,
+  getDecisionHistory,
+  refreshDecisionCandidates,
+  updateDecisionLifecycle,
+  linkDecisionOutcome,
+} from "../services/decisionIntelligenceService";
+import { getOutcomeByIdForBusiness } from "../db";
 import { refreshMarketSignalsForBusiness } from "../services/marketSignalService";
 import {
   generateStrategyRecommendations,
@@ -576,5 +585,60 @@ export const businessMetricsRouter = router({
     .query(async ({ ctx, input }) => {
       await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
       return await evaluateCompetitorIntelligence(input.businessId);
+    }),
+
+  /**
+   * Decision Intelligence Procedures (Day 20)
+   */
+  getDecisionQueue: protectedProcedure
+    .input(z.object({ businessId: z.number(), limit: z.number().int().min(1).max(7).optional() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return await getDecisionQueue(input.businessId, input.limit);
+    }),
+  getDecisionDetail: protectedProcedure
+    .input(z.object({ businessId: z.number(), decisionId: z.number().int().positive() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      const result = await getDecisionDetail(input.businessId, input.decisionId);
+      if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Decision not found." });
+      return result;
+    }),
+  refreshDecisionQueue: protectedProcedure
+    .input(z.object({ businessId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return await refreshDecisionCandidates(input.businessId);
+    }),
+  updateDecisionStatus: protectedProcedure
+    .input(z.object({ businessId: z.number(), decisionId: z.number().int().positive(), status: z.enum(["OPEN", "IN_REVIEW", "DECIDED", "DEFERRED", "DISMISSED", "EXPIRED"]), details: z.string().max(2000).optional() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      try {
+        const result = await updateDecisionLifecycle(input.businessId, input.decisionId, input.status, input.details);
+        if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Decision not found." });
+        return result;
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Invalid decision status transition." });
+      }
+    }),
+  getDecisionHistory: protectedProcedure
+    .input(z.object({ businessId: z.number(), decisionId: z.number().int().positive(), limit: z.number().int().min(1).max(50).optional() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      const result = await getDecisionHistory(input.businessId, input.decisionId, input.limit);
+      if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Decision not found." });
+      return result;
+    }),
+  linkDecisionOutcome: protectedProcedure
+    .input(z.object({ businessId: z.number(), decisionId: z.number().int().positive(), outcomeId: z.number().int().positive() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      const outcome = await getOutcomeByIdForBusiness(input.businessId, input.outcomeId);
+      if (!outcome) throw new TRPCError({ code: "NOT_FOUND", message: "Outcome not found for this business." });
+      const result = await linkDecisionOutcome(input.businessId, input.decisionId, input.outcomeId);
+      if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Decision not found." });
+      return result;
     }),
 });

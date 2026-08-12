@@ -724,3 +724,88 @@ export const competitorActivities = mysqlTable(
 
 export type CompetitorActivity = typeof competitorActivities.$inferSelect;
 export type InsertCompetitorActivity = typeof competitorActivities.$inferInsert;
+
+/**
+ * ============================================================
+ * DAY 20: DECISION INTELLIGENCE ENGINE TABLES
+ * ============================================================
+ *
+ * Decision candidates are distinct from recommendations: they describe
+ * questions that deserve human attention, retain the verified evidence chain,
+ * and provide multiple possible next steps without forcing an action.
+ */
+export const decisionCandidates = mysqlTable(
+  "decisionCandidates",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    decisionKey: varchar("decisionKey", { length: 128 }).notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    category: varchar("category", { length: 50 }).notNull().default("OTHER"),
+    priority: varchar("priority", { length: 20 }).notNull().default("MEDIUM"),
+    priorityScore: int("priorityScore").notNull().default(50),
+    urgency: varchar("urgency", { length: 30 }).notNull().default("MONITOR"),
+    potentialImpact: varchar("potentialImpact", { length: 30 }).notNull().default("MEDIUM"),
+    evidenceStrength: varchar("evidenceStrength", { length: 30 }).notNull().default("MEDIUM"),
+    confidence: varchar("confidence", { length: 30 }).notNull().default("MEDIUM"),
+    sourceType: varchar("sourceType", { length: 50 }).notNull().default("OTHER"),
+    relatedSituationIdsJson: text("relatedSituationIdsJson"),
+    relatedOpportunityIdsJson: text("relatedOpportunityIdsJson"),
+    relatedCompetitorIdsJson: text("relatedCompetitorIdsJson"),
+    relatedSignalIdsJson: text("relatedSignalIdsJson"),
+    relatedScenarioIdsJson: text("relatedScenarioIdsJson"),
+    relatedStrategyIdsJson: text("relatedStrategyIdsJson"),
+    evidenceChainJson: text("evidenceChainJson").notNull(),
+    whyMatters: text("whyMatters").notNull(),
+    whatWeKnowJson: text("whatWeKnowJson").notNull(),
+    whatWeDontKnowJson: text("whatWeDontKnowJson").notNull(),
+    potentialConsequences: text("potentialConsequences").notNull(),
+    reversibility: varchar("reversibility", { length: 30 }).notNull().default("UNKNOWN"),
+    actionOptionsJson: text("actionOptionsJson").notNull(),
+    recommendedNextStep: text("recommendedNextStep"),
+    recommendedNextStepReason: text("recommendedNextStepReason"),
+    strategicAlignment: varchar("strategicAlignment", { length: 30 }).notNull().default("UNKNOWN"),
+    strategicAlignmentReason: text("strategicAlignmentReason"),
+    dependencyText: text("dependencyText"),
+    conflictKeysJson: text("conflictKeysJson"),
+    status: mysqlEnum("status", ["OPEN", "IN_REVIEW", "DECIDED", "DEFERRED", "DISMISSED", "EXPIRED"]).default("OPEN").notNull(),
+    outcomeId: int("outcomeId"),
+    sourceFingerprint: varchar("sourceFingerprint", { length: 255 }).notNull(),
+    lastEvaluatedAt: timestamp("lastEvaluatedAt").defaultNow().notNull(),
+    expiresAt: timestamp("expiresAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("decisionCandidates_businessId_idx").on(table.businessId),
+    statusIdx: index("decisionCandidates_status_idx").on(table.status),
+    priorityScoreIdx: index("decisionCandidates_priorityScore_idx").on(table.priorityScore),
+    decisionKeyIdx: index("decisionCandidates_decisionKey_idx").on(table.decisionKey),
+  })
+);
+
+export type DecisionCandidate = typeof decisionCandidates.$inferSelect;
+export type InsertDecisionCandidate = typeof decisionCandidates.$inferInsert;
+
+export const decisionEvents = mysqlTable(
+  "decisionEvents",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    decisionId: int("decisionId").notNull(),
+    eventType: varchar("eventType", { length: 50 }).notNull(),
+    previousStatus: varchar("previousStatus", { length: 30 }),
+    newStatus: varchar("newStatus", { length: 30 }),
+    detailsJson: text("detailsJson"),
+    timestamp: timestamp("timestamp").defaultNow().notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("decisionEvents_businessId_idx").on(table.businessId),
+    decisionIdIdx: index("decisionEvents_decisionId_idx").on(table.decisionId),
+    timestampIdx: index("decisionEvents_timestamp_idx").on(table.timestamp),
+  })
+);
+
+export type DecisionEvent = typeof decisionEvents.$inferSelect;
+export type InsertDecisionEvent = typeof decisionEvents.$inferInsert;
