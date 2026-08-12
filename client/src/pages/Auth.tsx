@@ -32,7 +32,7 @@ export default function Auth() {
       <div className="w-full max-w-md">
         <Card className="border-0 shadow-lg">
           <CardHeader className="space-y-2 text-center">
-            <CardTitle className="text-3xl font-bold text-slate-900">BizPilot AI</CardTitle>
+            <CardTitle className="text-3xl font-bold text-slate-900">BizPilot</CardTitle>
             <CardDescription className="text-base">
               Your business should improve every day.
             </CardDescription>
@@ -40,7 +40,7 @@ export default function Auth() {
           <CardContent className="space-y-6">
             <div className="space-y-3 text-center text-sm text-slate-600">
               <p>
-                BizPilot AI is an adaptive, real-time Business Growth & Operations Copilot.
+                BizPilot is an adaptive, real-time Business Growth & Operations Copilot.
               </p>
               <p>
                 Understand your business, track your progress, and make data-driven decisions.

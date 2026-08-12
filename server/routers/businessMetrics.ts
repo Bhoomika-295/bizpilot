@@ -41,6 +41,12 @@ import { refreshMarketSignalsForBusiness } from "../services/marketSignalService
 import { evaluateStrategyHealthForBusiness, recordStrategyReviewAction } from "../services/strategyHealthService";
 import { getOrRefreshExternalRadar, reviewExternalRadarEvent } from "../services/externalRadarService";
 import {
+  getAttentionQueueForBusiness,
+  refreshAttentionQueueForBusiness,
+  reviewAttentionItem,
+} from "../services/businessAttentionService";
+import { generateOrGetDailyBrief } from "../services/dailyBriefService";
+import {
   getCrossSignalIntelligence,
   refreshCrossSignalIntelligence,
   getCrossSignalRelationshipDetail,
@@ -1000,5 +1006,55 @@ export const businessMetricsRouter = router({
         risks: input.risks,
         confidence: input.confidence,
       });
+    }),
+
+  /**
+   * Business Attention Engine Procedures (Day 29)
+   */
+  getAttentionQueue: protectedProcedure
+    .input(z.object({ businessId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return getAttentionQueueForBusiness(input.businessId);
+    }),
+
+  refreshAttentionQueue: protectedProcedure
+    .input(z.object({ businessId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      await refreshAttentionQueueForBusiness(input.businessId);
+      return getAttentionQueueForBusiness(input.businessId);
+    }),
+
+  reviewAttentionItem: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+        itemId: z.number(),
+        action: z.enum(["ACKNOWLEDGE", "DISMISS", "RESOLVE", "REOPEN"]),
+        reason: z.string().optional(),
+        notes: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return reviewAttentionItem(input.businessId, input.itemId, input.action, input.reason, input.notes);
+    }),
+
+  /**
+   * Daily Business Intelligence Brief Procedures (Day 30)
+   */
+  getDailyBrief: protectedProcedure
+    .input(z.object({ businessId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return generateOrGetDailyBrief(input.businessId, false);
+    }),
+
+  refreshDailyBrief: protectedProcedure
+    .input(z.object({ businessId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return generateOrGetDailyBrief(input.businessId, true);
     }),
 });

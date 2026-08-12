@@ -1436,3 +1436,107 @@ export const strategyVersions = mysqlTable(
 );
 export type StrategyVersion = typeof strategyVersions.$inferSelect;
 export type InsertStrategyVersion = typeof strategyVersions.$inferInsert;
+
+
+/**
+ * ============================================================
+ * DAY 29: BUSINESS ATTENTION ENGINE & INTELLIGENCE PRIORITIZATION v1
+ * ============================================================
+ *
+ * Continuously aggregates and prioritizes meaningful items across the intelligence
+ * system into NOW, NEXT, WATCH, and BACKGROUND tiers with deterministic factor weights
+ * and explainable evidence chains.
+ */
+export const attentionItems = mysqlTable(
+  "attentionItems",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    tier: varchar("tier", { length: 20 }).notNull().default("WATCH"), // NOW, NEXT, WATCH, BACKGROUND
+    sourceType: varchar("sourceType", { length: 50 }).notNull().default("OTHER"),
+    sourceId: int("sourceId"),
+    title: varchar("title", { length: 255 }).notNull(),
+    summary: text("summary").notNull(),
+    category: varchar("category", { length: 50 }).notNull().default("SITUATION"),
+    priority: varchar("priority", { length: 20 }).notNull().default("MEDIUM"), // CRITICAL, HIGH, MEDIUM, LOW
+    priorityScore: int("priorityScore").notNull().default(50),
+    impact: varchar("impact", { length: 20 }).notNull().default("UNKNOWN"), // LOW, MEDIUM, HIGH, UNKNOWN
+    urgency: varchar("urgency", { length: 20 }).notNull().default("MEDIUM"), // LOW, MEDIUM, HIGH, CRITICAL
+    strategicRelevance: varchar("strategicRelevance", { length: 20 }).notNull().default("UNKNOWN"),
+    trajectoryRelevance: varchar("trajectoryRelevance", { length: 20 }).notNull().default("UNKNOWN"),
+    evidenceStrength: varchar("evidenceStrength", { length: 20 }).notNull().default("MEDIUM"),
+    freshness: varchar("freshness", { length: 20 }).notNull().default("FRESH"),
+    crossSignalSupport: boolean("crossSignalSupport").notNull().default(false),
+    businessSpecificRelevance: text("businessSpecificRelevance"),
+    explanationJson: text("explanationJson").notNull(), // reasons list, underlying entity references, factor weights
+    status: mysqlEnum("status", ["NEW", "ACTIVE", "ACKNOWLEDGED", "IN_REVIEW", "RESOLVED", "DISMISSED", "EXPIRED"]).default("NEW").notNull(),
+    dismissalReason: varchar("dismissalReason", { length: 50 }),
+    resolvedAt: timestamp("resolvedAt"),
+    expiresAt: timestamp("expiresAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("attentionItems_businessId_idx").on(table.businessId),
+    tierIdx: index("attentionItems_tier_idx").on(table.tier),
+    statusIdx: index("attentionItems_status_idx").on(table.status),
+    priorityScoreIdx: index("attentionItems_priorityScore_idx").on(table.priorityScore),
+    sourceIdx: index("attentionItems_source_idx").on(table.sourceType, table.sourceId),
+  })
+);
+
+export type AttentionItem = typeof attentionItems.$inferSelect;
+export type InsertAttentionItem = typeof attentionItems.$inferInsert;
+
+export const attentionReviewLogs = mysqlTable(
+  "attentionReviewLogs",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    attentionItemId: int("attentionItemId").notNull(),
+    action: varchar("action", { length: 30 }).notNull(), // ACKNOWLEDGE, DISMISS, RESOLVE, REOPEN
+    reason: varchar("reason", { length: 50 }),
+    notes: text("notes"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("attentionReviewLogs_businessId_idx").on(table.businessId),
+    itemIdx: index("attentionReviewLogs_itemIdx").on(table.attentionItemId),
+  })
+);
+
+export type AttentionReviewLog = typeof attentionReviewLogs.$inferSelect;
+export type InsertAttentionReviewLog = typeof attentionReviewLogs.$inferInsert;
+
+/**
+ * ============================================================
+ * DAY 30: DAILY BUSINESS INTELLIGENCE BRIEF v1 TABLES
+ * ============================================================
+ */
+export const dailyBriefs = mysqlTable(
+  "dailyBriefs",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    briefDate: varchar("briefDate", { length: 30 }).notNull(), // YYYY-MM-DD
+    executiveOpening: text("executiveOpening").notNull(),
+    healthSummaryJson: text("healthSummaryJson").notNull(),
+    changesSummaryJson: text("changesSummaryJson").notNull(),
+    attentionSummaryJson: text("attentionSummaryJson").notNull(),
+    externalRadarJson: text("externalRadarJson").notNull(),
+    opportunitiesThreatsJson: text("opportunitiesThreatsJson").notNull(),
+    strategyStatusJson: text("strategyStatusJson").notNull(),
+    decisionsSummaryJson: text("decisionsSummaryJson").notNull(),
+    outcomesJson: text("outcomesJson").notNull(),
+    fingerprint: varchar("fingerprint", { length: 255 }).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("dailyBriefs_businessId_idx").on(table.businessId),
+    briefDateIdx: index("dailyBriefs_briefDate_idx").on(table.briefDate),
+  })
+);
+
+export type DailyBrief = typeof dailyBriefs.$inferSelect;
+export type InsertDailyBrief = typeof dailyBriefs.$inferInsert;

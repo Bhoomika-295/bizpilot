@@ -74,6 +74,15 @@ import {
   externalRadarSnapshots,
   InsertExternalRadarSnapshot,
   ExternalRadarSnapshot,
+  attentionItems,
+  AttentionItem,
+  InsertAttentionItem,
+  attentionReviewLogs,
+  AttentionReviewLog,
+  InsertAttentionReviewLog,
+  dailyBriefs,
+  DailyBrief,
+  InsertDailyBrief,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -2813,3 +2822,114 @@ export const getExternalRadarEventById = getExternalEventById;
 export const updateExternalRadarEventStatus = setExternalEventStatus;
 export const getExternalRadarEventHistory = getExternalEventHistoryForBusiness;
 export const getExternalRadarSnapshot = getLatestExternalRadarSnapshot;
+
+
+export async function getAttentionItemsForBusiness(businessId: number, options?: { tier?: string; status?: string }) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(attentionItems.businessId, businessId)];
+  if (options?.tier) conditions.push(eq(attentionItems.tier, options.tier));
+  if (options?.status) conditions.push(eq(attentionItems.status, options.status as any));
+  return await db
+    .select()
+    .from(attentionItems)
+    .where(and(...conditions))
+    .orderBy(desc(attentionItems.priorityScore), desc(attentionItems.updatedAt));
+}
+
+export async function getAttentionItemById(businessId: number, itemId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(attentionItems)
+    .where(and(eq(attentionItems.businessId, businessId), eq(attentionItems.id, itemId)))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function createAttentionItem(data: Omit<InsertAttentionItem, "id" | "createdAt" | "updatedAt">) {
+  const db = await getDb();
+  if (!db) return null;
+  const res = await db.insert(attentionItems).values(data);
+  const id = res && Array.isArray(res) && res[0]?.insertId ? Number(res[0].insertId) : null;
+  if (!id) return null;
+  return await getAttentionItemById(data.businessId, id);
+}
+
+export async function updateAttentionItem(businessId: number, itemId: number, data: Partial<InsertAttentionItem>) {
+  const db = await getDb();
+  if (!db) return null;
+  await db
+    .update(attentionItems)
+    .set({ ...data, updatedAt: new Date() })
+    .where(and(eq(attentionItems.businessId, businessId), eq(attentionItems.id, itemId)));
+  return await getAttentionItemById(businessId, itemId);
+}
+
+export async function getAttentionReviewLogsForBusiness(businessId: number, attentionItemId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(attentionReviewLogs)
+    .where(and(eq(attentionReviewLogs.businessId, businessId), eq(attentionReviewLogs.attentionItemId, attentionItemId)))
+    .orderBy(desc(attentionReviewLogs.createdAt));
+}
+
+export async function createAttentionReviewLogEntry(data: Omit<InsertAttentionReviewLog, "id" | "createdAt">) {
+  const db = await getDb();
+  if (!db) return null;
+  const res = await db.insert(attentionReviewLogs).values(data);
+  const id = res && Array.isArray(res) && res[0]?.insertId ? Number(res[0].insertId) : null;
+  if (!id) return null;
+  const rows = await db
+    .select()
+    .from(attentionReviewLogs)
+    .where(and(eq(attentionReviewLogs.businessId, data.businessId), eq(attentionReviewLogs.id, id)))
+    .limit(1);
+  return rows[0] || null;
+}
+
+
+export async function getLatestStrategyHealthSnapshot(businessId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(strategyHealthSnapshots)
+    .where(eq(strategyHealthSnapshots.businessId, businessId))
+    .orderBy(desc(strategyHealthSnapshots.lastEvaluatedAt), desc(strategyHealthSnapshots.id))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function getLatestDailyBrief(businessId: number, briefDate?: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const conditions = [eq(dailyBriefs.businessId, businessId)];
+  if (briefDate) {
+    conditions.push(eq(dailyBriefs.briefDate, briefDate));
+  }
+  const rows = await db
+    .select()
+    .from(dailyBriefs)
+    .where(and(...conditions))
+    .orderBy(desc(dailyBriefs.createdAt), desc(dailyBriefs.id))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function createDailyBrief(data: InsertDailyBrief) {
+  const db = await getDb();
+  if (!db) return null;
+  const res = await db.insert(dailyBriefs).values(data);
+  const id = res && Array.isArray(res) && res[0]?.insertId ? Number(res[0].insertId) : null;
+  if (!id) return null;
+  const rows = await db
+    .select()
+    .from(dailyBriefs)
+    .where(and(eq(dailyBriefs.businessId, data.businessId), eq(dailyBriefs.id, id)))
+    .limit(1);
+  return rows[0] || null;
+}

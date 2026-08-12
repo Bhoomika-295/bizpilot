@@ -202,6 +202,43 @@ export default function DashboardV2() {
   const [selectedTrajectory, setSelectedTrajectory] = useState<any | null>(null);
   const [selectedScenarioPath, setSelectedScenarioPath] = useState<any | null>(null);
 
+  const dailyBriefQuery = trpc.businessMetrics.getDailyBrief.useQuery(
+    { businessId: parseInt(businessId || "0") },
+    { enabled: !!businessId && isAuthenticated }
+  );
+  const refreshDailyBriefMutation = trpc.businessMetrics.refreshDailyBrief.useMutation({
+    onSuccess: () => {
+      dailyBriefQuery.refetch();
+      toast.success("Daily business intelligence brief refreshed");
+    },
+    onError: (err: any) => toast.error(`Refresh failed: ${err.message}`),
+  });
+
+  const attentionQueueQuery = trpc.businessMetrics.getAttentionQueue.useQuery(
+    { businessId: parseInt(businessId || "0") },
+    { enabled: !!businessId && isAuthenticated }
+  );
+  const reviewAttentionItemMutation = trpc.businessMetrics.reviewAttentionItem.useMutation({
+    onSuccess: () => {
+      attentionQueueQuery.refetch();
+      setSelectedAttentionItem(null);
+      setAttentionReviewNotes("");
+      toast.success("Attention item status updated");
+    },
+    onError: (err: any) => toast.error(`Attention update failed: ${err.message}`),
+  });
+  const refreshAttentionQueueMutation = trpc.businessMetrics.refreshAttentionQueue.useMutation({
+    onSuccess: () => {
+      attentionQueueQuery.refetch();
+      toast.success("Attention queue refreshed");
+    },
+    onError: (err: any) => toast.error(`Attention refresh failed: ${err.message}`),
+  });
+
+  const [selectedAttentionItem, setSelectedAttentionItem] = useState<any | null>(null);
+  const [attentionReviewNotes, setAttentionReviewNotes] = useState("");
+  const [isDailyBriefModalOpen, setIsDailyBriefModalOpen] = useState(false);
+
   const scenarioPathsQuery = trpc.businessMetrics.getScenarioPaths.useQuery(
     { businessId: parseInt(businessId || "0") },
     { enabled: !!businessId && isAuthenticated }
@@ -1426,6 +1463,208 @@ export default function DashboardV2() {
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
                 <span>Updated from the latest available business data: {formatLastUpdated(trajectoryQuery.data.updatedAt)}</span>
                 <span>Projected values are directional and intentionally rounded.</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Business Attention Engine (Day 29) */}
+        {attentionQueueQuery.data && (
+          <Card className="border-slate-300 bg-white shadow-sm">
+            <CardHeader className="space-y-3 border-b border-slate-100 pb-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-xl font-semibold text-slate-900">Business Attention Engine</CardTitle>
+                    <Badge variant="outline" className="border-amber-300 bg-amber-50 font-medium text-amber-700">ATTENTION ENGINE v1</Badge>
+                  </div>
+                  <CardDescription className="mt-1">Executive prioritization layer categorizing signals into Now (immediate action), Next (planning), and Watch (monitoring) tiers.</CardDescription>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={refreshAttentionQueueMutation.isPending}
+                  onClick={() => refreshAttentionQueueMutation.mutate({ businessId: parseInt(businessId || "0") })}
+                >
+                  <RefreshCw className={`mr-2 h-4 w-4 ${refreshAttentionQueueMutation.isPending ? "animate-spin" : ""}`} />
+                  Refresh Attention Tiers
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6 pt-5">
+              <div className="grid gap-6 md:grid-cols-3">
+                {/* NOW Tier */}
+                <div className="rounded-xl border border-red-200 bg-red-50/50 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-red-700 flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-red-600 animate-pulse"></span>
+                      Now Tier ({attentionQueueQuery.data.now.length})
+                    </span>
+                    <Badge variant="outline" className="border-red-300 bg-white text-red-800 text-[10px]">Urgent</Badge>
+                  </div>
+                  {attentionQueueQuery.data.now.length > 0 ? (
+                    <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                      {attentionQueueQuery.data.now.map((item: any) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedAttentionItem(item);
+                            setAttentionReviewNotes("");
+                          }}
+                          className="w-full text-left rounded-lg border border-red-200 bg-white p-3 shadow-2xs hover:border-red-400 transition space-y-1.5"
+                        >
+                          <div className="font-semibold text-xs text-slate-900">{item.title}</div>
+                          <p className="text-xs text-slate-600 line-clamp-2">{item.summary}</p>
+                          <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1">
+                            <span className="font-medium text-red-700">Urgency: {item.urgency}</span>
+                            <span className="text-indigo-600 font-medium">Review →</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-500 italic py-4 text-center">No urgent Now items require immediate intervention.</p>
+                  )}
+                </div>
+
+                {/* NEXT Tier */}
+                <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-amber-700 flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-amber-500"></span>
+                      Next Tier ({attentionQueueQuery.data.next.length})
+                    </span>
+                    <Badge variant="outline" className="border-amber-300 bg-white text-amber-800 text-[10px]">Planning</Badge>
+                  </div>
+                  {attentionQueueQuery.data.next.length > 0 ? (
+                    <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                      {attentionQueueQuery.data.next.map((item: any) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedAttentionItem(item);
+                            setAttentionReviewNotes("");
+                          }}
+                          className="w-full text-left rounded-lg border border-amber-200 bg-white p-3 shadow-2xs hover:border-amber-400 transition space-y-1.5"
+                        >
+                          <div className="font-semibold text-xs text-slate-900">{item.title}</div>
+                          <p className="text-xs text-slate-600 line-clamp-2">{item.summary}</p>
+                          <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1">
+                            <span className="font-medium text-amber-700">Priority: {item.priority}</span>
+                            <span className="text-indigo-600 font-medium">Review →</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-500 italic py-4 text-center">No upcoming Next items currently queued.</p>
+                  )}
+                </div>
+
+                {/* WATCH Tier */}
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-slate-400"></span>
+                      Watch Tier ({attentionQueueQuery.data.watch.length})
+                    </span>
+                    <Badge variant="outline" className="border-slate-300 bg-white text-slate-700 text-[10px]">Monitoring</Badge>
+                  </div>
+                  {attentionQueueQuery.data.watch.length > 0 ? (
+                    <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                      {attentionQueueQuery.data.watch.map((item: any) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedAttentionItem(item);
+                            setAttentionReviewNotes("");
+                          }}
+                          className="w-full text-left rounded-lg border border-slate-200 bg-white p-3 shadow-2xs hover:border-slate-400 transition space-y-1.5"
+                        >
+                          <div className="font-semibold text-xs text-slate-900">{item.title}</div>
+                          <p className="text-xs text-slate-600 line-clamp-2">{item.summary}</p>
+                          <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1">
+                            <span className="font-medium text-slate-700">Category: {item.category}</span>
+                            <span className="text-indigo-600 font-medium">Review →</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-500 italic py-4 text-center">No watch items currently tracked.</p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Daily Business Intelligence Brief (Day 30) */}
+        {dailyBriefQuery.data && (
+          <Card className="border-slate-300 bg-white shadow-sm">
+            <CardHeader className="space-y-3 border-b border-slate-100 pb-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-xl font-semibold text-slate-900">Daily Business Intelligence Brief</CardTitle>
+                    <Badge variant="outline" className="border-emerald-300 bg-emerald-50 font-medium text-emerald-700">DAILY BRIEF v1</Badge>
+                  </div>
+                  <CardDescription className="mt-1">Synthesized executive brief for {dailyBriefQuery.data.briefDate} combining health, attention signals, external radar, and strategy health.</CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={refreshDailyBriefMutation.isPending}
+                    onClick={() => refreshDailyBriefMutation.mutate({ businessId: parseInt(businessId || "0") })}
+                  >
+                    <RefreshCw className={`mr-2 h-4 w-4 ${refreshDailyBriefMutation.isPending ? "animate-spin" : ""}`} />
+                    Refresh Brief
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="bg-slate-900 hover:bg-slate-800 text-white"
+                    onClick={() => setIsDailyBriefModalOpen(true)}
+                  >
+                    View Full Brief →
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-5">
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4">
+                <div className="text-xs font-semibold uppercase tracking-wider text-emerald-800">Executive Opening</div>
+                <p className="mt-1.5 text-sm text-slate-800 leading-relaxed">{dailyBriefQuery.data.executiveOpening}</p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-4">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <span className="text-xs text-slate-500 font-medium block">Health Score</span>
+                  <div className="mt-1 text-xl font-bold text-slate-900">{dailyBriefQuery.data.health?.score ?? "—"}/100</div>
+                  <span className="text-[11px] text-slate-600 block mt-0.5 truncate">{dailyBriefQuery.data.health?.explanation || "Stable"}</span>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <span className="text-xs text-slate-500 font-medium block">Attention Items</span>
+                  <div className="mt-1 text-xl font-bold text-slate-900">
+                    {dailyBriefQuery.data.attention?.nowCount || 0} Now / {dailyBriefQuery.data.attention?.nextCount || 0} Next
+                  </div>
+                  <span className="text-[11px] text-slate-600 block mt-0.5">Prioritized signals</span>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <span className="text-xs text-slate-500 font-medium block">External Radar</span>
+                  <div className="mt-1 text-xl font-bold text-slate-900">{dailyBriefQuery.data.externalRadar?.activeEventsCount || 0} events</div>
+                  <span className="text-[11px] text-slate-600 block mt-0.5">Market & competitor shifts</span>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <span className="text-xs text-slate-500 font-medium block">Strategy Status</span>
+                  <div className="mt-1 text-xl font-bold text-slate-900">{dailyBriefQuery.data.strategyStatus?.healthState || "STABLE"}</div>
+                  <span className="text-[11px] text-slate-600 block mt-0.5">Objective performance</span>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -3769,6 +4008,220 @@ export default function DashboardV2() {
                 className="bg-slate-900 hover:bg-slate-800 text-white"
               >
                 Close Intelligence
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Attention Item Review Modal (Day 29) */}
+      {selectedAttentionItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-xl space-y-6">
+            <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700 text-xs">
+                    {selectedAttentionItem.tier} TIER • {selectedAttentionItem.urgency} URGENCY
+                  </Badge>
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mt-1">{selectedAttentionItem.title}</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Category: {selectedAttentionItem.category}</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedAttentionItem(null)}
+                className="h-8 w-8 p-0 text-slate-400 hover:text-slate-700"
+              >
+                ✕
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Situation Summary</h4>
+                <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-100 leading-relaxed">
+                  {selectedAttentionItem.summary}
+                </p>
+              </div>
+
+              {selectedAttentionItem.suggestedAction && (
+                <div className="space-y-1.5">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Suggested Action</h4>
+                  <p className="text-sm text-indigo-900 bg-indigo-50/50 p-3 rounded-lg border border-indigo-100 font-medium">
+                    {selectedAttentionItem.suggestedAction}
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-3 pt-2 border-t border-slate-100">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Review & Resolve</h4>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-slate-700">Review Notes / Reason</label>
+                  <textarea
+                    value={attentionReviewNotes}
+                    onChange={(e) => setAttentionReviewNotes(e.target.value)}
+                    placeholder="Enter notes or rationale for reviewing this attention item..."
+                    className="w-full rounded-lg border border-slate-200 p-2.5 text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                    rows={3}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-slate-100">
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={reviewAttentionItemMutation.isPending}
+                  onClick={() => reviewAttentionItemMutation.mutate({
+                    businessId: parseInt(businessId || "0"),
+                    itemId: selectedAttentionItem.id,
+                    action: "ACKNOWLEDGE",
+                    reason: attentionReviewNotes || "Acknowledged by executive",
+                    notes: attentionReviewNotes,
+                  })}
+                  className="border-slate-200 text-slate-700"
+                >
+                  Acknowledge
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={reviewAttentionItemMutation.isPending}
+                  onClick={() => reviewAttentionItemMutation.mutate({
+                    businessId: parseInt(businessId || "0"),
+                    itemId: selectedAttentionItem.id,
+                    action: "DISMISS",
+                    reason: attentionReviewNotes || "Dismissed by executive",
+                    notes: attentionReviewNotes,
+                  })}
+                  className="border-slate-200 text-slate-700"
+                >
+                  Dismiss
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={reviewAttentionItemMutation.isPending}
+                  onClick={() => reviewAttentionItemMutation.mutate({
+                    businessId: parseInt(businessId || "0"),
+                    itemId: selectedAttentionItem.id,
+                    action: "RESOLVE",
+                    reason: attentionReviewNotes || "Resolved by executive",
+                    notes: attentionReviewNotes,
+                  })}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  Mark Resolved
+                </Button>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setSelectedAttentionItem(null)}
+                className="text-slate-500"
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Daily Business Intelligence Brief Modal (Day 30) */}
+      {isDailyBriefModalOpen && dailyBriefQuery.data && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-xl space-y-6">
+            <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700 text-xs">
+                    DAILY BRIEFING • {dailyBriefQuery.data.briefDate}
+                  </Badge>
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mt-1">Executive Business Intelligence Brief</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Synthesized from all core intelligence subsystems with strict multi-tenant isolation.</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsDailyBriefModalOpen(false)}
+                className="h-8 w-8 p-0 text-slate-400 hover:text-slate-700"
+              >
+                ✕
+              </Button>
+            </div>
+
+            <div className="space-y-6">
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4 space-y-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-800">Executive Opening</h4>
+                <p className="text-sm text-slate-800 leading-relaxed">{dailyBriefQuery.data.executiveOpening}</p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">Health & Financial Summary</h4>
+                  <div className="text-sm text-slate-700 space-y-1">
+                    <div>Health Score: <strong className="text-slate-900">{dailyBriefQuery.data.health?.score}/100</strong></div>
+                    <div className="text-xs text-slate-600">{dailyBriefQuery.data.health?.explanation}</div>
+                    <div className="pt-2">Revenue: <strong>${Number(dailyBriefQuery.data.health?.revenue || 0).toLocaleString()}</strong></div>
+                    <div>Net Profit: <strong>${Number(dailyBriefQuery.data.health?.netProfit || 0).toLocaleString()}</strong> ({Number(dailyBriefQuery.data.health?.margin || 0).toFixed(1)}% margin)</div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">Strategy Status</h4>
+                  <div className="text-sm text-slate-700 space-y-1">
+                    <div>Health State: <strong className="text-slate-900">{dailyBriefQuery.data.strategyStatus?.healthState}</strong></div>
+                    <div>Objective Performance: <strong className="text-slate-900">{dailyBriefQuery.data.strategyStatus?.objectivePerformance}</strong></div>
+                    <p className="text-xs text-slate-600 mt-2">{dailyBriefQuery.data.strategyStatus?.summary}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Top Now Attention Items</h4>
+                {dailyBriefQuery.data.attention?.topNow && dailyBriefQuery.data.attention.topNow.length > 0 ? (
+                  <div className="space-y-2">
+                    {dailyBriefQuery.data.attention.topNow.map((item: any) => (
+                      <div key={item.id} className="p-3 rounded-lg border border-red-200 bg-red-50/50 space-y-1">
+                        <div className="font-semibold text-xs text-slate-900">{item.title}</div>
+                        <p className="text-xs text-slate-700">{item.summary}</p>
+                        <span className="text-[10px] font-medium text-red-700">Urgency: {item.urgency}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500">No urgent Now items recorded in today's brief.</p>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">External Radar & Early Warnings</h4>
+                {dailyBriefQuery.data.externalRadar?.topWarnings && dailyBriefQuery.data.externalRadar.topWarnings.length > 0 ? (
+                  <div className="space-y-2">
+                    {dailyBriefQuery.data.externalRadar.topWarnings.map((w: any, idx: number) => (
+                      <div key={idx} className="p-3 rounded-lg border border-slate-200 bg-white space-y-1">
+                        <div className="font-semibold text-xs text-slate-900">{w.title}</div>
+                        <p className="text-xs text-slate-600">{w.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500">No early warnings recorded on the radar.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-4 border-t border-slate-100">
+              <Button
+                size="sm"
+                onClick={() => setIsDailyBriefModalOpen(false)}
+                className="bg-slate-900 hover:bg-slate-800 text-white"
+              >
+                Close Brief
               </Button>
             </div>
           </div>

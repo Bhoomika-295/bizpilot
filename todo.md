@@ -429,9 +429,17 @@
 - [x] Save Day 28 checkpoint
 
 ## Day 29: Business Attention Engine & Intelligence Prioritization v1
-- [ ] Add tenant-isolated attention items and review logs table schema in Drizzle and generate migration SQL
-- [ ] Implement deterministic Business Attention Service (`server/services/businessAttentionService.ts`) aggregating situations, early warnings, threat/opportunity radar, strategy health, decisions, external changes, and cross-signal clusters into Now, Next, Watch, and Background tiers with factor weighting and clear explanations
-- [ ] Expose protected tRPC procedures (`getAttentionQueue`, `refreshAttentionQueue`, `updateAttentionStatus`) with strict tenant authorization checks
-- [ ] Integrate "Business Attention Engine (Now, Next, Watch)" card and review workspace modal into `DashboardV2.tsx`
-- [ ] Add deterministic unit tests, tenant isolation tests, and run test suite and production build verification
-- [ ] Save Day 29 checkpoint
+- [x] Add tenant-isolated attention items and review logs table schema in Drizzle and generate migration SQL
+- [x] Implement deterministic Business Attention Service (`server/services/businessAttentionService.ts`) aggregating situations, early warnings, threat/opportunity radar, strategy health, decisions, external changes, and cross-signal clusters into Now, Next, Watch, and Background tiers with factor weighting and clear explanations
+- [x] Expose protected tRPC procedures (`getAttentionQueue`, `refreshAttentionQueue`, `updateAttentionStatus`) with strict tenant authorization checks
+- [x] Integrate "Business Attention Engine (Now, Next, Watch)" card and review workspace modal into `DashboardV2.tsx`
+- [x] Add deterministic unit tests, tenant isolation tests, and run test suite and production build verification
+- [x] Save Day 29 checkpoint
+
+## Day 30: Brand Rename + Daily Business Intelligence Brief v1
+- [ ] Apply "BizPilot" brand rename across all user-facing touchpoints (navbar, titles, landing page, footer, onboarding)
+- [ ] Add tenant-isolated daily brief table schema in Drizzle and generate migration SQL
+- [ ] Implement deterministic Daily Brief Service (`server/services/dailyBriefService.ts`) aggregating executive opening, health, changes, attention, external radar, opportunities/threats, strategy status, decisions, and outcomes
+- [ ] Expose protected tRPC procedures (`getDailyBrief`, `refreshDailyBrief`) with strict tenant authorization checks
+- [ ] Integrate "Daily Business Intelligence Brief" executive workspace card and modal into `DashboardV2.tsx`
+- [ ] Add deterministic unit tests, tenant isolation tests, and run full verification suite and production build

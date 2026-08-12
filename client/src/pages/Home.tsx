@@ -40,12 +40,12 @@ export default function Home() {
     <div className="min-h-screen bg-[#f5f7fa] text-slate-950">
       <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-10">
-          <Link href="/" className="flex items-center gap-3" aria-label="BizPilot AI home">
+          <Link href="/" className="flex items-center gap-3" aria-label="BizPilot home">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-950 text-white shadow-sm">
               <BarChart3 className="h-5 w-5" />
             </span>
             <span>
-              <span className="block text-sm font-semibold tracking-tight">BizPilot AI</span>
+              <span className="block text-sm font-semibold tracking-tight">BizPilot</span>
               <span className="block text-xs text-slate-500">Business intelligence, grounded</span>
             </span>
           </Link>
@@ -66,7 +66,7 @@ export default function Home() {
               A clearer operating picture for your business.
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
-              BizPilot AI turns the business data you already have into a calm, useful command center. Start with honest metrics today; add adaptive intelligence as your data foundation grows.
+              BizPilot turns the business data you already have into a calm, useful command center. Start with honest metrics today; add adaptive intelligence as your data foundation grows.
             </p>
             <div className="mt-9 flex flex-wrap items-center gap-3">
               <Button onClick={() => startLogin()} size="lg" className="bg-slate-950 px-6 text-white hover:bg-slate-800">
@@ -162,7 +162,7 @@ export default function Home() {
       </main>
 
       <footer className="mx-auto flex max-w-7xl flex-col gap-2 px-6 py-8 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between lg:px-10">
-        <span>BizPilot AI · Business data, clearly labeled.</span>
+        <span>BizPilot · Business data, clearly labeled.</span>
         <span>Live data, demo data, and future signals are kept distinct.</span>
       </footer>
     </div>

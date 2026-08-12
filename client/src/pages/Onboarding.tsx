@@ -240,7 +240,7 @@ export default function Onboarding() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-12 px-4">
       <div className="max-w-2xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-slate-900 mb-2">Welcome to BizPilot AI</h1>
+          <h1 className="text-4xl font-bold text-slate-900 mb-2">Welcome to BizPilot</h1>
           <p className="text-slate-600">Let's set up your business profile</p>
         </div>
 
