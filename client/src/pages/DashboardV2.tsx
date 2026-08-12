@@ -2,6 +2,7 @@ import { useLocation, useParams } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import DashboardLayout from "@/components/DashboardLayout";
+import { HistoricalContextPanel } from "@/components/HistoricalContextPanel";
 import {
   Card,
   CardContent,
@@ -3094,6 +3095,14 @@ export default function DashboardV2() {
                     <p className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-700">Target metric: <strong>{card.targetMetric || "Not mapped"}</strong>. Historical outcome evidence: <strong>{card.historicalEvidence}</strong>. Data confidence: <strong>{card.dataConfidence}</strong>. Last evaluated: <strong>{new Date(card.lastEvaluatedAt).toLocaleString()}</strong>. Unchanged evidence reuses the persisted snapshot; new or changed evidence triggers a fresh deterministic evaluation.</p>
                   </div>
 
+                  <HistoricalContextPanel
+                    businessId={parseInt(businessId || "0")}
+                    queryType="STRATEGY"
+                    categoryOrMetric={card.objective || "strategy"}
+                    title="Historical strategy context"
+                    description="Compare this strategy review with retained strategy memories before continuing, adjusting, pausing, or replacing it."
+                  />
+
                   {card.timeline?.length > 0 && (
                     <div>
                       <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Strategy timeline</h4><span className="text-xs text-slate-500">Created · reviewed · revised · outcomes</span></div>
@@ -4348,6 +4357,15 @@ export default function DashboardV2() {
                   </div>
                 </div>
               </div>
+
+              <HistoricalContextPanel
+                businessId={parseInt(businessId || "0")}
+                queryType="OUTCOME"
+                categoryOrMetric="business"
+                title="Historical context for today’s brief"
+                description="The brief remains grounded in current records. This panel adds comparable retained outcomes only when the memory layer has matching evidence."
+                compact
+              />
 
               <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 space-y-3">
                 <div className="flex items-center justify-between gap-3">

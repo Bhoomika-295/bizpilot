@@ -1,58 +1,54 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { protectedProcedure, router } from "../_core/trpc";
-import { getDb } from "../db";
 import {
   getBusinessMemoryTimeline,
   getBusinessMemoryDetail,
   getHistoricalContextForQuery,
   searchBusinessMemories,
+  queryBusinessMemory,
 } from "../services/businessMemoryService";
 import { getBusinessPatterns, detectAndUpsertPatterns } from "../services/patternIntelligenceService";
 
-async function verifyBusinessOwnership(ctxUser: any, businessId: number) {
-  if (ctxUser.role === "admin") return true;
-  if (ctxUser.businessId && Number(ctxUser.businessId) === Number(businessId)) return true;
-  return false;
+import { verifyBusinessOwnership as verifyOwnedBusiness } from "../services/businessDataService";
+
+async function requireBusinessMemoryAccess(ctxUser: { id: number }, businessId: number) {
+  try {
+    return await verifyOwnedBusiness(ctxUser.id, businessId);
+  } catch {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "You do not have access to this business.",
+    });
+  }
 }
 
 export const businessMemoryRouter = router({
   getTimeline: protectedProcedure
-    .input(z.object({ businessId: z.number(), limit: z.number().optional().default(50) }))
+    .input(z.object({ businessId: z.number().int().positive(), limit: z.number().int().min(1).max(200).optional().default(50) }))
     .query(async ({ ctx, input }) => {
-      const authorized = await verifyBusinessOwnership(ctx.user, input.businessId);
-      if (!authorized) {
-        throw new Error("Unauthorized access to business memory");
-      }
+      await requireBusinessMemoryAccess(ctx.user, input.businessId);
       return await getBusinessMemoryTimeline(input.businessId, input.limit);
     }),
 
   getDetail: protectedProcedure
-    .input(z.object({ businessId: z.number(), memoryId: z.number() }))
+    .input(z.object({ businessId: z.number().int().positive(), memoryId: z.number().int().positive() }))
     .query(async ({ ctx, input }) => {
-      const authorized = await verifyBusinessOwnership(ctx.user, input.businessId);
-      if (!authorized) {
-        throw new Error("Unauthorized access to business memory");
-      }
+      await requireBusinessMemoryAccess(ctx.user, input.businessId);
       return await getBusinessMemoryDetail(input.businessId, input.memoryId);
     }),
 
   getHistoricalContext: protectedProcedure
-    .input(z.object({ businessId: z.number(), queryType: z.string(), categoryOrMetric: z.string().optional() }))
+    .input(z.object({ businessId: z.number().int().positive(), queryType: z.string().trim().min(1).max(100), categoryOrMetric: z.string().trim().min(1).max(100).optional() }))
     .query(async ({ ctx, input }) => {
-      const authorized = await verifyBusinessOwnership(ctx.user, input.businessId);
-      if (!authorized) {
-        throw new Error("Unauthorized access to historical context");
-      }
+      await requireBusinessMemoryAccess(ctx.user, input.businessId);
       return await getHistoricalContextForQuery(input.businessId, input.queryType, input.categoryOrMetric);
     }),
 
   getPatterns: protectedProcedure
-    .input(z.object({ businessId: z.number() }))
+    .input(z.object({ businessId: z.number().int().positive() }))
     .query(async ({ ctx, input }) => {
-      const authorized = await verifyBusinessOwnership(ctx.user, input.businessId);
-      if (!authorized) {
-        throw new Error("Unauthorized access to pattern intelligence");
-      }
+      await requireBusinessMemoryAccess(ctx.user, input.businessId);
       await detectAndUpsertPatterns(input.businessId);
       return await getBusinessPatterns(input.businessId);
     }),
@@ -60,18 +56,15 @@ export const businessMemoryRouter = router({
   search: protectedProcedure
     .input(
       z.object({
-        businessId: z.number(),
-        query: z.string().optional(),
-        memoryType: z.string().optional(),
-        importance: z.string().optional(),
-        status: z.string().optional(),
+        businessId: z.number().int().positive(),
+        query: z.string().trim().max(200).optional(),
+        memoryType: z.string().trim().max(50).optional(),
+        importance: z.string().trim().max(50).optional(),
+        status: z.string().trim().max(50).optional(),
       })
     )
     .query(async ({ ctx, input }) => {
-      const authorized = await verifyBusinessOwnership(ctx.user, input.businessId);
-      if (!authorized) {
-        throw new Error("Unauthorized access to business memory search");
-      }
+      await requireBusinessMemoryAccess(ctx.user, input.businessId);
       return await searchBusinessMemories(input.businessId, {
         query: input.query,
         memoryType: input.memoryType,
@@ -81,36 +74,9 @@ export const businessMemoryRouter = router({
     }),
 
   queryAssistant: protectedProcedure
-    .input(z.object({ businessId: z.number(), question: z.string() }))
+    .input(z.object({ businessId: z.number().int().positive(), question: z.string().trim().min(1).max(500) }))
     .query(async ({ ctx, input }) => {
-      const authorized = await verifyBusinessOwnership(ctx.user, input.businessId);
-      if (!authorized) {
-        throw new Error("Unauthorized access to memory assistant");
-      }
-
-      const memories = await getBusinessMemoryTimeline(input.businessId, 50);
-      const patterns = await getBusinessPatterns(input.businessId);
-
-      const q = input.question.toLowerCase();
-      const matchedMemories = memories.filter(
-        (m) => m.title.toLowerCase().includes(q) || m.summary.toLowerCase().includes(q)
-      );
-      const matchedPatterns = patterns.filter(
-        (p) => p.title.toLowerCase().includes(q) || p.description.toLowerCase().includes(q)
-      );
-
-      if (matchedMemories.length === 0 && matchedPatterns.length === 0) {
-        return {
-          answer: "BizPilot does not have enough historical evidence to answer this confidently.",
-          sources: [],
-          patterns: [],
-        };
-      }
-
-      return {
-        answer: `Based on ${matchedMemories.length} historical memories and ${matchedPatterns.length} verified patterns in BizPilot business memory:`,
-        sources: matchedMemories.slice(0, 3).map((m) => ({ id: m.id, title: m.title, summary: m.summary, date: m.createdAt })),
-        patterns: matchedPatterns.slice(0, 3).map((p) => ({ title: p.title, occurrences: p.occurrences, lesson: p.lessonsLearned })),
-      };
+      await requireBusinessMemoryAccess(ctx.user, input.businessId);
+      return await queryBusinessMemory(input.businessId, input.question);
     }),
 });

@@ -1,8 +1,8 @@
-# BizPilot AI — Architecture & Design Document
+# BizPilot — Architecture & Design Document
 
 ## System Overview
 
-BizPilot AI is a multi-tenant business intelligence platform architected for real-time data analysis and future adaptive AI capabilities. The system is designed with clean separation of concerns, type safety, and extensibility in mind.
+BizPilot is a multi-tenant business intelligence platform architected for real-time data analysis and future adaptive AI capabilities. The system is designed with clean separation of concerns, type safety, and extensibility in mind.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐

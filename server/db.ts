@@ -3223,16 +3223,22 @@ export async function upsertPatternIntelligence(data: InsertPatternIntelligenceR
     .limit(1);
 
   if (existing) {
-    const newOccurrences = (existing.occurrences || 1) + 1;
     await db
       .update(patternIntelligence)
       .set({
-        occurrences: newOccurrences,
-        lastDetected: new Date(),
+        patternType: data.patternType,
+        title: data.title,
         description: data.description,
+        occurrences: data.occurrences,
+        firstDetected: data.firstDetected,
+        lastDetected: data.lastDetected,
+        typicalResponse: data.typicalResponse,
         historicalOutcome: data.historicalOutcome,
-        confidence: newOccurrences >= 3 ? "HIGH" : "MEDIUM",
-        lessonsLearned: data.lessonsLearned || existing.lessonsLearned,
+        confidence: data.confidence,
+        currentRelevance: data.currentRelevance,
+        lessonsLearned: data.lessonsLearned,
+        evidenceJson: data.evidenceJson,
+        status: data.status,
         updatedAt: new Date(),
       })
       .where(eq(patternIntelligence.id, existing.id));

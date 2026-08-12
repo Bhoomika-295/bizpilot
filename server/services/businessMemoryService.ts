@@ -6,6 +6,7 @@ import {
   getDecisionCandidates,
   getActionPlansForBusiness,
   getBusinessSituations,
+  getPatternIntelligenceForBusiness,
 } from "../db";
 
 export interface BusinessMemoryPayload {
@@ -78,19 +79,33 @@ export async function getHistoricalContextForQuery(
   similarCount: number;
   lastOccurrenceSummary: string | null;
   relevantLessons: string[];
-  pastResponses: Array<{ title: string; outcome: string; response: string }>;
+  pastResponses: Array<{ memoryId: number; title: string; outcome: string; response: string }>;
+  sourceMemoryIds: number[];
 }> {
   const memories = await getBusinessMemoriesForBusiness(businessId, 200);
   
+  const normalizedQueryType = queryType.trim().toLowerCase();
+  const normalizedCategory = categoryOrMetric?.trim().toLowerCase();
+
   const matches = memories.filter((m) => {
-    if (queryType && m.memoryType !== queryType && m.sourceType !== queryType) {
-      return true;
-    }
-    return true;
+    const typeMatches =
+      !normalizedQueryType ||
+      [m.memoryType, m.sourceType]
+        .filter((value): value is string => Boolean(value))
+        .some((value) => value.trim().toLowerCase() === normalizedQueryType);
+
+    const searchableContext = [m.title, m.summary, m.contextJson]
+      .filter((value): value is string => Boolean(value))
+      .join(" ")
+      .toLowerCase();
+    const categoryMatches = !normalizedCategory || searchableContext.includes(normalizedCategory);
+
+    return typeMatches && categoryMatches;
   });
 
   const relevantLessons: string[] = [];
-  const pastResponses: Array<{ title: string; outcome: string; response: string }> = [];
+  const pastResponses: Array<{ memoryId: number; title: string; outcome: string; response: string }> = [];
+  const sourceMemoryIds: number[] = matches.map((memory) => memory.id);
 
   for (const m of matches) {
     if (m.contextJson) {
@@ -99,6 +114,7 @@ export async function getHistoricalContextForQuery(
         if (parsed.lesson) relevantLessons.push(parsed.lesson);
         if (parsed.outcome && parsed.response) {
           pastResponses.push({
+            memoryId: m.id,
             title: m.title,
             outcome: parsed.outcome,
             response: parsed.response,
@@ -118,12 +134,124 @@ export async function getHistoricalContextForQuery(
     lastOccurrenceSummary,
     relevantLessons: relevantLessons.slice(0, 3),
     pastResponses: pastResponses.slice(0, 3),
+    sourceMemoryIds: sourceMemoryIds.slice(0, 6),
   };
 }
 
 /**
  * Search and filter business memories.
  */
+const MEMORY_QUERY_STOP_WORDS = new Set([
+  "a",
+  "about",
+  "and",
+  "are",
+  "did",
+  "does",
+  "for",
+  "happened",
+  "has",
+  "have",
+  "how",
+  "in",
+  "is",
+  "last",
+  "me",
+  "of",
+  "on",
+  "our",
+  "should",
+  "the",
+  "this",
+  "to",
+  "what",
+  "when",
+  "which",
+  "with",
+  "you",
+]);
+
+function tokenizeMemoryQuery(value: string): string[] {
+  return Array.from(
+    new Set(
+      value
+        .toLowerCase()
+        .replace(/[^a-z0-9%]+/g, " ")
+        .split(/\s+/)
+        .filter((token) => token.length >= 3 && !MEMORY_QUERY_STOP_WORDS.has(token))
+    )
+  );
+}
+
+function scoreMemoryText(tokens: string[], fields: Array<string | null | undefined>): number {
+  const searchableText = fields.filter((value): value is string => Boolean(value)).join(" ").toLowerCase();
+  return tokens.reduce((score, token) => score + (searchableText.includes(token) ? 1 : 0), 0);
+}
+
+export async function queryBusinessMemory(
+  businessId: number,
+  question: string
+): Promise<{
+  answer: string;
+  sources: Array<{ id: number; title: string; summary: string; date: Date }>;
+  patterns: Array<{ title: string; occurrences: number; lesson: string | null }>;
+}> {
+  const tokens = tokenizeMemoryQuery(question);
+  if (tokens.length === 0) {
+    return {
+      answer: "BizPilot does not have enough historical evidence to answer this confidently.",
+      sources: [],
+      patterns: [],
+    };
+  }
+
+  const [memories, patterns] = await Promise.all([
+    getBusinessMemoriesForBusiness(businessId, 50),
+    getPatternIntelligenceForBusiness(businessId),
+  ]);
+
+  const matchedMemories = memories
+    .map((memory) => ({
+      memory,
+      score: scoreMemoryText(tokens, [memory.memoryType, memory.title, memory.summary, memory.contextJson]),
+    }))
+    .filter(({ score }) => score > 0)
+    .sort((left, right) => right.score - left.score || right.memory.createdAt.getTime() - left.memory.createdAt.getTime())
+    .slice(0, 3);
+
+  const matchedPatterns = patterns
+    .map((pattern) => ({
+      pattern,
+      score: scoreMemoryText(tokens, [pattern.patternType, pattern.title, pattern.description, pattern.lessonsLearned]),
+    }))
+    .filter(({ score }) => score > 0)
+    .sort((left, right) => right.score - left.score || right.pattern.occurrences - left.pattern.occurrences)
+    .slice(0, 3);
+
+  if (matchedMemories.length === 0 && matchedPatterns.length === 0) {
+    return {
+      answer: "BizPilot does not have enough historical evidence to answer this confidently.",
+      sources: [],
+      patterns: [],
+    };
+  }
+
+  return {
+    answer: `Based on ${matchedMemories.length} historical memories and ${matchedPatterns.length} verified patterns in BizPilot business memory:`,
+    sources: matchedMemories.map(({ memory }) => ({
+      id: memory.id,
+      title: memory.title,
+      summary: memory.summary,
+      date: memory.createdAt,
+    })),
+    patterns: matchedPatterns.map(({ pattern }) => ({
+      title: pattern.title,
+      occurrences: pattern.occurrences,
+      lesson: pattern.lessonsLearned,
+    })),
+  };
+}
+
 export async function searchBusinessMemories(
   businessId: number,
   filters: {

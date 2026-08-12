@@ -1,4 +1,4 @@
-# BizPilot AI — Day 2 TODO
+# BizPilot — Day 2 TODO
 
 ## Phase 1: Inspect Day 1 & Identify Reusable Components
 - [x] Review existing database schema

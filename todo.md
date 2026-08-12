@@ -1,4 +1,4 @@
-# BizPilot AI — Day 1 TODO
+# BizPilot — Day 1 TODO
 
 ## Phase 2: Database Schema
 - [x] Design comprehensive schema with all core models
@@ -479,10 +479,17 @@
 - [x] Save Day 43 checkpoint
 
 ### Day 41–43 Completion Follow-up
-- [ ] Add Business Memory Timeline UI with loading, empty, error, and evidence-linked detail states
-- [ ] Add Pattern Intelligence Radar UI with recurring pattern evidence and lesson views
-- [ ] Implement Memory Assistant query interface using the protected memory query procedure
-- [ ] Integrate historical context into Situation and Decision detail flows
-- [ ] Add frontend-focused verification coverage for memory and pattern states
-- [ ] Perform responsive visual verification for the completed memory workspace
-- [ ] Save the final full Day 41–43 checkpoint
+- [x] Add Business Memory Timeline UI with loading, empty, error, and evidence-linked detail states
+- [x] Add Pattern Intelligence Radar UI with recurring pattern evidence and lesson views
+- [x] Implement Memory Assistant query interface using the protected memory query procedure
+- [x] Integrate historical context into Situation and Decision detail flows
+- [x] Add frontend-focused verification coverage for memory and pattern states
+- [x] Perform responsive visual verification for the completed memory workspace
+- [x] Save the final full Day 41–43 checkpoint
+
+## Requirements Audit & Completion (Days 1–43)
+- [x] Perform comprehensive requirements audit across Day 1 to Day 43
+- [x] Verify tenant isolation across all routers, services, and queries
+- [x] Verify deterministic decision, strategy, foresight, and memory services against all specification rules
+- [x] Check for any unfinished UI modals, tabs, or edge-case handling
+- [x] Run full test suite, TypeScript check, and production build verification

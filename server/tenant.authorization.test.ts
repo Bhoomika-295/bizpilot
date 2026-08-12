@@ -187,6 +187,24 @@ describe("external radar tenant authorization", () => {
 });
 
 
+describe("business memory tenant authorization", () => {
+  it("rejects memory timeline access for a business the user does not own", async () => {
+    const caller = appRouter.createCaller(createContext());
+    await expect(caller.businessMemory.getTimeline({ businessId: 999999999, limit: 10 })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: "You do not have access to this business.",
+    });
+  });
+
+  it("rejects memory assistant access for a business the user does not own", async () => {
+    const caller = appRouter.createCaller(createContext());
+    await expect(caller.businessMemory.queryAssistant({ businessId: 999999999, question: "What happened?" })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: "You do not have access to this business.",
+    });
+  });
+});
+
 describe("action plan tenant authorization", () => {
   it("rejects action queue access for a business the user does not own", async () => {
     const caller = appRouter.createCaller(createContext());

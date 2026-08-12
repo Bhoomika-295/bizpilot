@@ -1,8 +1,8 @@
-# BizPilot AI
+# BizPilot
 
 **Your business should improve every day.**
 
-BizPilot AI is an adaptive, real-time Business Growth & Operations Copilot designed to help businesses understand their performance, track progress, and make data-driven decisions. Built on a solid foundation of real data and honest intelligence, BizPilot provides Day 1 utility while architected for future AI-powered adaptive capabilities.
+BizPilot is an adaptive, real-time Business Growth & Operations Copilot designed to help businesses understand their performance, track progress, and make data-driven decisions. Built on a solid foundation of real data and honest intelligence, BizPilot provides Day 1 utility while architected for future AI-powered adaptive capabilities.
 
 ## Product Overview
 
@@ -141,7 +141,7 @@ const mutation = trpc.customers.create.useMutation();
 
 ### Optional (User-Configured)
 
-- `VITE_APP_TITLE` - Website title (default: "BizPilot AI")
+- `VITE_APP_TITLE` - Website title (default: "BizPilot")
 - `VITE_APP_LOGO` - Website logo URL
 
 ## Current Limitations
@@ -315,7 +315,7 @@ This is a Manus-built project. For questions or feedback, please use the Manus f
 
 ## License
 
-Proprietary - BizPilot AI
+Proprietary - BizPilot
 
 ---
 
