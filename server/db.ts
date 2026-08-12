@@ -81,6 +81,8 @@ import {
   attentionReviewLogs,
   AttentionReviewLog,
   InsertAttentionReviewLog,
+  scenarioAssumptions,
+  scenarioReviews,
   dailyBriefs,
   DailyBrief,
   InsertDailyBrief,
@@ -3020,4 +3022,78 @@ export async function getStrategyById(businessId: number, strategyId: number) {
     .where(and(eq(strategies.businessId, businessId), eq(strategies.id, strategyId)))
     .limit(1);
   return rows[0];
+}
+
+export async function getScenarioAssumptions(businessId: number, scenarioId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(scenarioAssumptions)
+    .where(and(eq(scenarioAssumptions.businessId, businessId), eq(scenarioAssumptions.scenarioId, scenarioId)))
+    .orderBy(desc(scenarioAssumptions.createdAt));
+}
+
+export async function createScenarioAssumption(data: {
+  businessId: number;
+  scenarioId: number;
+  metric: string;
+  baselineValue: string;
+  scenarioValue: string;
+  percentageChange?: string;
+  unit?: string;
+  source?: string;
+  confidence?: string;
+  rationale?: string;
+}) {
+  const db = await getDb();
+  if (!db) return null;
+  const res = await db.insert(scenarioAssumptions).values({
+    businessId: data.businessId,
+    scenarioId: data.scenarioId,
+    metric: data.metric,
+    baselineValue: data.baselineValue,
+    scenarioValue: data.scenarioValue,
+    percentageChange: data.percentageChange || null,
+    unit: data.unit || "INR",
+    source: data.source || "USER_ASSUMPTION",
+    confidence: data.confidence || "MEDIUM",
+    rationale: data.rationale || null,
+  });
+  return res[0]?.insertId || null;
+}
+
+export async function getScenarioReviews(businessId: number, scenarioId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(scenarioReviews)
+    .where(and(eq(scenarioReviews.businessId, businessId), eq(scenarioReviews.scenarioId, scenarioId)))
+    .orderBy(desc(scenarioReviews.createdAt));
+}
+
+export async function createScenarioReview(data: {
+  businessId: number;
+  scenarioId: number;
+  metric: string;
+  predictedChange: string;
+  actualChange: string;
+  difference: string;
+  status?: string;
+  notes?: string;
+}) {
+  const db = await getDb();
+  if (!db) return null;
+  const res = await db.insert(scenarioReviews).values({
+    businessId: data.businessId,
+    scenarioId: data.scenarioId,
+    metric: data.metric,
+    predictedChange: data.predictedChange,
+    actualChange: data.actualChange,
+    difference: data.difference,
+    status: data.status || "CLOSE",
+    notes: data.notes || null,
+  });
+  return res[0]?.insertId || null;
 }

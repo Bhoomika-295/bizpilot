@@ -1619,3 +1619,51 @@ export const actionPlanEvents = mysqlTable(
 );
 export type ActionPlanEvent = typeof actionPlanEvents.$inferSelect;
 export type InsertActionPlanEvent = typeof actionPlanEvents.$inferInsert;
+
+export const scenarioAssumptions = mysqlTable(
+  "scenarioAssumptions",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    scenarioId: int("scenarioId").notNull(),
+    metric: varchar("metric", { length: 100 }).notNull(),
+    baselineValue: varchar("baselineValue", { length: 100 }).notNull(),
+    scenarioValue: varchar("scenarioValue", { length: 100 }).notNull(),
+    percentageChange: varchar("percentageChange", { length: 50 }),
+    unit: varchar("unit", { length: 50 }).notNull().default("INR"),
+    source: varchar("source", { length: 50 }).notNull().default("USER_ASSUMPTION"), // USER_ASSUMPTION, HISTORICAL_PATTERN, FORECAST_EXTRAPOLATION, EXTERNAL_BENCHMARK
+    confidence: varchar("confidence", { length: 30 }).notNull().default("MEDIUM"), // HIGH, MEDIUM, LOW, USER_DEFINED
+    rationale: text("rationale"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("scenarioAssumptions_businessId_idx").on(table.businessId),
+    scenarioIdIdx: index("scenarioAssumptions_scenarioId_idx").on(table.businessId, table.scenarioId),
+  })
+);
+export type ScenarioAssumptionRecord = typeof scenarioAssumptions.$inferSelect;
+export type InsertScenarioAssumptionRecord = typeof scenarioAssumptions.$inferInsert;
+
+export const scenarioReviews = mysqlTable(
+  "scenarioReviews",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    scenarioId: int("scenarioId").notNull(),
+    metric: varchar("metric", { length: 100 }).notNull(),
+    predictedChange: varchar("predictedChange", { length: 50 }).notNull(),
+    actualChange: varchar("actualChange", { length: 50 }).notNull(),
+    difference: varchar("difference", { length: 50 }).notNull(),
+    status: varchar("status", { length: 30 }).notNull().default("CLOSE"), // CLOSE, MODERATE_VARIANCE, HIGH_VARIANCE, NOT_ENOUGH_DATA
+    notes: text("notes"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("scenarioReviews_businessId_idx").on(table.businessId),
+    scenarioIdIdx: index("scenarioReviews_scenarioId_idx").on(table.businessId, table.scenarioId),
+  })
+);
+export type ScenarioReviewRecord = typeof scenarioReviews.$inferSelect;
+export type InsertScenarioReviewRecord = typeof scenarioReviews.$inferInsert;
