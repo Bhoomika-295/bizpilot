@@ -363,3 +363,22 @@
 - [x] Add deterministic unit, persistence, lifecycle, and tenant-isolation tests for Day 20
 - [x] Run full test suite, TypeScript checks, and production build verification
 - [x] Save Day 20 checkpoint
+
+## Day 22: Continuous Business Monitoring & Intelligence Alerts v1
+- [ ] Create tenant-isolated `monitoringEvents` table schema in Drizzle and generate migration SQL
+- [ ] Apply Day 22 migration via `webdev_execute_sql` and add Drizzle CRUD helpers in `server/db.ts`
+- [ ] Implement deterministic Continuous Monitoring Service (`server/services/continuousMonitoringService.ts`) consuming situations, opportunities, competitor intelligence, market signals, decision priorities, health score, freshness, and strategy state with deterministic fingerprinting and lifecycle states (`NEW`, `ACTIVE`, `ACKNOWLEDGED`, `RESOLVED`, `DISMISSED`)
+- [ ] Expose protected tRPC router procedures (`getMonitoringAlerts`, `refreshMonitoringAlerts`, `updateMonitoringAlertStatus`) in `server/routers/businessMetrics.ts`
+- [ ] Integrate "Continuous Intelligence Alerts & Monitoring" card and alert detail modal into `DashboardV2.tsx`
+- [ ] Add deterministic unit and tenant authorization tests (`server/continuousMonitoring.test.ts`)
+- [ ] Run full test suite, TypeScript checks, and production build verification
+- [ ] Save Day 22 checkpoint
+
+## Day 22: Continuous Business Monitoring & Intelligence Alerts v1
+- [x] Add tenant-isolated monitoring events, preferences, and history schema
+- [x] Implement continuous monitoring service with meaningful-change detection across situations, opportunities, competitors, strategy conflicts, outcomes, health scores, and data freshness
+- [x] Add fingerprint-based deduplication, lifecycle reconciliation (NEW, ACTIVE, ACKNOWLEDGED, RESOLVED, DISMISSED), and priority/severity threshold filtering
+- [x] Expose protected tRPC procedures for monitoring alerts, detail inspection, manual refresh, lifecycle transitions, history audit logs, and alert preferences
+- [x] Integrate "What Changed Since Last Review" monitoring alert queue card and detail modal into DashboardV2
+- [x] Add deterministic unit tests, tenant isolation tests, and run test suite and production build verification
+- [x] Save Day 22 checkpoint

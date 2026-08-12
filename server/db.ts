@@ -32,6 +32,13 @@ import {
   decisionEvents,
   DecisionCandidate,
   InsertDecisionCandidate,
+  monitoringEvents,
+  monitoringPreferences,
+  monitoringEventHistory,
+  MonitoringEvent,
+  InsertMonitoringEvent,
+  InsertMonitoringPreference,
+  InsertMonitoringEventHistory,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1738,4 +1745,242 @@ export async function getOutcomeByIdForBusiness(businessId: number, outcomeId: n
     .where(and(eq(outcomes.businessId, businessId), eq(outcomes.id, outcomeId)))
     .limit(1);
   return rows[0] || null;
+}
+
+
+/**
+ * ============================================================
+ * CONTINUOUS MONITORING OPERATIONS (DAY 22)
+ * ============================================================
+ */
+
+export type MonitoringLifecycleStatus = "NEW" | "ACTIVE" | "ACKNOWLEDGED" | "RESOLVED" | "DISMISSED";
+export type MonitoringEventWrite = Omit<InsertMonitoringEvent, "id" | "createdAt" | "updatedAt">;
+
+const monitoringLevelScore: Record<string, number> = {
+  LOW: 1,
+  MEDIUM: 2,
+  HIGH: 3,
+  CRITICAL: 4,
+};
+
+export async function getMonitoringEvents(
+  businessId: number,
+  options: { limit?: number; status?: MonitoringLifecycleStatus; eventType?: string } = {}
+) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(monitoringEvents.businessId, businessId)];
+  if (options.status) conditions.push(eq(monitoringEvents.status, options.status));
+  if (options.eventType) conditions.push(eq(monitoringEvents.eventType, options.eventType));
+  return await db
+    .select()
+    .from(monitoringEvents)
+    .where(and(...conditions))
+    .orderBy(desc(monitoringEvents.priorityScore), desc(monitoringEvents.lastSeenAt), asc(monitoringEvents.id))
+    .limit(Math.min(options.limit ?? 50, 100));
+}
+
+export async function getMonitoringEventById(businessId: number, eventId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(monitoringEvents)
+    .where(and(eq(monitoringEvents.businessId, businessId), eq(monitoringEvents.id, eventId)))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function getMonitoringEventByFingerprint(businessId: number, fingerprint: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(monitoringEvents)
+    .where(and(eq(monitoringEvents.businessId, businessId), eq(monitoringEvents.fingerprint, fingerprint)))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function upsertMonitoringEvent(data: MonitoringEventWrite) {
+  const db = await getDb();
+  if (!db) return { id: null, created: false, changed: false, escalated: false, previous: null, row: null };
+
+  const existing = await getMonitoringEventByFingerprint(data.businessId, data.fingerprint);
+  if (!existing) {
+    const res = await db.insert(monitoringEvents).values(data);
+    const id = res && Array.isArray(res) && res[0]?.insertId ? Number(res[0].insertId) : null;
+    const row = id ? ({ ...data, id } as MonitoringEvent) : null;
+    if (id) {
+      await createMonitoringEventHistory({
+        businessId: data.businessId,
+        eventId: id,
+        eventType: "CREATED",
+        newStatus: data.status || "NEW",
+        newSeverity: data.severity,
+        newPriority: data.priority,
+        detailsJson: JSON.stringify({ fingerprint: data.fingerprint }),
+      });
+    }
+    return { id, created: true, changed: true, escalated: false, previous: null, row };
+  }
+
+  const previousSeverityScore = monitoringLevelScore[existing.severity] || 0;
+  const nextSeverityScore = monitoringLevelScore[data.severity || ""] || 0;
+  const previousPriorityScore = monitoringLevelScore[existing.priority] || 0;
+  const nextPriorityScore = monitoringLevelScore[data.priority || ""] || 0;
+  const escalated = nextSeverityScore > previousSeverityScore || nextPriorityScore > previousPriorityScore;
+  const contentChanged = existing.title !== data.title ||
+    existing.summary !== data.summary ||
+    existing.whatChanged !== data.whatChanged ||
+    existing.whyMatters !== data.whyMatters ||
+    existing.evidenceJson !== data.evidenceJson ||
+    existing.currentState !== (data.currentState || null);
+
+  const update: Partial<InsertMonitoringEvent> = {
+    lastSeenAt: new Date(),
+    updatedAt: new Date(),
+  };
+  if (contentChanged || escalated) {
+    Object.assign(update, {
+      ...data,
+      id: existing.id,
+      createdAt: existing.createdAt,
+      firstDetectedAt: existing.firstDetectedAt,
+      lastSeenAt: new Date(),
+      updatedAt: new Date(),
+      status: existing.status === "DISMISSED" ? "DISMISSED" : existing.status === "RESOLVED" ? "ACTIVE" : existing.status,
+      resolvedAt: existing.status === "RESOLVED" ? null : existing.resolvedAt,
+      dismissedAt: existing.status === "DISMISSED" ? existing.dismissedAt : data.dismissedAt,
+      dismissalReason: existing.status === "DISMISSED" ? existing.dismissalReason : data.dismissalReason,
+    });
+  }
+
+  await db
+    .update(monitoringEvents)
+    .set(update)
+    .where(and(eq(monitoringEvents.businessId, data.businessId), eq(monitoringEvents.id, existing.id)));
+
+  if (contentChanged || escalated) {
+    await createMonitoringEventHistory({
+      businessId: data.businessId,
+      eventId: existing.id,
+      eventType: escalated ? "ESCALATED" : "UPDATED",
+      previousStatus: existing.status,
+      newStatus: existing.status === "DISMISSED" ? "DISMISSED" : existing.status === "RESOLVED" ? "ACTIVE" : existing.status,
+      previousSeverity: existing.severity,
+      newSeverity: data.severity,
+      previousPriority: existing.priority,
+      newPriority: data.priority,
+      detailsJson: JSON.stringify({ contentChanged, escalated }),
+    });
+  }
+
+  return {
+    id: existing.id,
+    created: false,
+    changed: contentChanged || escalated,
+    escalated,
+    previous: existing,
+    row: { ...existing, ...data, ...update, id: existing.id },
+  };
+}
+
+export async function updateMonitoringEventLifecycle(
+  businessId: number,
+  eventId: number,
+  status: MonitoringLifecycleStatus,
+  detailsJson?: string,
+  dismissalReason?: string | null
+) {
+  const db = await getDb();
+  if (!db) return null;
+  const existing = await getMonitoringEventById(businessId, eventId);
+  if (!existing) return null;
+  if (existing.status === status && !(status === "DISMISSED" && dismissalReason && dismissalReason !== existing.dismissalReason)) return existing;
+
+  const now = new Date();
+  const update: Partial<InsertMonitoringEvent> = { status, updatedAt: now };
+  if (status === "RESOLVED") update.resolvedAt = now;
+  if (status === "DISMISSED") {
+    update.dismissedAt = now;
+    update.dismissalReason = dismissalReason || existing.dismissalReason || null;
+  }
+  if (status !== "RESOLVED") update.resolvedAt = null;
+  await db
+    .update(monitoringEvents)
+    .set(update)
+    .where(and(eq(monitoringEvents.businessId, businessId), eq(monitoringEvents.id, eventId)));
+
+  await createMonitoringEventHistory({
+    businessId,
+    eventId,
+    eventType: "LIFECYCLE_CHANGED",
+    previousStatus: existing.status,
+    newStatus: status,
+    detailsJson: detailsJson || JSON.stringify({ dismissalReason: dismissalReason || null }),
+  });
+  return await getMonitoringEventById(businessId, eventId);
+}
+
+export async function createMonitoringEventHistory(data: InsertMonitoringEventHistory) {
+  const db = await getDb();
+  if (!db) return null;
+  const res = await db.insert(monitoringEventHistory).values(data);
+  return res && Array.isArray(res) && res[0]?.insertId ? Number(res[0].insertId) : null;
+}
+
+export async function getMonitoringEventHistory(businessId: number, eventId: number, limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(monitoringEventHistory)
+    .where(and(eq(monitoringEventHistory.businessId, businessId), eq(monitoringEventHistory.eventId, eventId)))
+    .orderBy(desc(monitoringEventHistory.timestamp), desc(monitoringEventHistory.id))
+    .limit(Math.min(limit, 100));
+}
+
+export async function getMonitoringPreference(businessId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(monitoringPreferences)
+    .where(eq(monitoringPreferences.businessId, businessId))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function upsertMonitoringPreference(data: Omit<InsertMonitoringPreference, "id" | "createdAt" | "updatedAt">) {
+  const db = await getDb();
+  if (!db) return null;
+  const existing = await getMonitoringPreference(data.businessId);
+  if (!existing) {
+    const res = await db.insert(monitoringPreferences).values(data);
+    const id = res && Array.isArray(res) && res[0]?.insertId ? Number(res[0].insertId) : null;
+    return id ? ({ ...data, id } as typeof monitoringPreferences.$inferSelect) : null;
+  }
+  await db
+    .update(monitoringPreferences)
+    .set({ ...data, updatedAt: new Date() })
+    .where(and(eq(monitoringPreferences.businessId, data.businessId), eq(monitoringPreferences.id, existing.id)));
+  return await getMonitoringPreference(data.businessId);
+}
+
+
+export async function getAllMonitoringEvents(businessId: number) {
+  return await getMonitoringEvents(businessId, { limit: 100 });
+}
+
+export async function getRecentOutcomes(businessId: number, limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(outcomes)
+    .where(eq(outcomes.businessId, businessId))
+    .orderBy(desc(outcomes.updatedAt), desc(outcomes.id))
+    .limit(Math.min(limit, 100));
 }

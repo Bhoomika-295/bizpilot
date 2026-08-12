@@ -29,7 +29,14 @@ import {
   updateDecisionLifecycle,
   linkDecisionOutcome,
 } from "../services/decisionIntelligenceService";
-import { getOutcomeByIdForBusiness } from "../db";
+import { getOutcomeByIdForBusiness, getMonitoringPreference, upsertMonitoringPreference } from "../db";
+import {
+  evaluateBusinessChanges,
+  getMonitoringAlerts,
+  getMonitoringAlertDetail,
+  getMonitoringHistory,
+  updateMonitoringAlertStatus,
+} from "../services/continuousMonitoringService";
 import { refreshMarketSignalsForBusiness } from "../services/marketSignalService";
 import {
   generateStrategyRecommendations,
@@ -640,5 +647,59 @@ export const businessMetricsRouter = router({
       const result = await linkDecisionOutcome(input.businessId, input.decisionId, input.outcomeId);
       if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Decision not found." });
       return result;
+    }),
+  /**
+   * Continuous Monitoring & Intelligence Alerts v1 Procedures (Day 22)
+   */
+  getMonitoringAlerts: protectedProcedure
+    .input(z.object({ businessId: z.number(), limit: z.number().int().min(1).max(100).optional(), status: z.enum(["NEW", "ACTIVE", "ACKNOWLEDGED", "RESOLVED", "DISMISSED"]).optional(), eventType: z.string().max(60).optional() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return await getMonitoringAlerts(input.businessId, { limit: input.limit, status: input.status, eventType: input.eventType });
+    }),
+  getMonitoringAlertDetail: protectedProcedure
+    .input(z.object({ businessId: z.number(), eventId: z.number().int().positive() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      const result = await getMonitoringAlertDetail(input.businessId, input.eventId);
+      if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Monitoring alert not found." });
+      return result;
+    }),
+  refreshMonitoringAlerts: protectedProcedure
+    .input(z.object({ businessId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return await evaluateBusinessChanges(input.businessId);
+    }),
+  updateMonitoringAlertStatus: protectedProcedure
+    .input(z.object({ businessId: z.number(), eventId: z.number().int().positive(), status: z.enum(["NEW", "ACTIVE", "ACKNOWLEDGED", "RESOLVED", "DISMISSED"]), details: z.string().max(2000).optional(), dismissalReason: z.string().max(500).optional() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      try {
+        const result = await updateMonitoringAlertStatus(input.businessId, input.eventId, input.status, input.details, input.dismissalReason);
+        if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Monitoring alert not found." });
+        return result;
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Invalid monitoring alert status transition." });
+      }
+    }),
+  getMonitoringHistory: protectedProcedure
+    .input(z.object({ businessId: z.number(), limit: z.number().int().min(1).max(100).optional() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return await getMonitoringHistory(input.businessId, input.limit);
+    }),
+  getMonitoringPreferences: protectedProcedure
+    .input(z.object({ businessId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return await getMonitoringPreference(input.businessId);
+    }),
+  updateMonitoringPreferences: protectedProcedure
+    .input(z.object({ businessId: z.number(), enabledCategories: z.array(z.string().max(60)).max(20).optional(), minimumPriority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]).default("LOW"), minimumSeverity: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]).default("LOW") }))
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return await upsertMonitoringPreference({ businessId: input.businessId, enabledCategoriesJson: input.enabledCategories ? JSON.stringify(input.enabledCategories) : null, minimumPriority: input.minimumPriority, minimumSeverity: input.minimumSeverity });
     }),
 });

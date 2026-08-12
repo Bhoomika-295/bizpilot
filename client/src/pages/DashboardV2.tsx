@@ -163,6 +163,31 @@ export default function DashboardV2() {
   const [selectedScenarioModal, setSelectedScenarioModal] = useState<any | null>(null);
   const [selectedOpportunity, setSelectedOpportunity] = useState<any | null>(null);
   const [selectedDecision, setSelectedDecision] = useState<any | null>(null);
+  const [selectedMonitoringAlert, setSelectedMonitoringAlert] = useState<any | null>(null);
+
+  const monitoringAlertsQuery = trpc.businessMetrics.getMonitoringAlerts.useQuery(
+    { businessId: parseInt(businessId || "0"), limit: 25, status: "NEW" },
+    { enabled: !!businessId && isAuthenticated }
+  );
+  const monitoringAlertDetailQuery = trpc.businessMetrics.getMonitoringAlertDetail.useQuery(
+    { businessId: parseInt(businessId || "0"), eventId: selectedMonitoringAlert?.id || 0 },
+    { enabled: !!businessId && isAuthenticated && !!selectedMonitoringAlert?.id }
+  );
+  const refreshMonitoringAlertsMutation = trpc.businessMetrics.refreshMonitoringAlerts.useMutation({
+    onSuccess: (result) => {
+      monitoringAlertsQuery.refetch();
+      toast.success(result.message);
+    },
+    onError: (err: any) => toast.error(`Monitoring refresh failed: ${err.message}`),
+  });
+  const updateMonitoringAlertStatusMutation = trpc.businessMetrics.updateMonitoringAlertStatus.useMutation({
+    onSuccess: () => {
+      monitoringAlertsQuery.refetch();
+      monitoringAlertDetailQuery.refetch();
+      toast.success("Monitoring alert status updated");
+    },
+    onError: (err: any) => toast.error(`Monitoring alert update failed: ${err.message}`),
+  });
 
   const decisionQueueQuery = trpc.businessMetrics.getDecisionQueue.useQuery(
     { businessId: parseInt(businessId || "0"), limit: 7 },
@@ -991,6 +1016,68 @@ export default function DashboardV2() {
           </CardContent>
         </Card>
 
+        {/* Continuous Monitoring & Intelligence Alerts (Day 22) */}
+        {monitoringAlertsQuery.data && (
+          <Card className="border-amber-300 bg-white shadow-sm">
+            <CardHeader className="space-y-3 pb-4 border-b border-amber-100">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-xl font-semibold text-slate-900">What Changed Since Last Review</CardTitle>
+                    <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800 font-medium">CONTINUOUS MONITORING v1</Badge>
+                  </div>
+                  <CardDescription className="mt-1">Meaningful evidence changes that may require human review. Alerts are deduplicated and do not trigger automatic business actions.</CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => refreshMonitoringAlertsMutation.mutate({ businessId: parseInt(businessId || "0") })}
+                  disabled={refreshMonitoringAlertsMutation.isPending}
+                  className="border-amber-200 text-amber-800"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${refreshMonitoringAlertsMutation.isPending ? "animate-spin" : ""}`} />
+                  Refresh Monitoring
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-5 space-y-4">
+              {monitoringAlertsQuery.data.length > 0 ? (
+                <div className="space-y-3">
+                  {monitoringAlertsQuery.data.slice(0, 7).map((alert: any, idx: number) => {
+                    const tone = alert.priority === "CRITICAL" ? "border-red-300 bg-red-50 text-red-800" : alert.priority === "HIGH" ? "border-orange-300 bg-orange-50 text-orange-800" : alert.priority === "MEDIUM" ? "border-amber-300 bg-amber-50 text-amber-800" : "border-slate-300 bg-slate-50 text-slate-700";
+                    return (
+                      <button
+                        type="button"
+                        key={alert.id || alert.fingerprint || idx}
+                        onClick={() => setSelectedMonitoringAlert(alert)}
+                        className="group w-full text-left bg-white p-4 rounded-xl border border-slate-200 shadow-2xs hover:border-amber-300 hover:shadow-sm transition-all space-y-2.5"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="flex shrink-0 items-center justify-center h-6 w-6 rounded-full bg-amber-100 text-amber-800 text-xs font-bold">{idx + 1}</span>
+                            <span className="font-semibold text-slate-900 text-base group-hover:text-amber-700 transition-colors">{alert.title}</span>
+                            <Badge variant="outline" className={`shrink-0 text-xs font-semibold ${tone}`}>{alert.priority}</Badge>
+                          </div>
+                          <span className="text-xs text-slate-500 font-medium">Score {alert.priorityScore}/100</span>
+                        </div>
+                        <p className="text-sm text-slate-700 leading-relaxed">{alert.whatChanged}</p>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+                          <span>Type: <strong className="text-slate-700">{alert.eventType.replaceAll("_", " ")}</strong></span>
+                          <span>Severity: <strong className="text-slate-700">{alert.severity}</strong></span>
+                          <span>Detected: <strong className="text-slate-700">{formatLastUpdated(alert.detectedAt)}</strong></span>
+                          <span className="ml-auto text-amber-700 font-medium group-hover:underline">View evidence & history →</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-6 text-sm text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">No new meaningful intelligence changes require attention. Refresh monitoring after adding or updating business data.</div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Decisions That Need Attention (Day 20) */}
         {decisionQueueQuery.data && (
           <Card className="border-slate-300 bg-white shadow-sm">
@@ -1450,6 +1537,88 @@ export default function DashboardV2() {
                   </div>
 
                   {events.length > 0 && <div className="border-t border-slate-100 pt-4"><h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Decision history</h4><div className="space-y-2">{events.slice(0, 5).map((event: any) => <div key={event.id} className="text-xs text-slate-600 flex justify-between gap-3"><span><strong className="text-slate-800">{event.eventType}</strong>{event.newStatus ? ` · ${event.newStatus}` : ""}</span><span>{event.timestamp ? new Date(event.timestamp).toLocaleString() : ""}</span></div>)}</div></div>}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Continuous Monitoring Alert Detail Modal (Day 22) */}
+        {selectedMonitoringAlert && (() => {
+          const alert: any = (monitoringAlertDetailQuery.data as any)?.alert || selectedMonitoringAlert;
+          const history: any[] = (monitoringAlertDetailQuery.data as any)?.history || [];
+          const canAcknowledge = alert.status === "NEW" || alert.status === "ACTIVE";
+          const canResolve = alert.status === "NEW" || alert.status === "ACTIVE" || alert.status === "ACKNOWLEDGED";
+          const canReopen = alert.status === "RESOLVED" || alert.status === "DISMISSED";
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+              <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-3xl max-h-[92vh] overflow-y-auto p-6 space-y-6 animate-in fade-in-50 zoom-in-95">
+                <div className="flex items-start justify-between border-b border-slate-100 pb-4 gap-4">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">CONTINUOUS MONITORING</Badge>
+                      <Badge variant="outline" className={alert.priority === "CRITICAL" || alert.priority === "HIGH" ? "border-red-300 bg-red-50 text-red-700" : "border-amber-300 bg-amber-50 text-amber-700"}>{alert.priority} PRIORITY</Badge>
+                      <Badge variant="outline" className="border-slate-300 bg-slate-50 text-slate-700">{alert.status}</Badge>
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 mt-2">{alert.title}</h3>
+                    <p className="text-xs text-slate-500 mt-1">{String(alert.eventType || "OTHER").replaceAll("_", " ")} · {alert.sourceType} · Score {alert.priorityScore}/100</p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedMonitoringAlert(null)} className="text-slate-500 hover:text-slate-900 h-8 w-8 p-0">✕</Button>
+                </div>
+
+                {monitoringAlertDetailQuery.isLoading && <div className="text-sm text-slate-500">Loading alert evidence and history…</div>}
+                <div className="space-y-5">
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Why this matters</h4>
+                    <p className="text-sm text-slate-700 leading-relaxed bg-amber-50 p-3 rounded-lg border border-amber-100">{alert.whyMatters}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {[['Severity', alert.severity], ['Priority', alert.priority], ['Source', alert.sourceType], ['Last seen', formatLastUpdated(alert.lastSeenAt)]].map(([label, value]) => (
+                      <div key={String(label)} className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{label}</div>
+                        <div className="text-sm font-semibold text-slate-900 mt-1">{value}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">What changed</h4>
+                    <p className="text-sm text-slate-700 leading-relaxed bg-white p-3 rounded-lg border border-slate-200">{alert.whatChanged}</p>
+                    <p className="text-xs text-slate-600 mt-2">{alert.summary}</p>
+                  </div>
+
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Evidence chain</h4>
+                    <div className="space-y-2">
+                      {alert.evidence?.length ? alert.evidence.map((item: any, idx: number) => (
+                        <div key={`${item.type}-${item.id || idx}`} className="flex gap-3 bg-white p-3 rounded-lg border border-slate-200">
+                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-50 text-[11px] font-bold text-amber-800">{idx + 1}</span>
+                          <div><div className="text-xs font-semibold text-slate-900">{item.label}</div><div className="text-xs text-slate-600 mt-0.5">{item.detail}</div></div>
+                        </div>
+                      )) : <div className="text-xs text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-200">No evidence chain is available.</div>}
+                    </div>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-200"><h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Current state</h4><p className="text-sm text-slate-700 whitespace-pre-wrap">{alert.currentState || "No structured current state was recorded."}</p></div>
+                    <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100"><h4 className="text-xs font-semibold uppercase tracking-wider text-indigo-800 mb-2">Recommended review</h4><p className="text-sm text-indigo-950">{alert.recommendedReview || "Review the evidence before taking action."}</p></div>
+                  </div>
+
+                  <Alert className="border-slate-200 bg-slate-50">
+                    <AlertCircle className="h-4 w-4 text-slate-600" />
+                    <AlertDescription className="text-slate-700 text-sm">This alert reports a meaningful evidence change. It does not prove causality, forecast an outcome, or trigger an automatic business action.</AlertDescription>
+                  </Alert>
+
+                  <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+                    {canAcknowledge && <Button size="sm" onClick={() => updateMonitoringAlertStatusMutation.mutate({ businessId: parseInt(businessId || "0"), eventId: alert.id, status: "ACKNOWLEDGED" })}>Acknowledge</Button>}
+                    {canResolve && <Button size="sm" variant="outline" onClick={() => updateMonitoringAlertStatusMutation.mutate({ businessId: parseInt(businessId || "0"), eventId: alert.id, status: "RESOLVED" })}>Resolve</Button>}
+                    {canResolve && <Button size="sm" variant="outline" onClick={() => updateMonitoringAlertStatusMutation.mutate({ businessId: parseInt(businessId || "0"), eventId: alert.id, status: "DISMISSED", details: "Dismissed after human review." })}>Dismiss</Button>}
+                    {canReopen && <Button size="sm" variant="outline" onClick={() => updateMonitoringAlertStatusMutation.mutate({ businessId: parseInt(businessId || "0"), eventId: alert.id, status: "ACTIVE", details: "Reopened for renewed monitoring." })}>Reopen</Button>}
+                    <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setSelectedMonitoringAlert(null)}>Close</Button>
+                  </div>
+
+                  {history.length > 0 && <div className="border-t border-slate-100 pt-4"><h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Alert history</h4><div className="space-y-2">{history.slice(0, 8).map((event: any) => <div key={event.id} className="text-xs text-slate-600 flex justify-between gap-3"><span><strong className="text-slate-800">{event.eventType}</strong>{event.newStatus ? ` · ${event.newStatus}` : ""}</span><span>{event.timestamp ? new Date(event.timestamp).toLocaleString() : ""}</span></div>)}</div></div>}
                 </div>
               </div>
             </div>

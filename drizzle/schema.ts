@@ -809,3 +809,107 @@ export const decisionEvents = mysqlTable(
 
 export type DecisionEvent = typeof decisionEvents.$inferSelect;
 export type InsertDecisionEvent = typeof decisionEvents.$inferInsert;
+
+/**
+ * ============================================================
+ * DAY 22: CONTINUOUS MONITORING & INTELLIGENCE ALERTS
+ * ============================================================
+ *
+ * Monitoring events are derived from verified intelligence changes. They
+ * are not a generic notification queue: each row keeps its deterministic
+ * fingerprint, evidence, related entities, and lifecycle history fields.
+ */
+export const monitoringEvents = mysqlTable(
+  "monitoringEvents",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    eventType: varchar("eventType", { length: 50 }).notNull().default("OTHER"),
+    title: varchar("title", { length: 255 }).notNull(),
+    summary: text("summary").notNull(),
+    whatChanged: text("whatChanged").notNull(),
+    whyMatters: text("whyMatters").notNull(),
+    severity: varchar("severity", { length: 20 }).notNull().default("MEDIUM"),
+    priority: varchar("priority", { length: 20 }).notNull().default("MEDIUM"),
+    priorityScore: int("priorityScore").notNull().default(50),
+    sourceType: varchar("sourceType", { length: 50 }).notNull().default("OTHER"),
+    sourceId: int("sourceId"),
+    relatedEntityType: varchar("relatedEntityType", { length: 50 }),
+    relatedEntityId: int("relatedEntityId"),
+    relatedSituationIdsJson: text("relatedSituationIdsJson"),
+    relatedOpportunityIdsJson: text("relatedOpportunityIdsJson"),
+    relatedCompetitorIdsJson: text("relatedCompetitorIdsJson"),
+    relatedDecisionIdsJson: text("relatedDecisionIdsJson"),
+    relatedOutcomeIdsJson: text("relatedOutcomeIdsJson"),
+    evidenceJson: text("evidenceJson").notNull(),
+    recommendedReview: text("recommendedReview"),
+    currentState: text("currentState"),
+    fingerprint: varchar("fingerprint", { length: 255 }).notNull(),
+    status: mysqlEnum("status", ["NEW", "ACTIVE", "ACKNOWLEDGED", "RESOLVED", "DISMISSED"]).default("NEW").notNull(),
+    detectedAt: timestamp("detectedAt").defaultNow().notNull(),
+    firstDetectedAt: timestamp("firstDetectedAt").defaultNow().notNull(),
+    lastSeenAt: timestamp("lastSeenAt").defaultNow().notNull(),
+    resolvedAt: timestamp("resolvedAt"),
+    dismissedAt: timestamp("dismissedAt"),
+    dismissalReason: text("dismissalReason"),
+    lastEscalatedAt: timestamp("lastEscalatedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("monitoringEvents_businessId_idx").on(table.businessId),
+    statusIdx: index("monitoringEvents_status_idx").on(table.status),
+    fingerprintIdx: index("monitoringEvents_fingerprint_idx").on(table.fingerprint),
+    detectedAtIdx: index("monitoringEvents_detectedAt_idx").on(table.detectedAt),
+    priorityScoreIdx: index("monitoringEvents_priorityScore_idx").on(table.priorityScore),
+  })
+);
+
+export type MonitoringEvent = typeof monitoringEvents.$inferSelect;
+export type InsertMonitoringEvent = typeof monitoringEvents.$inferInsert;
+
+export const monitoringPreferences = mysqlTable(
+  "monitoringPreferences",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    enabledCategoriesJson: text("enabledCategoriesJson"),
+    minimumPriority: varchar("minimumPriority", { length: 20 }).default("LOW").notNull(),
+    minimumSeverity: varchar("minimumSeverity", { length: 20 }).default("LOW").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("monitoringPreferences_businessId_idx").on(table.businessId),
+  })
+);
+
+export type MonitoringPreference = typeof monitoringPreferences.$inferSelect;
+export type InsertMonitoringPreference = typeof monitoringPreferences.$inferInsert;
+
+export const monitoringEventHistory = mysqlTable(
+  "monitoringEventHistory",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    eventId: int("eventId").notNull(),
+    eventType: varchar("eventType", { length: 50 }).notNull(),
+    previousStatus: varchar("previousStatus", { length: 20 }),
+    newStatus: varchar("newStatus", { length: 20 }),
+    previousSeverity: varchar("previousSeverity", { length: 20 }),
+    newSeverity: varchar("newSeverity", { length: 20 }),
+    previousPriority: varchar("previousPriority", { length: 20 }),
+    newPriority: varchar("newPriority", { length: 20 }),
+    detailsJson: text("detailsJson"),
+    timestamp: timestamp("timestamp").defaultNow().notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("monitoringEventHistory_businessId_idx").on(table.businessId),
+    eventIdIdx: index("monitoringEventHistory_eventId_idx").on(table.eventId),
+    timestampIdx: index("monitoringEventHistory_timestamp_idx").on(table.timestamp),
+  })
+);
+
+export type MonitoringEventHistory = typeof monitoringEventHistory.$inferSelect;
+export type InsertMonitoringEventHistory = typeof monitoringEventHistory.$inferInsert;
