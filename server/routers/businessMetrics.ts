@@ -18,7 +18,8 @@ import { evaluateAndRecordSituationSnapshots, getBusinessSituationTrends } from 
 import { getDecisionPrioritiesForTenant, evaluateAndUpsertDecisionPriorities } from "../services/decisionPriorityEngine";
 import { reevaluateTenantStrategies, getAdaptiveStrategyTimeline } from "../services/adaptiveStrategyService";
 import { simulateAndCreateScenario } from "../services/scenarioService";
-import { getScenarios, getScenarioById, deleteScenario } from "../db";
+import { getScenarios, getScenarioById, deleteScenario, getOpportunities, getOpportunityById, updateOpportunityStatus } from "../db";
+import { evaluateAndDetectOpportunities } from "../services/opportunityService";
 import { refreshMarketSignalsForBusiness } from "../services/marketSignalService";
 import {
   generateStrategyRecommendations,
@@ -534,5 +535,35 @@ export const businessMetricsRouter = router({
     .mutation(async ({ ctx, input }) => {
       await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
       return await deleteScenario(input.businessId, input.scenarioId);
+    }),
+
+  /**
+   * Opportunity Intelligence Procedures (Day 18)
+   */
+  getOpportunities: protectedProcedure
+    .input(z.object({ businessId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return await evaluateAndDetectOpportunities(input.businessId);
+    }),
+
+  getOpportunityById: protectedProcedure
+    .input(z.object({ businessId: z.number(), opportunityId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return await getOpportunityById(input.businessId, input.opportunityId);
+    }),
+
+  updateOpportunityStatus: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+        opportunityId: z.number(),
+        status: z.enum(["NEW", "ACTIVE", "MONITORING", "PURSUED", "DISMISSED", "EXPIRED"]),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return await updateOpportunityStatus(input.businessId, input.opportunityId, input.status);
     }),
 });

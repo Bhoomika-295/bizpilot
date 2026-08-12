@@ -22,6 +22,9 @@ import {
   scenarios,
   Scenario,
   InsertScenario,
+  opportunities,
+  Opportunity,
+  InsertOpportunity,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1419,5 +1422,74 @@ export async function deleteScenario(businessId: number, scenarioId: number) {
   const res = await db
     .delete(scenarios)
     .where(and(eq(scenarios.id, scenarioId), eq(scenarios.businessId, businessId)));
+  return true;
+}
+
+
+export async function getOpportunities(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(opportunities)
+    .where(eq(opportunities.businessId, businessId))
+    .orderBy(desc(opportunities.createdAt));
+}
+
+export async function getOpportunityById(businessId: number, opportunityId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(opportunities)
+    .where(and(eq(opportunities.id, opportunityId), eq(opportunities.businessId, businessId)))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function upsertOpportunity(data: {
+  businessId: number;
+  title: string;
+  summary: string;
+  category?: string;
+  priority?: string;
+  evidenceStrength?: string;
+  potentialImpact?: string;
+  urgency?: string;
+  status?: "NEW" | "ACTIVE" | "MONITORING" | "PURSUED" | "DISMISSED" | "EXPIRED";
+  supportingSignalsJson?: string;
+  supportingSituationsJson?: string;
+  supportingMetricsJson?: string;
+  potentialNextStep?: string;
+}) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const res = await db.insert(opportunities).values({
+    businessId: data.businessId,
+    title: data.title,
+    summary: data.summary,
+    category: data.category || "GROWTH",
+    priority: data.priority || "MEDIUM",
+    evidenceStrength: data.evidenceStrength || "MEDIUM EVIDENCE",
+    potentialImpact: data.potentialImpact || "MEDIUM",
+    urgency: data.urgency || "MEDIUM",
+    status: data.status || "NEW",
+    supportingSignalsJson: data.supportingSignalsJson || null,
+    supportingSituationsJson: data.supportingSituationsJson || null,
+    supportingMetricsJson: data.supportingMetricsJson || null,
+    potentialNextStep: data.potentialNextStep || null,
+  });
+
+  return res && Array.isArray(res) && res[0]?.insertId ? Number(res[0].insertId) : null;
+}
+
+export async function updateOpportunityStatus(businessId: number, opportunityId: number, status: "NEW" | "ACTIVE" | "MONITORING" | "PURSUED" | "DISMISSED" | "EXPIRED") {
+  const db = await getDb();
+  if (!db) return false;
+  await db
+    .update(opportunities)
+    .set({ status })
+    .where(and(eq(opportunities.id, opportunityId), eq(opportunities.businessId, businessId)));
   return true;
 }

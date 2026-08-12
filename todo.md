@@ -305,3 +305,26 @@
 - [ ] Add deterministic unit and integration tests for scenario calculation, baseline isolation, and tenant authorization (`server/scenario.test.ts`)
 - [ ] Run full test suite, TypeScript checks, and production build verification
 - [ ] Save Day 17 checkpoint and stop
+
+## Day 17: Scenario & What-If Intelligence v1
+- [x] Inspect existing Strategy Copilot, Business Situations, and Dashboard V2 layout
+- [x] Create `scenarios` table schema in Drizzle and execute migration SQL via `webdev_execute_sql`
+- [x] Add Drizzle CRUD helpers for scenarios in `server/db.ts`
+- [x] Implement deterministic Scenario Intelligence Engine (`server/services/scenarioService.ts`) supporting price changes, marketing adjustments, cost shifts, demand variations, and competitor responses
+- [x] Expose protected tRPC router procedures for `getScenarios`, `getScenarioById`, `createScenario`, and `deleteScenario`
+- [x] Integrate "Scenario Intelligence & What-If Simulations" card, simulation builder modal, and baseline-vs-scenario comparison modal into `DashboardV2.tsx`
+- [x] Add deterministic unit and integration tests for scenario estimation and tenant authorization (`server/scenario.test.ts`)
+- [x] Run full test suite, TypeScript checks, and production build verification
+- [x] Save Day 17 checkpoint and stop
+
+## Day 18: Opportunity Intelligence Engine v1
+- [ ] Inspect existing Strategy Copilot, Business Situations, Scenario Engine, and Dashboard V2 layout
+- [ ] Create `opportunities` table schema in Drizzle and execute migration SQL via `webdev_execute_sql`
+- [ ] Add Drizzle CRUD helpers for opportunities in `server/db.ts`
+- [ ] Implement deterministic Opportunity Detection Service (`server/services/opportunityService.ts`) identifying growth, market, customer, competitive, and operational opportunities from verified intelligence
+- [ ] Expose protected tRPC router procedures for `getOpportunities`, `getOpportunityById`, `updateOpportunityStatus`, and scenario exploration linkage
+- [ ] Integrate "Opportunity Intelligence" card, opportunity detail modal, and scenario exploration button into `DashboardV2.tsx`
+- [ ] Extend Strategy Copilot context and rules to factor in top opportunities alongside risks and situations
+- [ ] Add deterministic unit and integration tests for opportunity detection and tenant authorization (`server/opportunity.test.ts`)
+- [ ] Run full test suite, TypeScript checks, and production build verification
+- [ ] Save Day 18 checkpoint and stop

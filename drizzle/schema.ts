@@ -659,3 +659,34 @@ export const scenarios = mysqlTable(
 
 export type Scenario = typeof scenarios.$inferSelect;
 export type InsertScenario = typeof scenarios.$inferInsert;
+
+
+export const opportunities = mysqlTable(
+  "opportunities",
+  {
+    id: int("id").primaryKey().autoincrement(),
+    businessId: int("businessId").notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    summary: text("summary").notNull(),
+    category: varchar("category", { length: 50 }).notNull().default("GROWTH"), // GROWTH, MARKET, CUSTOMER, COMPETITIVE, PRODUCT, OPERATIONAL, EFFICIENCY, STRATEGIC
+    priority: varchar("priority", { length: 20 }).notNull().default("MEDIUM"), // HIGH, MEDIUM, LOW
+    evidenceStrength: varchar("evidenceStrength", { length: 50 }).notNull().default("MEDIUM EVIDENCE"), // HIGH EVIDENCE, MEDIUM EVIDENCE, LIMITED EVIDENCE
+    potentialImpact: varchar("potentialImpact", { length: 20 }).notNull().default("MEDIUM"), // HIGH, MEDIUM, LOW
+    urgency: varchar("urgency", { length: 20 }).notNull().default("MEDIUM"), // HIGH, MEDIUM, LOW
+    status: mysqlEnum("status", ["NEW", "ACTIVE", "MONITORING", "PURSUED", "DISMISSED", "EXPIRED"]).default("NEW").notNull(),
+    supportingSignalsJson: text("supportingSignalsJson"), // JSON array of supporting internal/external signals
+    supportingSituationsJson: text("supportingSituationsJson"), // JSON array of related business situations
+    supportingMetricsJson: text("supportingMetricsJson"), // JSON array or object of supporting metrics
+    potentialNextStep: text("potentialNextStep"), // Suggested investigation step
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("opportunities_businessId_idx").on(table.businessId),
+    statusIdx: index("opportunities_status_idx").on(table.status),
+    categoryIdx: index("opportunities_category_idx").on(table.category),
+  })
+);
+
+export type Opportunity = typeof opportunities.$inferSelect;
+export type InsertOpportunity = typeof opportunities.$inferInsert;
