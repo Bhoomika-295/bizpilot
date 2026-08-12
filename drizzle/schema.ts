@@ -1720,3 +1720,59 @@ export const foresightWatchlist = mysqlTable(
 );
 export type ForesightWatchlistRecord = typeof foresightWatchlist.$inferSelect;
 export type InsertForesightWatchlistRecord = typeof foresightWatchlist.$inferInsert;
+
+export const businessMemories = mysqlTable(
+  "businessMemories",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    memoryType: varchar("memoryType", { length: 50 }).notNull().default("SITUATION"), // SITUATION, STRATEGY, DECISION, ACTION, OUTCOME, LEARNING, ASSUMPTION, PATTERN
+    title: varchar("title", { length: 255 }).notNull(),
+    summary: text("summary").notNull(),
+    sourceType: varchar("sourceType", { length: 50 }),
+    sourceId: int("sourceId"),
+    importance: varchar("importance", { length: 30 }).notNull().default("MEDIUM"), // LOW, MEDIUM, HIGH, CRITICAL
+    status: varchar("status", { length: 30 }).notNull().default("ACTIVE"), // ACTIVE, ARCHIVED, SUPERSEDED, REQUIRES_VALIDATION
+    contextJson: text("contextJson"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("businessMemories_businessId_idx").on(table.businessId),
+    typeIdx: index("businessMemories_type_idx").on(table.businessId, table.memoryType),
+    sourceIdx: index("businessMemories_source_idx").on(table.businessId, table.sourceType, table.sourceId),
+    importanceIdx: index("businessMemories_importance_idx").on(table.businessId, table.importance),
+  })
+);
+export type BusinessMemoryRecord = typeof businessMemories.$inferSelect;
+export type InsertBusinessMemoryRecord = typeof businessMemories.$inferInsert;
+
+export const patternIntelligence = mysqlTable(
+  "patternIntelligence",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    patternType: varchar("patternType", { length: 60 }).notNull().default("RECURRING_SITUATION"), // RECURRING_SITUATION, REPEATED_STRATEGY_FAILURE, REPEATED_STRATEGY_SUCCESS, RECURRING_RISK, RECURRING_OPPORTUNITY, REPEATED_ACTION_OUTCOME, REPEATED_ASSUMPTION_FAILURE, TREND_PATTERN
+    title: varchar("title", { length: 255 }).notNull(),
+    description: text("description").notNull(),
+    occurrences: int("occurrences").notNull().default(1),
+    firstDetected: timestamp("firstDetected").defaultNow().notNull(),
+    lastDetected: timestamp("lastDetected").defaultNow().notNull(),
+    typicalResponse: text("typicalResponse"),
+    historicalOutcome: varchar("historicalOutcome", { length: 50 }).notNull().default("MIXED"), // POSITIVE, NEGATIVE, MIXED, NEUTRAL, UNKNOWN
+    confidence: varchar("confidence", { length: 30 }).notNull().default("MEDIUM"), // LOW, MEDIUM, HIGH, INSUFFICIENT_DATA
+    currentRelevance: varchar("currentRelevance", { length: 30 }).notNull().default("HIGH"), // LOW, MEDIUM, HIGH
+    lessonsLearned: text("lessonsLearned"),
+    evidenceJson: text("evidenceJson"),
+    status: varchar("status", { length: 30 }).notNull().default("CONFIRMED"), // PROPOSED, CONFIRMED, QUESTIONED, OUTDATED, SUPERSEDED
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("patternIntelligence_businessId_idx").on(table.businessId),
+    typeIdx: index("patternIntelligence_type_idx").on(table.businessId, table.patternType),
+    relevanceIdx: index("patternIntelligence_relevance_idx").on(table.businessId, table.currentRelevance),
+  })
+);
+export type PatternIntelligenceRecord = typeof patternIntelligence.$inferSelect;
+export type InsertPatternIntelligenceRecord = typeof patternIntelligence.$inferInsert;

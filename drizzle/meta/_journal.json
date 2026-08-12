@@ -218,6 +218,13 @@
       "when": 1786556405898,
       "tag": "0030_complex_machine_man",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "5",
+      "when": 1786557323569,
+      "tag": "0031_lame_may_parker",
+      "breakpoints": true
     }
   ]
 }

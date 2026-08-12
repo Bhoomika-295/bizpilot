@@ -89,6 +89,10 @@ import {
   foresightWatchlist,
   ForesightWatchlistRecord,
   InsertForesightWatchlistRecord,
+  businessMemories,
+  InsertBusinessMemoryRecord,
+  patternIntelligence,
+  InsertPatternIntelligenceRecord,
   dailyBriefs,
   DailyBrief,
   InsertDailyBrief,
@@ -3145,4 +3149,98 @@ export async function removeForesightWatchlistRecord(id: number, businessId: num
   if (!db) throw new Error("Database not available");
   await db.delete(foresightWatchlist).where(and(eq(foresightWatchlist.id, id), eq(foresightWatchlist.businessId, businessId)));
   return true;
+}
+
+export async function getBusinessMemoriesForBusiness(businessId: number, limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(businessMemories)
+    .where(eq(businessMemories.businessId, businessId))
+    .orderBy(desc(businessMemories.createdAt))
+    .limit(limit);
+}
+
+export async function createBusinessMemory(data: InsertBusinessMemoryRecord) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Deduplicate: check if similar recent memory exists for same sourceType and sourceId within last 24h
+  if (data.sourceType && data.sourceId) {
+    const [existing] = await db
+      .select()
+      .from(businessMemories)
+      .where(
+        and(
+          eq(businessMemories.businessId, data.businessId),
+          eq(businessMemories.sourceType, data.sourceType),
+          eq(businessMemories.sourceId, data.sourceId),
+          eq(businessMemories.memoryType, String(data.memoryType))
+        )
+      )
+      .orderBy(desc(businessMemories.createdAt))
+      .limit(1);
+
+    if (existing) {
+      // If found within 24 hours and summary is similar or same status, return existing or update timestamp
+      const ageHours = (Date.now() - new Date(existing.createdAt).getTime()) / (1000 * 60 * 60);
+      if (ageHours < 24) {
+        return existing;
+      }
+    }
+  }
+
+  const [result] = await db.insert(businessMemories).values(data);
+  const [created] = await db.select().from(businessMemories).where(eq(businessMemories.id, result.insertId));
+  return created;
+}
+
+export async function getPatternIntelligenceForBusiness(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(patternIntelligence)
+    .where(eq(patternIntelligence.businessId, businessId))
+    .orderBy(desc(patternIntelligence.occurrences), desc(patternIntelligence.lastDetected));
+}
+
+export async function upsertPatternIntelligence(data: InsertPatternIntelligenceRecord) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  // Check if pattern with same title / patternType already exists
+  const [existing] = await db
+    .select()
+    .from(patternIntelligence)
+    .where(
+      and(
+        eq(patternIntelligence.businessId, data.businessId),
+        eq(patternIntelligence.patternType, String(data.patternType)),
+        eq(patternIntelligence.title, String(data.title))
+      )
+    )
+    .limit(1);
+
+  if (existing) {
+    const newOccurrences = (existing.occurrences || 1) + 1;
+    await db
+      .update(patternIntelligence)
+      .set({
+        occurrences: newOccurrences,
+        lastDetected: new Date(),
+        description: data.description,
+        historicalOutcome: data.historicalOutcome,
+        confidence: newOccurrences >= 3 ? "HIGH" : "MEDIUM",
+        lessonsLearned: data.lessonsLearned || existing.lessonsLearned,
+        updatedAt: new Date(),
+      })
+      .where(eq(patternIntelligence.id, existing.id));
+    const [updated] = await db.select().from(patternIntelligence).where(eq(patternIntelligence.id, existing.id));
+    return updated;
+  } else {
+    const [result] = await db.insert(patternIntelligence).values(data);
+    const [created] = await db.select().from(patternIntelligence).where(eq(patternIntelligence.id, result.insertId));
+    return created;
+  }
 }

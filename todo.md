@@ -457,3 +457,23 @@
 ## Day 31–32 Verification Notes
 - [x] Document authenticated visual verification as environment-limited if the preview has no owned business data; rely on automated, persistence, authorization, and production-build evidence
 - [x] Confirm no autonomous execution, fake outcomes, unsupported claims, frontend secrets, or generic project-management features were introduced
+
+## Day 41–43: Business Memory, Pattern Intelligence & Continuous Learning v1
+- [x] Add tenant-isolated `businessMemories` and `patternIntelligence` schema tables in Drizzle and generate migration SQL
+- [x] Implement deterministic Business Memory Service (`server/services/businessMemoryService.ts`) for automatic memory creation on significant events, deduplication, importance classification, timeline, and detail view
+- [x] Implement deterministic Pattern Intelligence Engine (`server/services/patternIntelligenceService.ts`) for recurring situations, repeated strategy/action outcomes, assumption memory, learning status/confidence, and historical matching
+- [x] Expose protected tRPC procedures (`getMemoryTimeline`, `getMemoryDetail`, `getHistoricalContext`, `getPatternIntelligence`, `searchMemories`, `queryMemoryAssistant`) with strict tenant authorization
+- [x] Integrate historical context ("Last time we saw this", past outcomes, warnings, learning) into Strategy Review, Decision Review, Action Review, and Daily Brief
+- [x] Add executive "What We've Learned" and "Recurring Patterns" panels
+- [x] Add deterministic unit and integration tests for memory creation, deduplication, pattern matching, similarity explanations, AI assistant fallback, and tenant isolation
+- [x] Run TypeScript checks, full tests, production build, and save the final checkpoint
+
+## Day 41-43: Business Memory & Pattern Intelligence v1
+- [x] Add `businessMemories` and `patternIntelligence` schema and migrations
+- [x] Implement deterministic `businessMemoryService.ts` for capturing significant business events and historical context
+- [x] Implement deterministic `patternIntelligenceService.ts` for detecting recurring business patterns and lessons
+- [x] Create protected tRPC `businessMemoryRouter.ts` for memory timeline, detail, historical context, pattern intelligence, and memory assistant queries
+- [x] Add unit tests for business memory and pattern intelligence (`server/businessMemory.test.ts`)
+- [x] Pass full test suite (111 tests passing), TypeScript type checking, and production build verification
+- [x] Document authenticated visual verification as environment-limited (no owned preview business data)
+- [x] Save Day 43 checkpoint
