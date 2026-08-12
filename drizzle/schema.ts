@@ -640,14 +640,32 @@ export const scenarios = mysqlTable(
     businessId: int("businessId").notNull(),
     title: varchar("title", { length: 255 }).notNull(),
     description: text("description"),
-    scenarioType: varchar("scenarioType", { length: 50 }).notNull().default("CUSTOM"), // PRICE_CHANGE, MARKETING_CHANGE, COST_CHANGE, DEMAND_CHANGE, COMPETITOR_CHANGE, CUSTOM
-    assumptionsJson: text("assumptionsJson").notNull(), // JSON object of controlled assumptions (e.g., priceChangePct: 10)
+    scenarioType: varchar("scenarioType", { length: 50 }).notNull().default("CUSTOM"), // PRICE_CHANGE, MARKETING_CHANGE, COST_CHANGE, DEMAND_CHANGE, COMPETITOR_CHANGE, CUSTOM, BASELINE, GROWTH, DEFENSIVE, INVESTMENT, COST_REDUCTION, COMPETITIVE_RESPONSE, OPPORTUNITY_EXPANSION
+    pathKey: varchar("pathKey", { length: 120 }),
+    assumptionsJson: text("assumptionsJson").notNull(), // JSON object or array of controlled assumptions
+    actionsJson: text("actionsJson"),
     affectedAreasJson: text("affectedAreasJson").notNull(), // JSON array of potentially affected business areas
+    affectedMetricsJson: text("affectedMetricsJson"),
+    expectedDirectionJson: text("expectedDirectionJson"),
     estimatedMetricsJson: text("estimatedMetricsJson"), // JSON object of modeled estimates vs baseline
     affectedSituationsJson: text("affectedSituationsJson"), // JSON array of situations potentially affected
     strategicImplicationsJson: text("strategicImplicationsJson"), // JSON object or array of strategic implications
+    risksJson: text("risksJson"),
+    opportunitiesJson: text("opportunitiesJson"),
+    evidenceJson: text("evidenceJson"),
+    expectedOutcome: text("expectedOutcome"),
+    timeHorizon: varchar("timeHorizon", { length: 80 }),
+    confidence: varchar("confidence", { length: 20 }),
+    uncertainty: varchar("uncertainty", { length: 20 }),
+    strategicFit: varchar("strategicFit", { length: 20 }),
+    strategicFitReason: text("strategicFitReason"),
+    trajectoryAlignment: varchar("trajectoryAlignment", { length: 20 }),
+    trajectoryAlignmentReason: text("trajectoryAlignmentReason"),
+    monitoringStatus: varchar("monitoringStatus", { length: 40 }),
+    selectedDecisionId: int("selectedDecisionId"),
+    outcomeId: int("outcomeId"),
     evidenceQuality: varchar("evidenceQuality", { length: 50 }).notNull().default("MEDIUM EVIDENCE"), // HIGH EVIDENCE, MEDIUM EVIDENCE, LIMITED EVIDENCE
-    status: mysqlEnum("status", ["DRAFT", "ACTIVE", "ARCHIVED"]).default("ACTIVE").notNull(),
+    status: mysqlEnum("status", ["DRAFT", "ACTIVE", "UNDER_REVIEW", "SELECTED", "COMPLETED", "INVALIDATED", "ARCHIVED"]).default("ACTIVE").notNull(),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   },
@@ -659,6 +677,52 @@ export const scenarios = mysqlTable(
 
 export type Scenario = typeof scenarios.$inferSelect;
 export type InsertScenario = typeof scenarios.$inferInsert;
+
+export const scenarioComparisons = mysqlTable(
+  "scenarioComparisons",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    comparisonKey: varchar("comparisonKey", { length: 255 }).notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    scenarioIdsJson: text("scenarioIdsJson").notNull(),
+    baselineScenarioId: int("baselineScenarioId"),
+    scorecardJson: text("scorecardJson").notNull(),
+    interpretation: text("interpretation").notNull(),
+    uncertainty: varchar("uncertainty", { length: 20 }).notNull().default("UNKNOWN"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("scenarioComparisons_businessId_idx").on(table.businessId),
+    comparisonKeyIdx: index("scenarioComparisons_comparisonKey_idx").on(table.businessId, table.comparisonKey),
+    updatedAtIdx: index("scenarioComparisons_updatedAt_idx").on(table.businessId, table.updatedAt),
+  })
+);
+export type ScenarioComparison = typeof scenarioComparisons.$inferSelect;
+export type InsertScenarioComparison = typeof scenarioComparisons.$inferInsert;
+
+export const scenarioHistory = mysqlTable(
+  "scenarioHistory",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    scenarioId: int("scenarioId").notNull(),
+    eventType: varchar("eventType", { length: 50 }).notNull(),
+    previousStatus: varchar("previousStatus", { length: 30 }),
+    newStatus: varchar("newStatus", { length: 30 }),
+    detailsJson: text("detailsJson"),
+    timestamp: timestamp("timestamp").defaultNow().notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("scenarioHistory_businessId_idx").on(table.businessId),
+    scenarioIdIdx: index("scenarioHistory_scenarioId_idx").on(table.businessId, table.scenarioId),
+    timestampIdx: index("scenarioHistory_timestamp_idx").on(table.businessId, table.timestamp),
+  })
+);
+export type ScenarioHistory = typeof scenarioHistory.$inferSelect;
+export type InsertScenarioHistory = typeof scenarioHistory.$inferInsert;
 
 
 export const opportunities = mysqlTable(

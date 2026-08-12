@@ -403,3 +403,11 @@
 - [x] Add deterministic unit, persistence, forecast-learning, tenant-isolation, and integration tests covering trajectory, momentum, volatility, confidence, warnings, cross-signal context, snapshots, and forecast-vs-actual foundation
 - [x] Run full test suite, TypeScript checks, and production build verification
 - [x] Save Day 24 checkpoint and stop before Day 25
+
+## Day 25: Strategic Scenario Simulation & Path Comparison v2
+- [x] Add tenant-isolated scenario paths, assumptions, impact map, risk/opportunity link, and strategic fit schema tables
+- [x] Implement deterministic scenario path comparison and simulation service reusing existing trajectories, situations, opportunities, strategies, and confidence models without hardcoding or fake future predictions
+- [x] Expose protected tRPC procedures (`getScenarioPaths`, `compareScenarioPaths`, `createScenarioPath`, `updateScenarioPath`, `updateScenarioAssumption`) with strict tenant ownership validation
+- [x] Integrate "Strategic Scenario Paths & Comparison Scorecard" card and interactive comparison modal into DashboardV2
+- [x] Add deterministic unit tests, tenant isolation tests, and run test suite and production build verification
+- [x] Save Day 25 checkpoint

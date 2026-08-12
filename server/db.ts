@@ -22,6 +22,12 @@ import {
   scenarios,
   Scenario,
   InsertScenario,
+  scenarioComparisons,
+  ScenarioComparison,
+  InsertScenarioComparison,
+  scenarioHistory,
+  ScenarioHistory,
+  InsertScenarioHistory,
   opportunities,
   Opportunity,
   InsertOpportunity,
@@ -1420,13 +1426,31 @@ export async function upsertScenario(data: {
   title: string;
   description?: string;
   scenarioType: string;
+  pathKey?: string;
   assumptionsJson: string;
+  actionsJson?: string;
   affectedAreasJson: string;
+  affectedMetricsJson?: string;
+  expectedDirectionJson?: string;
   estimatedMetricsJson?: string;
   affectedSituationsJson?: string;
   strategicImplicationsJson?: string;
+  risksJson?: string;
+  opportunitiesJson?: string;
+  evidenceJson?: string;
+  expectedOutcome?: string;
+  timeHorizon?: string;
+  confidence?: string;
+  uncertainty?: string;
+  strategicFit?: string;
+  strategicFitReason?: string;
+  trajectoryAlignment?: string;
+  trajectoryAlignmentReason?: string;
+  monitoringStatus?: string;
+  selectedDecisionId?: number;
+  outcomeId?: number;
   evidenceQuality?: string;
-  status?: "DRAFT" | "ACTIVE" | "ARCHIVED";
+  status?: "DRAFT" | "ACTIVE" | "UNDER_REVIEW" | "SELECTED" | "COMPLETED" | "INVALIDATED" | "ARCHIVED";
 }) {
   const db = await getDb();
   if (!db) return null;
@@ -1436,11 +1460,29 @@ export async function upsertScenario(data: {
     title: data.title,
     description: data.description || null,
     scenarioType: data.scenarioType,
+    pathKey: data.pathKey || null,
     assumptionsJson: data.assumptionsJson,
+    actionsJson: data.actionsJson || null,
     affectedAreasJson: data.affectedAreasJson,
+    affectedMetricsJson: data.affectedMetricsJson || null,
+    expectedDirectionJson: data.expectedDirectionJson || null,
     estimatedMetricsJson: data.estimatedMetricsJson || null,
     affectedSituationsJson: data.affectedSituationsJson || null,
     strategicImplicationsJson: data.strategicImplicationsJson || null,
+    risksJson: data.risksJson || null,
+    opportunitiesJson: data.opportunitiesJson || null,
+    evidenceJson: data.evidenceJson || null,
+    expectedOutcome: data.expectedOutcome || null,
+    timeHorizon: data.timeHorizon || null,
+    confidence: data.confidence || null,
+    uncertainty: data.uncertainty || null,
+    strategicFit: data.strategicFit || null,
+    strategicFitReason: data.strategicFitReason || null,
+    trajectoryAlignment: data.trajectoryAlignment || null,
+    trajectoryAlignmentReason: data.trajectoryAlignmentReason || null,
+    monitoringStatus: data.monitoringStatus || null,
+    selectedDecisionId: data.selectedDecisionId || null,
+    outcomeId: data.outcomeId || null,
     evidenceQuality: data.evidenceQuality || "MEDIUM EVIDENCE",
     status: data.status || "ACTIVE",
   });
@@ -1451,10 +1493,107 @@ export async function upsertScenario(data: {
 export async function deleteScenario(businessId: number, scenarioId: number) {
   const db = await getDb();
   if (!db) return false;
-  const res = await db
+  await db
     .delete(scenarios)
     .where(and(eq(scenarios.id, scenarioId), eq(scenarios.businessId, businessId)));
   return true;
+}
+
+export async function updateScenario(businessId: number, scenarioId: number, data: Partial<{
+  title: string;
+  description: string;
+  pathKey: string;
+  assumptionsJson: string;
+  actionsJson: string;
+  affectedAreasJson: string;
+  affectedMetricsJson: string;
+  expectedDirectionJson: string;
+  risksJson: string;
+  opportunitiesJson: string;
+  evidenceJson: string;
+  expectedOutcome: string;
+  timeHorizon: string;
+  confidence: string;
+  uncertainty: string;
+  strategicFit: string;
+  strategicFitReason: string;
+  trajectoryAlignment: string;
+  trajectoryAlignmentReason: string;
+  monitoringStatus: string;
+  selectedDecisionId: number;
+  outcomeId: number;
+  status: "DRAFT" | "ACTIVE" | "UNDER_REVIEW" | "SELECTED" | "COMPLETED" | "INVALIDATED" | "ARCHIVED";
+}>) {
+  const db = await getDb();
+  if (!db) return false;
+  await db
+    .update(scenarios)
+    .set(data)
+    .where(and(eq(scenarios.id, scenarioId), eq(scenarios.businessId, businessId)));
+  return true;
+}
+
+export async function createScenarioHistory(data: InsertScenarioHistory) {
+  const db = await getDb();
+  if (!db) return null;
+  const res = await db.insert(scenarioHistory).values(data);
+  return res && Array.isArray(res) && res[0]?.insertId ? Number(res[0].insertId) : null;
+}
+
+export async function getScenarioHistory(businessId: number, scenarioId: number, limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(scenarioHistory)
+    .where(and(eq(scenarioHistory.businessId, businessId), eq(scenarioHistory.scenarioId, scenarioId)))
+    .orderBy(desc(scenarioHistory.timestamp))
+    .limit(limit);
+}
+
+export async function getScenarioComparison(businessId: number, comparisonKey: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(scenarioComparisons)
+    .where(and(eq(scenarioComparisons.businessId, businessId), eq(scenarioComparisons.comparisonKey, comparisonKey)))
+    .orderBy(desc(scenarioComparisons.updatedAt))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function upsertScenarioComparison(data: InsertScenarioComparison) {
+  const db = await getDb();
+  if (!db) return null;
+  const existing = await getScenarioComparison(data.businessId, data.comparisonKey);
+  if (existing) {
+    await db
+      .update(scenarioComparisons)
+      .set({
+        title: data.title,
+        scenarioIdsJson: data.scenarioIdsJson,
+        baselineScenarioId: data.baselineScenarioId ?? null,
+        scorecardJson: data.scorecardJson,
+        interpretation: data.interpretation,
+        uncertainty: data.uncertainty,
+      })
+      .where(and(eq(scenarioComparisons.id, existing.id), eq(scenarioComparisons.businessId, data.businessId)));
+    return existing.id;
+  }
+  const res = await db.insert(scenarioComparisons).values(data);
+  return res && Array.isArray(res) && res[0]?.insertId ? Number(res[0].insertId) : null;
+}
+
+export async function getScenarioComparisons(businessId: number, limit = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(scenarioComparisons)
+    .where(eq(scenarioComparisons.businessId, businessId))
+    .orderBy(desc(scenarioComparisons.updatedAt))
+    .limit(limit);
 }
 
 

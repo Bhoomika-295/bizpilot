@@ -167,6 +167,45 @@ export default function DashboardV2() {
   const [selectedCrossSignalRelationship, setSelectedCrossSignalRelationship] = useState<any | null>(null);
   const [selectedCrossSignalCluster, setSelectedCrossSignalCluster] = useState<any | null>(null);
   const [selectedTrajectory, setSelectedTrajectory] = useState<any | null>(null);
+  const [selectedScenarioPath, setSelectedScenarioPath] = useState<any | null>(null);
+
+  const scenarioPathsQuery = trpc.businessMetrics.getScenarioPaths.useQuery(
+    { businessId: parseInt(businessId || "0") },
+    { enabled: !!businessId && isAuthenticated }
+  );
+  const scenarioComparisonQuery = trpc.businessMetrics.compareScenarioPaths.useQuery(
+    { businessId: parseInt(businessId || "0") },
+    { enabled: !!businessId && isAuthenticated }
+  );
+  const scenarioPathDetailQuery = trpc.businessMetrics.getScenarioPathDetail.useQuery(
+    { businessId: parseInt(businessId || "0"), scenarioId: selectedScenarioPath?.scenarioId || selectedScenarioPath?.id || 0 },
+    { enabled: !!businessId && isAuthenticated && !!(selectedScenarioPath?.scenarioId || selectedScenarioPath?.id) }
+  );
+  const refreshScenarioComparisonMutation = trpc.businessMetrics.refreshScenarioPathComparison.useMutation({
+    onSuccess: () => {
+      scenarioComparisonQuery.refetch();
+      scenarioPathsQuery.refetch();
+      toast.success("Strategic path comparison refreshed");
+    },
+    onError: (err: any) => toast.error(`Scenario refresh failed: ${err.message}`),
+  });
+  const updateScenarioLifecycleMutation = trpc.businessMetrics.updateScenarioPathLifecycle.useMutation({
+    onSuccess: () => {
+      scenarioComparisonQuery.refetch();
+      scenarioPathsQuery.refetch();
+      scenarioPathDetailQuery.refetch();
+      toast.success("Scenario path status updated");
+    },
+    onError: (err: any) => toast.error(`Scenario status update failed: ${err.message}`),
+  });
+  const createScenarioDecisionDraftMutation = trpc.businessMetrics.createScenarioDecisionDraft.useMutation({
+    onSuccess: () => toast.success("Decision draft created from this scenario path"),
+    onError: (err: any) => toast.error(`Decision draft failed: ${err.message}`),
+  });
+  const refreshScenarioMonitoringMutation = trpc.businessMetrics.refreshScenarioMonitoring.useMutation({
+    onSuccess: (result) => toast.success(`Scenario monitoring refreshed: ${result.monitoringStatus}`),
+    onError: (err: any) => toast.error(`Scenario monitoring failed: ${err.message}`),
+  });
 
   const trajectoryQuery = trpc.businessMetrics.getBusinessTrajectory.useQuery(
     { businessId: parseInt(businessId || "0"), forecastWindow: 7 },
@@ -1203,6 +1242,66 @@ export default function DashboardV2() {
           </Card>
         )}
 
+        {/* Strategic Paths & Scenario Scorecard (Day 25) */}
+        {scenarioComparisonQuery.data && scenarioComparisonQuery.data.scenarios?.length > 0 && (
+          <Card className="border-slate-300 bg-white shadow-sm">
+            <CardHeader className="space-y-3 border-b border-slate-100 pb-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-xl font-semibold text-slate-900">Strategic Paths</CardTitle>
+                    <Badge variant="outline" className="border-violet-300 bg-violet-50 font-medium text-violet-700">SCENARIO INTELLIGENCE v2</Badge>
+                  </div>
+                  <CardDescription className="mt-1">Compare explicit paths using current evidence, trade-offs, uncertainty, trajectory alignment, and reversibility—not an automatic winner.</CardDescription>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={refreshScenarioComparisonMutation.isPending}
+                  onClick={() => refreshScenarioComparisonMutation.mutate({ businessId: parseInt(businessId || "0") })}
+                >
+                  <RefreshCw className={`mr-2 h-4 w-4 ${refreshScenarioComparisonMutation.isPending ? "animate-spin" : ""}`} />
+                  Refresh paths
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-5">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {scenarioComparisonQuery.data.scenarios.slice(0, 3).map((path: any, index: number) => {
+                  const riskTone = path.risk === "HIGH" ? "border-red-200 bg-red-50" : path.risk === "MEDIUM" ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50";
+                  return (
+                    <button key={path.scenarioId || path.pathKey || index} type="button" onClick={() => setSelectedScenarioPath(path)} className={`rounded-xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-sm ${riskTone}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">{path.pathKind || "PATH"}</div>
+                          <div className="mt-1 font-semibold text-slate-900">{path.title}</div>
+                        </div>
+                        <span className="rounded-full border border-white/80 bg-white/70 px-2 py-1 text-[11px] font-semibold text-slate-700">#{index + 1}</span>
+                      </div>
+                      <p className="mt-3 line-clamp-2 text-sm text-slate-700">{path.interpretation}</p>
+                      <div className="mt-3 flex flex-wrap gap-1.5 text-[11px] text-slate-600">
+                        <span className="rounded border border-slate-200 bg-white/70 px-1.5 py-0.5">Impact: {path.potentialImpact}</span>
+                        <span className="rounded border border-slate-200 bg-white/70 px-1.5 py-0.5">Risk: {path.risk}</span>
+                        <span className="rounded border border-slate-200 bg-white/70 px-1.5 py-0.5">Fit: {path.strategicFit}</span>
+                        <span className="rounded border border-slate-200 bg-white/70 px-1.5 py-0.5">Uncertainty: {path.uncertainty}</span>
+                      </div>
+                      <div className="mt-3 text-xs font-medium text-violet-700">Open scorecard →</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="rounded-xl border border-violet-100 bg-violet-50/60 p-4 text-sm text-violet-950">
+                <div className="text-xs font-semibold uppercase tracking-wider text-violet-700">Comparison interpretation</div>
+                <p className="mt-1">{scenarioComparisonQuery.data.interpretation}</p>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+                <span>Uncertainty: <strong className="text-slate-700">{scenarioComparisonQuery.data.uncertainty}</strong></span>
+                <span>Ranked by evidence-backed trade-offs; review before selecting.</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
         {/* Decisions That Need Attention (Day 20) */}
         {decisionQueueQuery.data && (
           <Card className="border-slate-300 bg-white shadow-sm">
@@ -2561,6 +2660,115 @@ export default function DashboardV2() {
           );
         })()}
 
+        {/* Strategic Path Scorecard Detail Modal (Day 25) */}
+        {selectedScenarioPath && (() => {
+          const detail = scenarioPathDetailQuery.data;
+          const scorecard = detail?.scorecard || selectedScenarioPath;
+          const scenario = detail?.scenario || selectedScenarioPath;
+          const scenarioId = scenario?.id || scorecard?.scenarioId;
+          const assumptions = detail?.assumptions || [];
+          const evidence = detail?.evidence || scorecard?.supportingEvidence || [];
+          const risks = detail?.risks || scorecard?.risks || [];
+          const opportunities = detail?.opportunities || scorecard?.opportunities || [];
+          const tradeoffs = detail?.strategicImplications || scorecard?.tradeOffs || [];
+          const currentStatus = scenario?.status || "DRAFT";
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" onClick={() => setSelectedScenarioPath(null)}>
+              <div className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
+                <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-6">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-violet-700">Strategic Path Scorecard</span>
+                      <Badge variant="outline" className="border-violet-300 bg-violet-50 text-violet-800">{scorecard?.pathKind || "PATH"}</Badge>
+                      <Badge variant="outline" className="border-slate-300 bg-slate-50 text-slate-700">{currentStatus}</Badge>
+                    </div>
+                    <h2 className="mt-1 text-2xl font-bold text-slate-900">{scorecard?.title || scenario?.title}</h2>
+                    <p className="mt-1 max-w-3xl text-sm text-slate-600">{scorecard?.interpretation || scenario?.description || "This path remains conditional on its stated assumptions and current evidence."}</p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedScenarioPath(null)} className="h-8 w-8 p-0 text-slate-500">✕</Button>
+                </div>
+                <div className="space-y-5 p-6">
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    {[
+                      ["Potential impact", scorecard?.potentialImpact],
+                      ["Strategic fit", scorecard?.strategicFit],
+                      ["Trajectory alignment", scorecard?.trajectoryAlignment],
+                      ["Evidence strength", scorecard?.evidenceStrength],
+                      ["Risk", scorecard?.risk],
+                      ["Uncertainty", scorecard?.uncertainty],
+                      ["Reversibility", scorecard?.reversibility],
+                      ["Time horizon", scenario?.timeHorizon || "Not specified"],
+                    ].map(([label, value]) => (
+                      <div key={String(label)} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{label}</div>
+                        <div className="mt-1 text-sm font-bold text-slate-900">{String(value ?? "UNKNOWN").replaceAll("_", " ")}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+                      <h3 className="text-sm font-semibold text-emerald-950">What supports this path</h3>
+                      <ul className="mt-2 space-y-1 text-sm text-emerald-900">
+                        {evidence.length > 0 ? evidence.slice(0, 8).map((item: string, idx: number) => <li key={idx}>• {item}</li>) : <li>• No direct evidence is currently available.</li>}
+                      </ul>
+                    </div>
+                    <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+                      <h3 className="text-sm font-semibold text-amber-950">What could go wrong</h3>
+                      <ul className="mt-2 space-y-1 text-sm text-amber-900">
+                        {risks.length > 0 ? risks.slice(0, 8).map((item: string, idx: number) => <li key={idx}>• {item}</li>) : <li>• No specific risk is available from the current evidence.</li>}
+                      </ul>
+                    </div>
+                  </div>
+                  <div className="grid gap-4 lg:grid-cols-3">
+                    <div className="rounded-xl border border-slate-200 bg-white p-4">
+                      <h3 className="text-sm font-semibold text-slate-900">Assumptions to monitor</h3>
+                      <ul className="mt-2 space-y-1 text-sm text-slate-600">
+                        {assumptions.length > 0 ? assumptions.slice(0, 8).map((item: any, idx: number) => <li key={idx}><span className="font-medium text-slate-800">{item.label || item.key}:</span> {item.value || "Not specified"}</li>) : <li>No explicit assumptions recorded.</li>}
+                      </ul>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-white p-4">
+                      <h3 className="text-sm font-semibold text-slate-900">Potential upside</h3>
+                      <ul className="mt-2 space-y-1 text-sm text-slate-600">
+                        {opportunities.length > 0 ? opportunities.slice(0, 8).map((item: string, idx: number) => <li key={idx}>• {item}</li>) : <li>No direct opportunity evidence is available.</li>}
+                      </ul>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-white p-4">
+                      <h3 className="text-sm font-semibold text-slate-900">Trade-offs</h3>
+                      <ul className="mt-2 space-y-1 text-sm text-slate-600">
+                        {tradeoffs.length > 0 ? tradeoffs.slice(0, 8).map((item: string, idx: number) => <li key={idx}>• {item}</li>) : <li>Trade-offs are not yet documented.</li>}
+                      </ul>
+                    </div>
+                  </div>
+                  {(detail?.historicalAnalogues ?? []).length > 0 && (
+                    <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-4">
+                      <h3 className="text-sm font-semibold text-sky-950">Historical analogues</h3>
+                      <ul className="mt-2 space-y-1 text-sm text-sky-900">{(detail?.historicalAnalogues ?? []).slice(0, 6).map((item: string, idx: number) => <li key={idx}>• {item}</li>)}</ul>
+                    </div>
+                  )}
+                  <div className="border-t border-slate-100 pt-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">Scenario actions</div>
+                        <p className="mt-1 text-xs text-slate-500">These actions change review state or monitoring only; they do not execute business changes automatically.</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {scenarioId && <Button size="sm" variant="outline" disabled={createScenarioDecisionDraftMutation.isPending} onClick={() => createScenarioDecisionDraftMutation.mutate({ businessId: parseInt(businessId || "0"), scenarioId })}>Create decision draft</Button>}
+                        {scenarioId && <Button size="sm" variant="outline" disabled={refreshScenarioMonitoringMutation.isPending} onClick={() => refreshScenarioMonitoringMutation.mutate({ businessId: parseInt(businessId || "0"), scenarioId })}>Refresh monitoring</Button>}
+                      </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-medium text-slate-600">Lifecycle:</span>
+                      {(["ACTIVE", "UNDER_REVIEW", "SELECTED", "COMPLETED", "INVALIDATED", "ARCHIVED"] as const).map((status) => (
+                        <Button key={status} size="sm" variant={currentStatus === status ? "default" : "outline"} className="h-7 px-2.5 text-xs" disabled={!scenarioId || updateScenarioLifecycleMutation.isPending} onClick={() => scenarioId && updateScenarioLifecycleMutation.mutate({ businessId: parseInt(businessId || "0"), scenarioId, status, details: `Marked as ${status} from Strategic Paths scorecard` })}>{status.replaceAll("_", " ")}</Button>
+                      ))}
+                      <Button className="ml-auto" size="sm" variant="outline" onClick={() => setSelectedScenarioPath(null)}>Close</Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
         {/* Signal Cluster Detail Modal (Day 23) */}
         {selectedCrossSignalCluster && (() => {
           const cl = selectedCrossSignalCluster;

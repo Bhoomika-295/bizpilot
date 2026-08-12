@@ -59,6 +59,21 @@ import {
   getForecastHistory,
   recordForecastActual,
 } from "../services/businessTrajectoryService";
+import {
+  compareScenarioPathsForBusiness,
+  createAlternativeScenario,
+  createBaselineScenario,
+  createScenarioDecisionDraft,
+  getScenarioPathDetailWithContext,
+  getScenarioPathComparison,
+  listScenarioPaths,
+  listScenarioPathComparisons,
+  refreshScenarioMonitoring,
+  refreshScenarioPathComparison,
+  updateScenarioAssumptions,
+  updateScenarioLifecycle,
+  attachScenarioOutcome,
+} from "../services/scenarioPathService";
 
 /**
  * Business Metrics Router
@@ -66,6 +81,30 @@ import {
  * Provides endpoints for calculating and retrieving business metrics.
  * All endpoints verify business ownership before returning data.
  */
+
+const scenarioAssumptionSchema = z.object({
+  key: z.string().min(1).max(120),
+  label: z.string().min(1).max(240),
+  value: z.string().max(1000),
+  evidence: z.array(z.string().max(1000)).max(20).optional(),
+  confidence: z.enum(["HIGH", "MEDIUM", "LOW", "UNKNOWN"]).optional(),
+  invalidationSignal: z.string().max(240).optional(),
+});
+
+const scenarioPathInputSchema = z.object({
+  businessId: z.number(),
+  title: z.string().min(1).max(240),
+  pathKey: z.string().max(120).optional(),
+  objective: z.string().max(1000).optional(),
+  description: z.string().max(2000).optional(),
+  scenarioType: z.string().max(80).optional(),
+  actions: z.array(z.string().max(500)).max(20).optional(),
+  assumptions: z.array(scenarioAssumptionSchema).max(30),
+  affectedAreas: z.array(z.string().max(120)).max(20).optional(),
+  expectedDirection: z.record(z.string(), z.string().max(120)).optional(),
+  expectedOutcome: z.string().max(1000).optional(),
+  timeHorizon: z.string().max(120).optional(),
+});
 
 async function requireMetricsBusinessAccess(userId: number, businessId: number) {
   try {
@@ -802,6 +841,98 @@ export const businessMetricsRouter = router({
       await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
       const result = await recordForecastActual(input.businessId, input.snapshotId, input.actualValue, input.actualObservedAt);
       if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Forecast snapshot not found." });
+      return result;
+    }),
+  /**
+   * Strategic Scenario Simulation & Path Comparison v2 Procedures (Day 25)
+   */
+  getScenarioPaths: protectedProcedure
+    .input(z.object({ businessId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return listScenarioPaths(input.businessId);
+    }),
+  createBaselineScenarioPath: protectedProcedure
+    .input(scenarioPathInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      const { businessId, ...pathInput } = input;
+      return createBaselineScenario(businessId, pathInput);
+    }),
+  createAlternativeScenarioPath: protectedProcedure
+    .input(scenarioPathInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      const { businessId, ...pathInput } = input;
+      return createAlternativeScenario(businessId, pathInput);
+    }),
+  getScenarioPathComparison: protectedProcedure
+    .input(z.object({ businessId: z.number(), scenarioIds: z.array(z.number().int().positive()).max(20).optional() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return getScenarioPathComparison(input.businessId, input.scenarioIds);
+    }),
+  refreshScenarioPathComparison: protectedProcedure
+    .input(z.object({ businessId: z.number(), scenarioIds: z.array(z.number().int().positive()).max(20).optional() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return refreshScenarioPathComparison(input.businessId, input.scenarioIds);
+    }),
+  compareScenarioPaths: protectedProcedure
+    .input(z.object({ businessId: z.number(), scenarioIds: z.array(z.number().int().positive()).max(20).optional() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return compareScenarioPathsForBusiness(input.businessId, input.scenarioIds);
+    }),
+  getScenarioPathDetail: protectedProcedure
+    .input(z.object({ businessId: z.number(), scenarioId: z.number().int().positive() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      const result = await getScenarioPathDetailWithContext(input.businessId, input.scenarioId);
+      if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Scenario path not found." });
+      return result;
+    }),
+  getScenarioPathComparisons: protectedProcedure
+    .input(z.object({ businessId: z.number(), limit: z.number().int().positive().max(50).optional() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return listScenarioPathComparisons(input.businessId, input.limit);
+    }),
+  updateScenarioPathLifecycle: protectedProcedure
+    .input(z.object({ businessId: z.number(), scenarioId: z.number().int().positive(), status: z.enum(["DRAFT", "ACTIVE", "UNDER_REVIEW", "SELECTED", "COMPLETED", "INVALIDATED", "ARCHIVED"]), details: z.string().max(2000).optional() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return updateScenarioLifecycle(input.businessId, input.scenarioId, input.status, input.details);
+    }),
+  createScenarioDecisionDraft: protectedProcedure
+    .input(z.object({ businessId: z.number(), scenarioId: z.number().int().positive() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      const result = await createScenarioDecisionDraft(input.businessId, input.scenarioId);
+      if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Scenario path not found." });
+      return result;
+    }),
+  refreshScenarioMonitoring: protectedProcedure
+    .input(z.object({ businessId: z.number(), scenarioId: z.number().int().positive() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      const result = await refreshScenarioMonitoring(input.businessId, input.scenarioId);
+      if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Scenario path not found." });
+      return result;
+    }),
+  updateScenarioAssumptions: protectedProcedure
+    .input(z.object({ businessId: z.number(), scenarioId: z.number().int().positive(), assumptions: z.array(scenarioAssumptionSchema).max(30) }))
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      const { businessId, scenarioId, assumptions } = input;
+      return updateScenarioAssumptions(businessId, scenarioId, assumptions);
+    }),
+  attachScenarioOutcome: protectedProcedure
+    .input(z.object({ businessId: z.number(), scenarioId: z.number().int().positive(), outcomeId: z.number().int().positive() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      const result = await attachScenarioOutcome(input.businessId, input.scenarioId, input.outcomeId);
+      if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Scenario path not found." });
       return result;
     }),
 });
