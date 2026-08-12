@@ -477,3 +477,12 @@
 - [x] Pass full test suite (111 tests passing), TypeScript type checking, and production build verification
 - [x] Document authenticated visual verification as environment-limited (no owned preview business data)
 - [x] Save Day 43 checkpoint
+
+### Day 41–43 Completion Follow-up
+- [ ] Add Business Memory Timeline UI with loading, empty, error, and evidence-linked detail states
+- [ ] Add Pattern Intelligence Radar UI with recurring pattern evidence and lesson views
+- [ ] Implement Memory Assistant query interface using the protected memory query procedure
+- [ ] Integrate historical context into Situation and Decision detail flows
+- [ ] Add frontend-focused verification coverage for memory and pattern states
+- [ ] Perform responsive visual verification for the completed memory workspace
+- [ ] Save the final full Day 41–43 checkpoint

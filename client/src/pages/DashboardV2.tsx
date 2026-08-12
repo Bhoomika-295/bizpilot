@@ -33,6 +33,9 @@ import {
   RefreshCw,
   Globe,
   Shield,
+  BrainCircuit,
+  History,
+  Target,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -136,6 +139,14 @@ export default function DashboardV2() {
     { enabled: !!businessId && isAuthenticated }
   );
 
+  const memoryTimelineQuery = trpc.businessMemory.getTimeline.useQuery(
+    { businessId: parseInt(businessId || "0"), limit: 6 },
+    { enabled: !!businessId && isAuthenticated }
+  );
+  const memoryPatternsQuery = trpc.businessMemory.getPatterns.useQuery(
+    { businessId: parseInt(businessId || "0") },
+    { enabled: !!businessId && isAuthenticated }
+  );
   const updateSituationStatusMutation = trpc.businessMetrics.updateBusinessSituationStatus.useMutation({
     onSuccess: () => {
       businessSituationsQuery.refetch();
@@ -198,6 +209,23 @@ export default function DashboardV2() {
   const [selectedOpportunity, setSelectedOpportunity] = useState<any | null>(null);
   const [selectedDecision, setSelectedDecision] = useState<any | null>(null);
   const [selectedMonitoringAlert, setSelectedMonitoringAlert] = useState<any | null>(null);
+
+  const situationHistoricalContextQuery = trpc.businessMemory.getHistoricalContext.useQuery(
+    {
+      businessId: parseInt(businessId || "0"),
+      queryType: "SITUATION",
+      categoryOrMetric: selectedSituation?.category || selectedSituation?.title || "",
+    },
+    { enabled: !!businessId && isAuthenticated && !!selectedSituation }
+  );
+  const decisionHistoricalContextQuery = trpc.businessMemory.getHistoricalContext.useQuery(
+    {
+      businessId: parseInt(businessId || "0"),
+      queryType: "DECISION",
+      categoryOrMetric: selectedDecision?.category || selectedDecision?.title || "",
+    },
+    { enabled: !!businessId && isAuthenticated && !!selectedDecision }
+  );
   const [selectedCrossSignalRelationship, setSelectedCrossSignalRelationship] = useState<any | null>(null);
   const [selectedCrossSignalCluster, setSelectedCrossSignalCluster] = useState<any | null>(null);
   const [selectedTrajectory, setSelectedTrajectory] = useState<any | null>(null);
@@ -1506,6 +1534,32 @@ export default function DashboardV2() {
           </Card>
         )}
 
+        {/* Business Memory Overview (Days 41–43) */}
+        <Card className="border-indigo-200 bg-gradient-to-br from-indigo-50/80 via-white to-amber-50/50 shadow-sm">
+          <CardHeader className="space-y-3 border-b border-indigo-100 pb-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-xl font-semibold text-slate-900"><BrainCircuit className="h-5 w-5 text-indigo-600" />Business Memory & Pattern Intelligence</CardTitle>
+                  <Badge variant="outline" className="border-indigo-200 bg-white text-indigo-700">DAYS 41–43</Badge>
+                </div>
+                <CardDescription className="mt-1">Historical evidence and recurring lessons available before the next decision.</CardDescription>
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={() => setLocation(`/memory/${businessId}`)} className="border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50">Open memory workspace<ExternalLink className="ml-2 h-3.5 w-3.5" /></Button>
+            </div>
+          </CardHeader>
+          <CardContent className="grid gap-4 pt-5 md:grid-cols-[1.1fr_0.9fr]">
+            <div className="rounded-xl border border-indigo-100 bg-white/80 p-4">
+              <div className="flex items-center justify-between gap-2"><h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500"><History className="h-4 w-4 text-indigo-600" />Recent memory</h3><span className="text-[11px] text-slate-500">{memoryTimelineQuery.data?.length || 0} loaded</span></div>
+              {memoryTimelineQuery.isLoading ? <div className="mt-3 space-y-2"><div className="h-4 animate-pulse rounded bg-slate-100" /><div className="h-4 animate-pulse rounded bg-slate-100" /><div className="h-4 animate-pulse rounded bg-slate-100" /></div> : memoryTimelineQuery.data?.length ? <div className="mt-3 space-y-2">{memoryTimelineQuery.data.slice(0, 3).map((memory: any) => <button key={memory.id} type="button" onClick={() => setLocation(`/memory/${businessId}`)} className="w-full rounded-lg border border-slate-100 bg-slate-50/70 p-3 text-left transition hover:border-indigo-200 hover:bg-indigo-50/50"><div className="flex items-center justify-between gap-2"><span className="truncate text-sm font-semibold text-slate-900">{memory.title}</span><span className="shrink-0 text-[10px] uppercase tracking-wider text-slate-500">{memory.memoryType}</span></div><p className="mt-1 line-clamp-1 text-xs text-slate-600">{memory.summary}</p></button>)}</div> : <p className="mt-3 text-xs leading-relaxed text-slate-500">No significant memories are available yet. The timeline will populate as verified business events are retained.</p>}
+            </div>
+            <div className="rounded-xl border border-amber-100 bg-white/80 p-4">
+              <div className="flex items-center justify-between gap-2"><h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500"><Target className="h-4 w-4 text-amber-600" />Pattern radar</h3><span className="text-[11px] text-slate-500">{memoryPatternsQuery.data?.length || 0} confirmed</span></div>
+              {memoryPatternsQuery.isLoading ? <div className="mt-3 space-y-2"><div className="h-12 animate-pulse rounded bg-slate-100" /><div className="h-12 animate-pulse rounded bg-slate-100" /></div> : memoryPatternsQuery.data?.length ? <div className="mt-3 space-y-2">{memoryPatternsQuery.data.slice(0, 2).map((pattern: any) => <button key={pattern.id} type="button" onClick={() => setLocation(`/memory/${businessId}`)} className="w-full rounded-lg border border-amber-100 bg-amber-50/50 p-3 text-left transition hover:border-amber-300"><div className="flex items-center justify-between gap-2"><span className="truncate text-sm font-semibold text-slate-900">{pattern.title}</span><Badge variant="outline" className="border-amber-200 bg-white text-[10px] text-amber-700">{pattern.occurrences}×</Badge></div><p className="mt-1 line-clamp-1 text-xs text-slate-600">{pattern.lessonsLearned || pattern.description}</p></button>)}</div> : <p className="mt-3 text-xs leading-relaxed text-slate-500">No recurring pattern has met the minimum evidence threshold yet.</p>}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Business Attention Engine (Day 29) */}
         {attentionQueueQuery.data && (
           <Card className="border-slate-300 bg-white shadow-sm">
@@ -2353,6 +2407,14 @@ export default function DashboardV2() {
                     ))}
                   </div>
 
+                  <div className="rounded-lg border border-indigo-200 bg-indigo-50/70 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <h4 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-indigo-800"><BrainCircuit className="h-4 w-4" />Historical context</h4>
+                      {decisionHistoricalContextQuery.isLoading && <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />}
+                    </div>
+                    {decisionHistoricalContextQuery.data ? <div className="mt-2 space-y-2 text-sm text-indigo-950"><p><strong>{decisionHistoricalContextQuery.data.similarCount}</strong> historical records are available for comparison.</p>{decisionHistoricalContextQuery.data.lastOccurrenceSummary && <p className="text-xs leading-relaxed">Most recent record: {decisionHistoricalContextQuery.data.lastOccurrenceSummary}</p>}{decisionHistoricalContextQuery.data.relevantLessons.length > 0 && <div><p className="text-xs font-semibold uppercase tracking-wider text-indigo-800">Relevant lessons</p><ul className="mt-1 list-disc space-y-1 pl-4 text-xs">{decisionHistoricalContextQuery.data.relevantLessons.map((lesson: string, idx: number) => <li key={idx}>{lesson}</li>)}</ul></div>}{decisionHistoricalContextQuery.data.pastResponses.length > 0 && <div><p className="text-xs font-semibold uppercase tracking-wider text-indigo-800">Past responses</p><div className="mt-1 space-y-1">{decisionHistoricalContextQuery.data.pastResponses.map((response: any, idx: number) => <div key={idx} className="rounded-md border border-indigo-100 bg-white/70 p-2 text-xs"><strong>{response.title}</strong> · {response.outcome} — {response.response}</div>)}</div></div>}</div> : !decisionHistoricalContextQuery.isLoading && <p className="mt-2 text-xs text-indigo-900">No historical context is available for this decision yet. BizPilot will keep the boundary explicit.</p>}
+                  </div>
+
                   <div>
                     <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Evidence chain</h4>
                     <div className="space-y-2">
@@ -2883,6 +2945,14 @@ export default function DashboardV2() {
                   <p className="text-sm text-slate-700 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-200">
                     {selectedSituation.trendSummary || selectedSituation.summary}
                   </p>
+                </div>
+
+                <div className="rounded-lg border border-indigo-200 bg-indigo-50/70 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <h4 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-indigo-800"><BrainCircuit className="h-4 w-4" />Historical context</h4>
+                    {situationHistoricalContextQuery.isLoading && <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />}
+                  </div>
+                  {situationHistoricalContextQuery.data ? <div className="mt-2 space-y-2 text-sm text-indigo-950"><p><strong>{situationHistoricalContextQuery.data.similarCount}</strong> historical records are available for comparison.</p>{situationHistoricalContextQuery.data.lastOccurrenceSummary && <p className="text-xs leading-relaxed">Most recent record: {situationHistoricalContextQuery.data.lastOccurrenceSummary}</p>}{situationHistoricalContextQuery.data.relevantLessons.length > 0 && <div><p className="text-xs font-semibold uppercase tracking-wider text-indigo-800">Relevant lessons</p><ul className="mt-1 list-disc space-y-1 pl-4 text-xs">{situationHistoricalContextQuery.data.relevantLessons.map((lesson: string, idx: number) => <li key={idx}>{lesson}</li>)}</ul></div>}{situationHistoricalContextQuery.data.pastResponses.length > 0 && <div><p className="text-xs font-semibold uppercase tracking-wider text-indigo-800">Past responses</p><div className="mt-1 space-y-1">{situationHistoricalContextQuery.data.pastResponses.map((response: any, idx: number) => <div key={idx} className="rounded-md border border-indigo-100 bg-white/70 p-2 text-xs"><strong>{response.title}</strong> · {response.outcome} — {response.response}</div>)}</div></div>}</div> : !situationHistoricalContextQuery.isLoading && <p className="mt-2 text-xs text-indigo-900">No historical context is available for this situation yet. BizPilot will keep the boundary explicit.</p>}
                 </div>
 
                 {selectedSituation.changesSinceLastReview && selectedSituation.changesSinceLastReview.length > 0 && (
