@@ -16,6 +16,7 @@ import { getMarketSignals, getBusinessSituations, updateBusinessSituationStatus 
 import { evaluateAndUpsertBusinessSituations } from "../services/businessSituationEngine";
 import { evaluateAndRecordSituationSnapshots, getBusinessSituationTrends } from "../services/situationTrendService";
 import { getDecisionPrioritiesForTenant, evaluateAndUpsertDecisionPriorities } from "../services/decisionPriorityEngine";
+import { reevaluateTenantStrategies, getAdaptiveStrategyTimeline } from "../services/adaptiveStrategyService";
 import { refreshMarketSignalsForBusiness } from "../services/marketSignalService";
 import {
   generateStrategyRecommendations,
@@ -428,5 +429,37 @@ export const businessMetricsRouter = router({
         throw new Error("Decision priority not found or unauthorized");
       }
       return found;
+    }),
+
+  /**
+   * Reevaluate tenant strategies against changing context (Day 16)
+   */
+  reevaluateStrategies: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+        periodStartDate: z.string().optional(),
+        periodEndDate: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      const start = input.periodStartDate ? new Date(input.periodStartDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const end = input.periodEndDate ? new Date(input.periodEndDate) : new Date();
+      return await reevaluateTenantStrategies(input.businessId, start, end);
+    }),
+
+  /**
+   * Get adaptive strategy evolution timeline and state (Day 16)
+   */
+  getAdaptiveStrategyTimeline: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return await getAdaptiveStrategyTimeline(input.businessId);
     }),
 });

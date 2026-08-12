@@ -261,3 +261,25 @@
 - [ ] Add deterministic unit and integration tests for priority scoring, fatigue prevention, and tenant authorization (`server/decisionPriority.test.ts`)
 - [ ] Run full test suite, TypeScript checks, and production build verification
 - [ ] Save Day 15 checkpoint and stop
+
+## Day 15: Decision Priority & Strategic Focus Engine v1
+- [x] Inspect existing Strategy Copilot, Business Situations, and Dashboard V2 layout
+- [x] Create `decisionPriorities` table schema in Drizzle and execute migration SQL via `webdev_execute_sql`
+- [x] Add Drizzle CRUD helpers for decision priorities in `server/db.ts`
+- [x] Implement deterministic Decision Priority Engine (`server/services/decisionPriorityEngine.ts`) with multi-signal synthesis, impact/urgency scoring, and fatigue prevention
+- [x] Expose protected tRPC router procedures for `getDecisionPriorities` and `getDecisionPriorityDetail`
+- [x] Integrate "Today's Strategic Focus" top priority card and evidence drill-down modal into `DashboardV2.tsx`
+- [x] Add deterministic unit and integration tests for priority ranking, freshness awareness, and tenant authorization (`server/decisionPriority.test.ts`)
+- [x] Run full test suite, TypeScript checks, and production build verification
+- [x] Save Day 15 checkpoint and stop
+
+## Day 16: Adaptive Strategy Engine v1
+- [ ] Inspect existing Strategy Copilot, Strategy Recommendations, Decision Priorities, and Dashboard V2 layout
+- [ ] Create `strategyStates` and `strategyEvents` tables in Drizzle and execute migration SQL via `webdev_execute_sql`
+- [ ] Add Drizzle CRUD helpers for strategy states and events in `server/db.ts`
+- [ ] Implement deterministic Adaptive Strategy Engine (`server/services/adaptiveStrategyService.ts`) with context comparison, staleness detection, re-evaluation outcomes (KEEP, UPDATE, DEPRIORITIZE, REPLACE, EXPIRED), and change explanation generation
+- [ ] Expose protected tRPC router procedures for `getAdaptiveStrategyState`, `reevaluateStrategy`, and `getStrategyTimeline`
+- [ ] Integrate Adaptive Strategy Evolution card, re-evaluation history, and status management into `DashboardV2.tsx`
+- [ ] Add deterministic unit and integration tests for strategy re-evaluation, stability preservation when nothing changes, evidence change replacement, and tenant authorization (`server/adaptiveStrategy.test.ts`)
+- [ ] Run full test suite, TypeScript checks, and production build verification
+- [ ] Save Day 16 checkpoint and stop

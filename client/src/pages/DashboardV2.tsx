@@ -33,6 +33,7 @@ import {
   RefreshCw,
   Globe,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useState } from "react";
 
 type PeriodType = "last30" | "previous30";
@@ -136,6 +137,22 @@ export default function DashboardV2() {
   const updateSituationStatusMutation = trpc.businessMetrics.updateBusinessSituationStatus.useMutation({
     onSuccess: () => {
       businessSituationsQuery.refetch();
+    },
+  });
+
+  const adaptiveTimelineQuery = trpc.businessMetrics.getAdaptiveStrategyTimeline.useQuery(
+    { businessId: parseInt(businessId || "0") },
+    { enabled: !!businessId && isAuthenticated }
+  );
+
+  const reevaluateStrategiesMutation = trpc.businessMetrics.reevaluateStrategies.useMutation({
+    onSuccess: () => {
+      adaptiveTimelineQuery.refetch();
+      strategyBriefingQuery.refetch();
+      toast.success("Strategies re-evaluated against current business context");
+    },
+    onError: (err: any) => {
+      toast.error(`Re-evaluation failed: ${err.message}`);
     },
   });
 
@@ -449,6 +466,99 @@ export default function DashboardV2() {
             </CardContent>
           </Card>
         )}
+
+        {/* Adaptive Strategy Evolution & Re-evaluation (Day 16) */}
+        <Card className="border-slate-300 bg-white shadow-sm">
+          <CardHeader className="space-y-3 pb-4 border-b border-slate-100">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-xl font-semibold text-slate-900">
+                    Adaptive Strategy & Evolution Timeline
+                  </CardTitle>
+                  <Badge variant="outline" className="border-indigo-300 bg-indigo-50 text-indigo-700 font-medium">
+                    ADAPTIVE STRATEGY ENGINE v1
+                  </Badge>
+                </div>
+                <CardDescription className="mt-1">
+                  Continuously re-evaluates recommendations against changing conditions, keeping strategies stable unless evidence demands update or replacement.
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => adaptiveTimelineQuery.refetch()}
+                  className="border-slate-200 text-slate-700"
+                >
+                  <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                  Refresh Timeline
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => reevaluateStrategiesMutation.mutate({ businessId: parseInt(businessId || "0") })}
+                  disabled={reevaluateStrategiesMutation.isPending}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs"
+                >
+                  {reevaluateStrategiesMutation.isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+                  <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                  Re-evaluate Strategies
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-5 space-y-4">
+            {adaptiveTimelineQuery.data?.events && adaptiveTimelineQuery.data.events.length > 0 ? (
+              <div className="space-y-3">
+                <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                  Recent Strategy Re-evaluation Events ({adaptiveTimelineQuery.data.events.length})
+                </div>
+                {adaptiveTimelineQuery.data.events.slice(0, 5).map((ev: any, idx: number) => {
+                  const isKeep = ev.evaluationResult === "KEEP";
+                  const isReplace = ev.evaluationResult === "REPLACE";
+                  const isDeprioritize = ev.evaluationResult === "DEPRIORITIZE";
+                  return (
+                    <div key={ev.id || idx} className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-slate-500">
+                            {new Date(ev.timestamp).toLocaleString()}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className={`font-semibold ${
+                              isKeep
+                                ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                                : isReplace
+                                ? "border-purple-300 bg-purple-50 text-purple-700"
+                                : isDeprioritize
+                                ? "border-amber-300 bg-amber-50 text-amber-700"
+                                : "border-blue-300 bg-blue-50 text-blue-700"
+                            }`}
+                          >
+                            {ev.evaluationResult || ev.eventType}
+                          </Badge>
+                        </div>
+                        {ev.previousStrategyTitle && (
+                          <span className="text-xs text-slate-500">
+                            From: <strong className="text-slate-700">{ev.previousStrategyTitle}</strong>
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-slate-700 leading-relaxed">
+                        {ev.reason}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-sm text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                No adaptive strategy re-evaluation events recorded yet. Click <strong>Re-evaluate Strategies</strong> above to assess current context.
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Today's Strategic Focus (Day 15) */}
         {decisionPrioritiesQuery.data && decisionPrioritiesQuery.data.length > 0 && (

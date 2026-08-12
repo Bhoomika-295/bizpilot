@@ -569,3 +569,59 @@ export const decisionPriorities = mysqlTable(
 
 export type DecisionPriority = typeof decisionPriorities.$inferSelect;
 export type InsertDecisionPriority = typeof decisionPriorities.$inferInsert;
+
+/**
+ * ============================================================
+ * DAY 16: ADAPTIVE STRATEGY ENGINE TABLES
+ * ============================================================
+ */
+
+export const strategyStates = mysqlTable(
+  "strategyStates",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    recommendationId: int("recommendationId").notNull(),
+    supportingSituationIdsJson: text("supportingSituationIdsJson"),
+    supportingSignalIdsJson: text("supportingSignalIdsJson"),
+    priorityAtGeneration: varchar("priorityAtGeneration", { length: 50 }),
+    situationTrendAtGeneration: varchar("situationTrendAtGeneration", { length: 50 }),
+    metricSnapshotJson: text("metricSnapshotJson"),
+    marketSignalRefsJson: text("marketSignalRefsJson"),
+    evaluationStatus: mysqlEnum("evaluationStatus", ["KEEP", "UPDATE", "DEPRIORITIZE", "REPLACE", "EXPIRED", "ACTIVE", "COMPLETED", "DISMISSED"]).default("KEEP"),
+    reason: text("reason"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("businessId_idx").on(table.businessId),
+    recommendationIdIdx: index("recommendationId_idx").on(table.recommendationId),
+  })
+);
+
+export type StrategyState = typeof strategyStates.$inferSelect;
+export type InsertStrategyState = typeof strategyStates.$inferInsert;
+
+export const strategyEvents = mysqlTable(
+  "strategyEvents",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    recommendationId: int("recommendationId"),
+    eventType: varchar("eventType", { length: 100 }).notNull(),
+    previousStrategyTitle: varchar("previousStrategyTitle", { length: 255 }),
+    newStrategyTitle: varchar("newStrategyTitle", { length: 255 }),
+    evaluationResult: varchar("evaluationResult", { length: 50 }),
+    reason: text("reason"),
+    timestamp: timestamp("timestamp").defaultNow().notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("businessId_idx").on(table.businessId),
+    recommendationIdIdx: index("recommendationId_idx").on(table.recommendationId),
+    timestampIdx: index("timestamp_idx").on(table.timestamp),
+  })
+);
+
+export type StrategyEvent = typeof strategyEvents.$inferSelect;
+export type InsertStrategyEvent = typeof strategyEvents.$inferInsert;

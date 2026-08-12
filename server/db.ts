@@ -17,6 +17,8 @@ import {
   csvImports,
   competitors,
   marketSignals,
+  strategyStates,
+  strategyEvents,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1239,5 +1241,111 @@ export async function getDecisionPriorities(businessId: number, limit = 10) {
     .from(decisionPriorities)
     .where(eq(decisionPriorities.businessId, businessId))
     .orderBy(desc(decisionPriorities.priorityScore))
+    .limit(limit);
+}
+
+/**
+ * ============================================================
+ * DAY 16: ADAPTIVE STRATEGY ENGINE HELPERS
+ * ============================================================
+ */
+
+export async function upsertStrategyState(data: {
+  businessId: number;
+  recommendationId: number;
+  supportingSituationIdsJson?: string;
+  supportingSignalIdsJson?: string;
+  priorityAtGeneration?: string;
+  situationTrendAtGeneration?: string;
+  metricSnapshotJson?: string;
+  marketSignalRefsJson?: string;
+  evaluationStatus?: "KEEP" | "UPDATE" | "DEPRIORITIZE" | "REPLACE" | "EXPIRED" | "ACTIVE" | "COMPLETED" | "DISMISSED";
+  reason?: string;
+}) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const existing = await db
+    .select()
+    .from(strategyStates)
+    .where(and(eq(strategyStates.businessId, data.businessId), eq(strategyStates.recommendationId, data.recommendationId)));
+
+  if (existing.length > 0) {
+    await db
+      .update(strategyStates)
+      .set({
+        supportingSituationIdsJson: data.supportingSituationIdsJson || existing[0].supportingSituationIdsJson,
+        supportingSignalIdsJson: data.supportingSignalIdsJson || existing[0].supportingSignalIdsJson,
+        priorityAtGeneration: data.priorityAtGeneration || existing[0].priorityAtGeneration,
+        situationTrendAtGeneration: data.situationTrendAtGeneration || existing[0].situationTrendAtGeneration,
+        metricSnapshotJson: data.metricSnapshotJson || existing[0].metricSnapshotJson,
+        marketSignalRefsJson: data.marketSignalRefsJson || existing[0].marketSignalRefsJson,
+        evaluationStatus: data.evaluationStatus || existing[0].evaluationStatus,
+        reason: data.reason || existing[0].reason,
+        updatedAt: new Date(),
+      })
+      .where(eq(strategyStates.id, existing[0].id));
+    return existing[0].id;
+  }
+
+  const res = await db.insert(strategyStates).values({
+    businessId: data.businessId,
+    recommendationId: data.recommendationId,
+    supportingSituationIdsJson: data.supportingSituationIdsJson || null,
+    supportingSignalIdsJson: data.supportingSignalIdsJson || null,
+    priorityAtGeneration: data.priorityAtGeneration || null,
+    situationTrendAtGeneration: data.situationTrendAtGeneration || null,
+    metricSnapshotJson: data.metricSnapshotJson || null,
+    marketSignalRefsJson: data.marketSignalRefsJson || null,
+    evaluationStatus: data.evaluationStatus || "KEEP",
+    reason: data.reason || null,
+  });
+
+  return res && Array.isArray(res) && res[0]?.insertId ? Number(res[0].insertId) : null;
+}
+
+export async function getStrategyStates(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(strategyStates)
+    .where(eq(strategyStates.businessId, businessId))
+    .orderBy(desc(strategyStates.updatedAt));
+}
+
+export async function createStrategyEvent(data: {
+  businessId: number;
+  recommendationId?: number;
+  eventType: string;
+  previousStrategyTitle?: string;
+  newStrategyTitle?: string;
+  evaluationResult?: string;
+  reason?: string;
+}) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const res = await db.insert(strategyEvents).values({
+    businessId: data.businessId,
+    recommendationId: data.recommendationId || null,
+    eventType: data.eventType,
+    previousStrategyTitle: data.previousStrategyTitle || null,
+    newStrategyTitle: data.newStrategyTitle || null,
+    evaluationResult: data.evaluationResult || null,
+    reason: data.reason || null,
+  });
+
+  return res && Array.isArray(res) && res[0]?.insertId ? Number(res[0].insertId) : null;
+}
+
+export async function getStrategyEvents(businessId: number, limit = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(strategyEvents)
+    .where(eq(strategyEvents.businessId, businessId))
+    .orderBy(desc(strategyEvents.timestamp))
     .limit(limit);
 }
