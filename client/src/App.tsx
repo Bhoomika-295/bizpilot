@@ -15,6 +15,7 @@ import CustomersV2 from "./pages/CustomersV2";
 import CompetitorsPage from "./pages/CompetitorsPage";
 import ActionsPage from "./pages/ActionsPage";
 import MemoryPage from "./pages/MemoryPage";
+import CommandCenterPage from "./pages/CommandCenterPage";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -25,6 +26,7 @@ function Router() {
       <Route path={"/onboarding"} component={Onboarding} />
       <Route path={"/profile"} component={UserProfile} />
       <Route path={"/dashboard/:businessId"} component={DashboardV2} />
+      <Route path={"/command-center/:businessId"} component={CommandCenterPage} />
       <Route path={"/actions/:businessId"} component={ActionsPage} />
       <Route path={"/memory/:businessId"} component={MemoryPage} />
       <Route path={"/competitors/:businessId"} component={CompetitorsPage} />

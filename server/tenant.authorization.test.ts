@@ -222,3 +222,30 @@ describe("action plan tenant authorization", () => {
     });
   });
 });
+
+
+describe("command center tenant authorization", () => {
+  it("rejects executive snapshot access for a business the user does not own", async () => {
+    const caller = appRouter.createCaller(createContext());
+    await expect(caller.commandCenter.getSnapshot({ businessId: 999999999 })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: "You do not have access to this business.",
+    });
+  });
+
+  it("rejects global search access for a business the user does not own", async () => {
+    const caller = appRouter.createCaller(createContext());
+    await expect(caller.commandCenter.globalSearch({ businessId: 999999999, query: "pricing" })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: "You do not have access to this business.",
+    });
+  });
+
+  it("rejects insight trace access for a business the user does not own", async () => {
+    const caller = appRouter.createCaller(createContext());
+    await expect(caller.commandCenter.getInsightDetail({ businessId: 999999999, sourceType: "MEMORY", sourceId: 1 })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: "You do not have access to this business.",
+    });
+  });
+});

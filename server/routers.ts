@@ -9,6 +9,7 @@ import { businessMetricsRouter } from "./routers/businessMetrics";
 import { actionPlansRouter } from "./routers/actionPlans";
 import { foresightRouter } from "./routers/foresight";
 import { businessMemoryRouter } from "./routers/businessMemory";
+import { commandCenterRouter } from "./routers/commandCenter";
 import { verifyBusinessOwnership } from "./services/businessDataService";
 
 async function requireBusinessAccess(userId: number, businessId: number) {
@@ -54,6 +55,7 @@ export const appRouter = router({
   actionPlans: actionPlansRouter,
   foresight: foresightRouter,
   businessMemory: businessMemoryRouter,
+  commandCenter: commandCenterRouter,
 
   business: router({
     create: protectedProcedure

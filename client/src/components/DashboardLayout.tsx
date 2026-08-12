@@ -26,6 +26,7 @@ import {
   FileUp,
   History,
   LayoutDashboard,
+  Command,
   ListChecks,
   LogOut,
   PanelLeft,
@@ -44,6 +45,7 @@ function getMenuItems(businessId?: string) {
   }
 
   return [
+    { icon: Command, label: "Command Center", path: `/command-center/${businessId}` },
     { icon: LayoutDashboard, label: "Dashboard", path: `/dashboard/${businessId}` },
     { icon: ListChecks, label: "Actions", path: `/actions/${businessId}` },
     { icon: History, label: "Memory", path: `/memory/${businessId}` },
