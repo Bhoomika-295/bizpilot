@@ -1,4 +1,4 @@
-import { eq, and, desc, asc } from "drizzle-orm";
+import { eq, and, or, desc, asc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser,
@@ -39,6 +39,14 @@ import {
   InsertMonitoringEvent,
   InsertMonitoringPreference,
   InsertMonitoringEventHistory,
+  signalRelationships,
+  signalClusters,
+  signalRelationshipHistory,
+  SignalRelationship,
+  InsertSignalRelationship,
+  SignalCluster,
+  InsertSignalCluster,
+  InsertSignalRelationshipHistory,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1983,4 +1991,236 @@ export async function getRecentOutcomes(businessId: number, limit = 50) {
     .where(eq(outcomes.businessId, businessId))
     .orderBy(desc(outcomes.updatedAt), desc(outcomes.id))
     .limit(Math.min(limit, 100));
+}
+
+
+/**
+ * ============================================================
+ * CROSS-SIGNAL RELATIONSHIPS (DAY 23)
+ * ============================================================
+ */
+
+export type SignalRelationshipLifecycleStatus = "NEW" | "ACTIVE" | "WEAKENING" | "RESOLVED";
+export type SignalRelationshipWrite = Omit<InsertSignalRelationship, "id" | "createdAt" | "updatedAt">;
+export type SignalClusterWrite = Omit<InsertSignalCluster, "id" | "createdAt" | "updatedAt">;
+
+export async function getSignalRelationships(
+  businessId: number,
+  options: { limit?: number; status?: SignalRelationshipLifecycleStatus; relationshipType?: string; signalKey?: string } = {}
+) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(signalRelationships.businessId, businessId)];
+  if (options.status) conditions.push(eq(signalRelationships.status, options.status));
+  if (options.relationshipType) conditions.push(eq(signalRelationships.relationshipType, options.relationshipType));
+  if (options.signalKey) {
+    conditions.push(or(eq(signalRelationships.signalAKey, options.signalKey), eq(signalRelationships.signalBKey, options.signalKey))!);
+  }
+  return await db
+    .select()
+    .from(signalRelationships)
+    .where(and(...conditions))
+    .orderBy(desc(signalRelationships.evidenceCount), desc(signalRelationships.lastObservedAt), asc(signalRelationships.id))
+    .limit(Math.min(options.limit ?? 25, 100));
+}
+
+export async function getSignalRelationshipById(businessId: number, relationshipId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(signalRelationships)
+    .where(and(eq(signalRelationships.businessId, businessId), eq(signalRelationships.id, relationshipId)))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function getSignalRelationshipByKey(businessId: number, relationshipKey: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(signalRelationships)
+    .where(and(eq(signalRelationships.businessId, businessId), eq(signalRelationships.relationshipKey, relationshipKey)))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function upsertSignalRelationship(data: SignalRelationshipWrite) {
+  const db = await getDb();
+  if (!db) return { id: null, created: false, changed: false, previous: null, row: null };
+
+  const existing = await getSignalRelationshipByKey(data.businessId, data.relationshipKey);
+  if (!existing) {
+    const res = await db.insert(signalRelationships).values(data);
+    const id = res && Array.isArray(res) && res[0]?.insertId ? Number(res[0].insertId) : null;
+    const row = id ? ({ ...data, id } as SignalRelationship) : null;
+    if (id) {
+      await createSignalRelationshipHistory({
+        businessId: data.businessId,
+        relationshipId: id,
+        eventType: "CREATED",
+        newStatus: data.status || "NEW",
+        newStrength: data.strength || "UNKNOWN",
+        detailsJson: JSON.stringify({ relationshipKey: data.relationshipKey }),
+      });
+    }
+    return { id, created: true, changed: true, previous: null, row };
+  }
+
+  const contentChanged = existing.relationshipType !== data.relationshipType ||
+    existing.strength !== data.strength ||
+    existing.stability !== data.stability ||
+    existing.freshness !== data.freshness ||
+    existing.evidenceCount !== data.evidenceCount ||
+    existing.evidenceJson !== data.evidenceJson ||
+    existing.relatedSituationIdsJson !== (data.relatedSituationIdsJson || null) ||
+    existing.relatedOpportunityIdsJson !== (data.relatedOpportunityIdsJson || null) ||
+    existing.relatedDecisionIdsJson !== (data.relatedDecisionIdsJson || null) ||
+    existing.relatedStrategyIdsJson !== (data.relatedStrategyIdsJson || null) ||
+    existing.relatedOutcomeIdsJson !== (data.relatedOutcomeIdsJson || null);
+  const statusChanged = existing.status !== data.status;
+  const now = new Date();
+  const nextStatus = existing.status === "RESOLVED" && data.status !== "RESOLVED" ? "ACTIVE" : (data.status || existing.status);
+  const update: Partial<InsertSignalRelationship> = {
+    lastObservedAt: now,
+    updatedAt: now,
+    status: nextStatus,
+  };
+  if (contentChanged || statusChanged) {
+    Object.assign(update, {
+      ...data,
+      id: existing.id,
+      createdAt: existing.createdAt,
+      firstObservedAt: existing.firstObservedAt,
+      lastObservedAt: now,
+      updatedAt: now,
+      status: nextStatus,
+    });
+  }
+
+  if (contentChanged || statusChanged || existing.status === "RESOLVED") {
+    await db
+      .update(signalRelationships)
+      .set(update)
+      .where(and(eq(signalRelationships.businessId, data.businessId), eq(signalRelationships.id, existing.id)));
+    await createSignalRelationshipHistory({
+      businessId: data.businessId,
+      relationshipId: existing.id,
+      eventType: statusChanged ? "LIFECYCLE_CHANGED" : "UPDATED",
+      previousStatus: existing.status,
+      newStatus: nextStatus,
+      previousStrength: existing.strength,
+      newStrength: data.strength,
+      detailsJson: JSON.stringify({ contentChanged, statusChanged }),
+    });
+  }
+
+  return {
+    id: existing.id,
+    created: false,
+    changed: contentChanged || statusChanged || existing.status === "RESOLVED",
+    previous: existing,
+    row: { ...existing, ...data, ...update, id: existing.id, status: nextStatus },
+  };
+}
+
+export async function updateSignalRelationshipLifecycle(
+  businessId: number,
+  relationshipId: number,
+  status: SignalRelationshipLifecycleStatus,
+  detailsJson?: string
+) {
+  const db = await getDb();
+  if (!db) return null;
+  const existing = await getSignalRelationshipById(businessId, relationshipId);
+  if (!existing || existing.status === status) return existing;
+  await db
+    .update(signalRelationships)
+    .set({ status, updatedAt: new Date() })
+    .where(and(eq(signalRelationships.businessId, businessId), eq(signalRelationships.id, relationshipId)));
+  await createSignalRelationshipHistory({
+    businessId,
+    relationshipId,
+    eventType: "LIFECYCLE_CHANGED",
+    previousStatus: existing.status,
+    newStatus: status,
+    previousStrength: existing.strength,
+    newStrength: existing.strength,
+    detailsJson,
+  });
+  return await getSignalRelationshipById(businessId, relationshipId);
+}
+
+export async function createSignalRelationshipHistory(data: InsertSignalRelationshipHistory) {
+  const db = await getDb();
+  if (!db) return null;
+  const res = await db.insert(signalRelationshipHistory).values(data);
+  return res && Array.isArray(res) && res[0]?.insertId ? Number(res[0].insertId) : null;
+}
+
+export async function getSignalRelationshipHistory(businessId: number, relationshipId: number, limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(signalRelationshipHistory)
+    .where(and(eq(signalRelationshipHistory.businessId, businessId), eq(signalRelationshipHistory.relationshipId, relationshipId)))
+    .orderBy(desc(signalRelationshipHistory.timestamp), desc(signalRelationshipHistory.id))
+    .limit(Math.min(limit, 100));
+}
+
+export async function getSignalClusters(businessId: number, options: { limit?: number; status?: SignalRelationshipLifecycleStatus; theme?: string } = {}) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(signalClusters.businessId, businessId)];
+  if (options.status) conditions.push(eq(signalClusters.status, options.status));
+  if (options.theme) conditions.push(eq(signalClusters.theme, options.theme));
+  return await db
+    .select()
+    .from(signalClusters)
+    .where(and(...conditions))
+    .orderBy(desc(signalClusters.evidenceCount), desc(signalClusters.lastObservedAt), asc(signalClusters.id))
+    .limit(Math.min(options.limit ?? 15, 50));
+}
+
+export async function getSignalClusterById(businessId: number, clusterId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(signalClusters)
+    .where(and(eq(signalClusters.businessId, businessId), eq(signalClusters.id, clusterId)))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function getSignalClusterByKey(businessId: number, clusterKey: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(signalClusters)
+    .where(and(eq(signalClusters.businessId, businessId), eq(signalClusters.clusterKey, clusterKey)))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function upsertSignalCluster(data: SignalClusterWrite) {
+  const db = await getDb();
+  if (!db) return { id: null, created: false, changed: false, previous: null, row: null };
+  const existing = await getSignalClusterByKey(data.businessId, data.clusterKey);
+  if (!existing) {
+    const res = await db.insert(signalClusters).values(data);
+    const id = res && Array.isArray(res) && res[0]?.insertId ? Number(res[0].insertId) : null;
+    return { id, created: true, changed: true, previous: null, row: id ? ({ ...data, id } as SignalCluster) : null };
+  }
+  const changed = existing.relationshipIdsJson !== data.relationshipIdsJson ||
+    existing.evidenceJson !== data.evidenceJson ||
+    existing.strength !== data.strength ||
+    existing.freshness !== data.freshness ||
+    existing.status !== data.status;
+  const update: Partial<InsertSignalCluster> = changed ? { ...data, id: existing.id, createdAt: existing.createdAt, updatedAt: new Date() } : { lastObservedAt: new Date(), updatedAt: new Date() };
+  await db.update(signalClusters).set(update).where(and(eq(signalClusters.businessId, data.businessId), eq(signalClusters.id, existing.id)));
+  return { id: existing.id, created: false, changed, previous: existing, row: { ...existing, ...data, ...update, id: existing.id } };
 }

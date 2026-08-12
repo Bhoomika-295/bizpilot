@@ -164,6 +164,32 @@ export default function DashboardV2() {
   const [selectedOpportunity, setSelectedOpportunity] = useState<any | null>(null);
   const [selectedDecision, setSelectedDecision] = useState<any | null>(null);
   const [selectedMonitoringAlert, setSelectedMonitoringAlert] = useState<any | null>(null);
+  const [selectedCrossSignalRelationship, setSelectedCrossSignalRelationship] = useState<any | null>(null);
+  const [selectedCrossSignalCluster, setSelectedCrossSignalCluster] = useState<any | null>(null);
+
+  const crossSignalQuery = trpc.businessMetrics.getCrossSignalIntelligence.useQuery(
+    { businessId: parseInt(businessId || "0"), limit: 8 },
+    { enabled: !!businessId && isAuthenticated }
+  );
+  const crossSignalDetailQuery = trpc.businessMetrics.getCrossSignalRelationshipDetail.useQuery(
+    { businessId: parseInt(businessId || "0"), relationshipId: selectedCrossSignalRelationship?.id || 0 },
+    { enabled: !!businessId && isAuthenticated && !!selectedCrossSignalRelationship?.id }
+  );
+  const refreshCrossSignalMutation = trpc.businessMetrics.refreshCrossSignalIntelligence.useMutation({
+    onSuccess: () => {
+      crossSignalQuery.refetch();
+      toast.success("Cross-signal intelligence refreshed");
+    },
+    onError: (err: any) => toast.error(`Cross-signal refresh failed: ${err.message}`),
+  });
+  const updateCrossSignalStatusMutation = trpc.businessMetrics.updateCrossSignalRelationshipStatus.useMutation({
+    onSuccess: () => {
+      crossSignalQuery.refetch();
+      crossSignalDetailQuery.refetch();
+      toast.success("Signal relationship status updated");
+    },
+    onError: (err: any) => toast.error(`Relationship status update failed: ${err.message}`),
+  });
 
   const monitoringAlertsQuery = trpc.businessMetrics.getMonitoringAlerts.useQuery(
     { businessId: parseInt(businessId || "0"), limit: 25, status: "NEW" },
@@ -1137,6 +1163,129 @@ export default function DashboardV2() {
               ) : (
                 <div className="text-center py-6 text-sm text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">No decision candidate is currently supported by meaningful verified intelligence.</div>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* What Changed Together: Cross-Signal Intelligence (Day 23) */}
+        {crossSignalQuery.data && (crossSignalQuery.data.relationships.length > 0 || crossSignalQuery.data.clusters.length > 0) && (
+          <Card className="border-slate-300 bg-white shadow-sm">
+            <CardHeader className="space-y-3 pb-4 border-b border-slate-100">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-xl font-semibold text-slate-900">
+                      What Changed Together: Cross-Signal Intelligence
+                    </CardTitle>
+                    <Badge variant="outline" className="border-indigo-300 bg-indigo-50 text-indigo-700 font-medium">
+                      RELATIONSHIP ANALYSIS v1
+                    </Badge>
+                  </div>
+                  <CardDescription className="mt-1">
+                    Verified signal correlations, converging themes, and co-moving patterns across business metrics, market signals, competitors, and situations.
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => refreshCrossSignalMutation.mutate({ businessId: parseInt(businessId || "0") })}
+                    disabled={refreshCrossSignalMutation.isPending}
+                    className="border-slate-200 text-slate-700"
+                  >
+                    {refreshCrossSignalMutation.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+                    Re-analyze Signals
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-5 space-y-6">
+              {crossSignalQuery.data.clusters && crossSignalQuery.data.clusters.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-xs font-semibold tracking-wider text-slate-500 uppercase">
+                    Signal Clusters & Pattern Themes ({crossSignalQuery.data.clusters.length})
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {crossSignalQuery.data.clusters.map((cluster: any, idx: number) => (
+                      <div
+                        key={cluster.id || idx}
+                        onClick={() => setSelectedCrossSignalCluster(cluster)}
+                        className="group cursor-pointer bg-slate-50/70 p-4 rounded-xl border border-slate-200 shadow-2xs hover:border-indigo-300 transition-all space-y-2.5 flex flex-col justify-between"
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-slate-900 text-base group-hover:text-indigo-600 transition-colors">
+                              {cluster.title}
+                            </span>
+                            <Badge variant="outline" className="border-indigo-200 bg-indigo-50 text-indigo-700 text-xs">
+                              {cluster.relationshipType}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-slate-700 leading-relaxed">
+                            {cluster.interpretation}
+                          </p>
+                        </div>
+                        <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-xs text-slate-500">
+                          <span>Evidence count: <strong className="text-slate-700">{cluster.evidenceCount}</strong></span>
+                          <span className="text-indigo-600 font-medium group-hover:underline">View cluster details →</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <h4 className="text-xs font-semibold tracking-wider text-slate-500 uppercase">
+                  Verified Signal Relationships ({crossSignalQuery.data.relationships.length})
+                </h4>
+                <div className="space-y-3">
+                  {crossSignalQuery.data.relationships.map((rel: any, idx: number) => {
+                    const isConverging = rel.relationshipType === "CONVERGING";
+                    const isContradicting = rel.relationshipType === "CONTRADICTING";
+                    const isHigh = rel.strength === "HIGH";
+                    return (
+                      <div
+                        key={rel.id || idx}
+                        onClick={() => setSelectedCrossSignalRelationship(rel)}
+                        className="group cursor-pointer bg-white p-4 rounded-xl border border-slate-200 shadow-2xs hover:border-indigo-400 transition-all space-y-2.5"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2.5">
+                            <Badge
+                              variant="outline"
+                              className={`text-xs font-medium ${
+                                isConverging
+                                  ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                                  : isContradicting
+                                  ? "border-red-300 bg-red-50 text-red-700"
+                                  : "border-indigo-300 bg-indigo-50 text-indigo-700"
+                              }`}
+                            >
+                              {rel.relationshipType}
+                            </Badge>
+                            <span className="font-semibold text-slate-900 text-sm group-hover:text-indigo-600 transition-colors">
+                              {rel.signalA.label} <span className="text-slate-400 font-normal">↔</span> {rel.signalB.label}
+                            </span>
+                          </div>
+                          <Badge variant="outline" className="border-slate-300 bg-slate-50 text-slate-700 text-xs">
+                            Strength: {rel.strength}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-slate-700 leading-relaxed">
+                          {rel.explanation}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 pt-1">
+                          <span>Freshness: <strong className="text-slate-700">{rel.freshness}</strong></span>
+                          <span>Stability: <strong className="text-slate-700">{rel.stability}</strong></span>
+                          <span>Causality: <strong className="text-slate-700">Not Established</strong></span>
+                          <span className="ml-auto text-indigo-600 font-medium group-hover:underline">Inspect evidence chain →</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </CardContent>
           </Card>
         )}
@@ -2115,6 +2264,211 @@ export default function DashboardV2() {
             </div>
           </div>
         )}
+
+        {/* Cross-Signal Relationship Detail Modal (Day 23) */}
+        {selectedCrossSignalRelationship && (() => {
+          const rel = crossSignalDetailQuery.data || selectedCrossSignalRelationship;
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+              <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-6">
+                <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="border-indigo-300 bg-indigo-50 text-indigo-700 font-medium">
+                        CROSS-SIGNAL RELATIONSHIP ANALYSIS
+                      </Badge>
+                      <Badge variant="outline" className="border-slate-300 bg-slate-50 text-slate-700">
+                        {rel.relationshipType}
+                      </Badge>
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 mt-1">
+                      {rel.signalA.label} ↔ {rel.signalB.label}
+                    </h3>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedCrossSignalRelationship(null)}
+                    className="text-slate-500 hover:text-slate-900 h-8 w-8 p-0"
+                  >
+                    ✕
+                  </Button>
+                </div>
+
+                <div className="space-y-5">
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                      Strategic Interpretation & Explanation
+                    </h4>
+                    <p className="text-sm text-slate-700 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-200">
+                      {rel.explanation}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-white p-3 rounded-lg border border-slate-200 space-y-1">
+                      <div className="text-xs font-semibold text-slate-500 uppercase">Signal A</div>
+                      <div className="text-sm font-bold text-slate-900">{rel.signalA.label}</div>
+                      <div className="text-xs text-slate-600">{rel.signalA.detail || rel.signalA.sourceType}</div>
+                    </div>
+                    <div className="bg-white p-3 rounded-lg border border-slate-200 space-y-1">
+                      <div className="text-xs font-semibold text-slate-500 uppercase">Signal B</div>
+                      <div className="text-sm font-bold text-slate-900">{rel.signalB.label}</div>
+                      <div className="text-xs text-slate-600">{rel.signalB.detail || rel.signalB.sourceType}</div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      What We Know vs What We Don't Know
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                      <div className="bg-emerald-50/70 p-3 rounded-lg border border-emerald-200 space-y-1">
+                        <strong className="text-emerald-900 font-semibold block mb-1">What We Know (Verified)</strong>
+                        <ul className="space-y-1 text-emerald-800">
+                          {rel.whatWeKnow?.map((item: string, idx: number) => (
+                            <li key={idx} className="flex items-start gap-1.5">
+                              <span>•</span>
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div className="bg-amber-50/70 p-3 rounded-lg border border-amber-200 space-y-1">
+                        <strong className="text-amber-900 font-semibold block mb-1">What We Don't Know (Unknowns)</strong>
+                        <ul className="space-y-1 text-amber-800">
+                          {rel.whatWeDontKnow?.map((item: string, idx: number) => (
+                            <li key={idx} className="flex items-start gap-1.5">
+                              <span>•</span>
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Relationship Parameters
+                    </h4>
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                      <div>
+                        <span className="text-slate-500">Strength</span>
+                        <div className="font-bold text-slate-900">{rel.strength}</div>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">Stability</span>
+                        <div className="font-bold text-slate-900">{rel.stability}</div>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">Freshness</span>
+                        <div className="font-bold text-slate-900">{rel.freshness}</div>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">Causality</span>
+                        <div className="font-bold text-slate-700">Not Established</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex items-center justify-between border-t border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-slate-600">Lifecycle Status:</span>
+                      {(["NEW", "ACTIVE", "WEAKENING", "RESOLVED"] as const).map((st) => (
+                        <Button
+                          key={st}
+                          variant={rel.status === st ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => {
+                            updateCrossSignalStatusMutation.mutate({
+                              businessId: parseInt(businessId || "0"),
+                              relationshipId: rel.id,
+                              status: st,
+                              details: `Marked as ${st} from DashboardV2`,
+                            });
+                          }}
+                          className="h-7 px-2.5 text-xs"
+                        >
+                          {st}
+                        </Button>
+                      ))}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedCrossSignalRelationship(null)}
+                    >
+                      Close
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Signal Cluster Detail Modal (Day 23) */}
+        {selectedCrossSignalCluster && (() => {
+          const cl = selectedCrossSignalCluster;
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+              <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 space-y-5">
+                <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+                  <div>
+                    <Badge variant="outline" className="border-indigo-300 bg-indigo-50 text-indigo-700 font-medium">
+                      SIGNAL CLUSTER PATTERN THEME
+                    </Badge>
+                    <h3 className="text-xl font-bold text-slate-900 mt-1">{cl.title}</h3>
+                    <p className="text-sm text-slate-600 mt-0.5">Theme: {cl.theme}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedCrossSignalCluster(null)}
+                    className="text-slate-500 hover:text-slate-900 h-8 w-8 p-0"
+                  >
+                    ✕
+                  </Button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                      Cluster Interpretation
+                    </h4>
+                    <p className="text-sm text-slate-700 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-200">
+                      {cl.interpretation}
+                    </p>
+                  </div>
+
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">
+                      Included Signal Keys ({cl.signalKeys?.length || 0})
+                    </h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {cl.signalKeys?.map((key: string, idx: number) => (
+                        <Badge key={idx} variant="outline" className="border-slate-200 bg-slate-50 text-slate-700 text-xs font-mono">
+                          {key}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex items-center justify-end border-t border-slate-100">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedCrossSignalCluster(null)}
+                    >
+                      Close
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Business Intelligence Briefing */}
         {briefing && (

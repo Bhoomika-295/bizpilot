@@ -382,3 +382,12 @@
 - [x] Integrate "What Changed Since Last Review" monitoring alert queue card and detail modal into DashboardV2
 - [x] Add deterministic unit tests, tenant isolation tests, and run test suite and production build verification
 - [x] Save Day 22 checkpoint
+
+## Day 23: Cross-Signal Intelligence & Relationship Analysis v1
+- [x] Add tenant-isolated signalRelationships and signalClusters schema tables
+- [x] Implement cross-signal intelligence service with non-causal relationship analysis (TEMPORAL, CORRELATED, CONVERGING, CONTRADICTING, SEQUENTIAL, UNKNOWN) across metrics, signals, competitors, situations, opportunities, and outcomes
+- [x] Add evidence strength, stability, theme grouping, and cluster synthesis without hardcoding or fake causality claims
+- [x] Expose protected tRPC procedures (`getCrossSignalIntelligence`, `refreshCrossSignalIntelligence`, `getSignalRelationshipDetail`) with strict tenant authorization
+- [x] Integrate "What Changed Together" cross-signal intelligence card and detail modal into DashboardV2
+- [x] Add deterministic unit tests, tenant isolation tests, and run test suite and production build verification
+- [x] Save Day 23 checkpoint

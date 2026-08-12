@@ -913,3 +913,124 @@ export const monitoringEventHistory = mysqlTable(
 
 export type MonitoringEventHistory = typeof monitoringEventHistory.$inferSelect;
 export type InsertMonitoringEventHistory = typeof monitoringEventHistory.$inferInsert;
+
+
+/**
+ * ============================================================
+ * DAY 23: CROSS-SIGNAL INTELLIGENCE & RELATIONSHIP ANALYSIS
+ * ============================================================
+ *
+ * These records describe relationships between already-verified signals.
+ * They never replace or duplicate the underlying signal records and do not
+ * encode causal claims. Relationship keys are canonical within a tenant so
+ * repeated observations update one record instead of creating duplicates.
+ */
+export const signalRelationships = mysqlTable(
+  "signalRelationships",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    relationshipKey: varchar("relationshipKey", { length: 255 }).notNull(),
+    signalAType: varchar("signalAType", { length: 50 }).notNull(),
+    signalAId: int("signalAId"),
+    signalAKey: varchar("signalAKey", { length: 128 }).notNull(),
+    signalBType: varchar("signalBType", { length: 50 }).notNull(),
+    signalBId: int("signalBId"),
+    signalBKey: varchar("signalBKey", { length: 128 }).notNull(),
+    relationshipType: varchar("relationshipType", { length: 30 }).notNull().default("UNKNOWN"),
+    strength: varchar("strength", { length: 20 }).notNull().default("UNKNOWN"),
+    evidenceCount: int("evidenceCount").notNull().default(0),
+    stability: varchar("stability", { length: 20 }).notNull().default("UNKNOWN"),
+    freshness: varchar("freshness", { length: 20 }).notNull().default("UNKNOWN"),
+    status: mysqlEnum("status", ["NEW", "ACTIVE", "WEAKENING", "RESOLVED"]).default("NEW").notNull(),
+    firstObservedAt: timestamp("firstObservedAt").defaultNow().notNull(),
+    lastObservedAt: timestamp("lastObservedAt").defaultNow().notNull(),
+    relatedSituationIdsJson: text("relatedSituationIdsJson"),
+    relatedOpportunityIdsJson: text("relatedOpportunityIdsJson"),
+    relatedDecisionIdsJson: text("relatedDecisionIdsJson"),
+    relatedStrategyIdsJson: text("relatedStrategyIdsJson"),
+    relatedOutcomeIdsJson: text("relatedOutcomeIdsJson"),
+    evidenceJson: text("evidenceJson").notNull(),
+    whatWeKnowJson: text("whatWeKnowJson").notNull(),
+    whatWeDontKnowJson: text("whatWeDontKnowJson").notNull(),
+    explanation: text("explanation").notNull(),
+    causalityStatus: varchar("causalityStatus", { length: 30 }).notNull().default("NOT_ESTABLISHED"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("signalRelationships_businessId_idx").on(table.businessId),
+    relationshipKeyIdx: index("signalRelationships_relationshipKey_idx").on(table.relationshipKey),
+    signalAIdx: index("signalRelationships_signalA_idx").on(table.signalAType, table.signalAId),
+    signalBIdx: index("signalRelationships_signalB_idx").on(table.signalBType, table.signalBId),
+    statusIdx: index("signalRelationships_status_idx").on(table.status),
+    lastObservedAtIdx: index("signalRelationships_lastObservedAt_idx").on(table.lastObservedAt),
+  })
+);
+
+export type SignalRelationship = typeof signalRelationships.$inferSelect;
+export type InsertSignalRelationship = typeof signalRelationships.$inferInsert;
+
+export const signalClusters = mysqlTable(
+  "signalClusters",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    clusterKey: varchar("clusterKey", { length: 255 }).notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    theme: varchar("theme", { length: 50 }).notNull().default("OTHER"),
+    interpretation: text("interpretation").notNull(),
+    relationshipType: varchar("relationshipType", { length: 30 }).notNull().default("UNKNOWN"),
+    strength: varchar("strength", { length: 20 }).notNull().default("UNKNOWN"),
+    stability: varchar("stability", { length: 20 }).notNull().default("UNKNOWN"),
+    freshness: varchar("freshness", { length: 20 }).notNull().default("UNKNOWN"),
+    evidenceCount: int("evidenceCount").notNull().default(0),
+    relationshipIdsJson: text("relationshipIdsJson").notNull(),
+    signalKeysJson: text("signalKeysJson").notNull(),
+    evidenceJson: text("evidenceJson").notNull(),
+    relatedSituationIdsJson: text("relatedSituationIdsJson"),
+    relatedOpportunityIdsJson: text("relatedOpportunityIdsJson"),
+    relatedDecisionIdsJson: text("relatedDecisionIdsJson"),
+    relatedStrategyIdsJson: text("relatedStrategyIdsJson"),
+    relatedOutcomeIdsJson: text("relatedOutcomeIdsJson"),
+    status: mysqlEnum("status", ["NEW", "ACTIVE", "WEAKENING", "RESOLVED"]).default("NEW").notNull(),
+    firstObservedAt: timestamp("firstObservedAt").defaultNow().notNull(),
+    lastObservedAt: timestamp("lastObservedAt").defaultNow().notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("signalClusters_businessId_idx").on(table.businessId),
+    clusterKeyIdx: index("signalClusters_clusterKey_idx").on(table.clusterKey),
+    statusIdx: index("signalClusters_status_idx").on(table.status),
+    lastObservedAtIdx: index("signalClusters_lastObservedAt_idx").on(table.lastObservedAt),
+  })
+);
+
+export type SignalCluster = typeof signalClusters.$inferSelect;
+export type InsertSignalCluster = typeof signalClusters.$inferInsert;
+
+export const signalRelationshipHistory = mysqlTable(
+  "signalRelationshipHistory",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    relationshipId: int("relationshipId").notNull(),
+    eventType: varchar("eventType", { length: 40 }).notNull(),
+    previousStatus: varchar("previousStatus", { length: 20 }),
+    newStatus: varchar("newStatus", { length: 20 }),
+    previousStrength: varchar("previousStrength", { length: 20 }),
+    newStrength: varchar("newStrength", { length: 20 }),
+    detailsJson: text("detailsJson"),
+    timestamp: timestamp("timestamp").defaultNow().notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("signalRelationshipHistory_businessId_idx").on(table.businessId),
+    relationshipIdIdx: index("signalRelationshipHistory_relationshipId_idx").on(table.relationshipId),
+    timestampIdx: index("signalRelationshipHistory_timestamp_idx").on(table.timestamp),
+  })
+);
+
+export type SignalRelationshipHistory = typeof signalRelationshipHistory.$inferSelect;
+export type InsertSignalRelationshipHistory = typeof signalRelationshipHistory.$inferInsert;

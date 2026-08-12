@@ -39,6 +39,14 @@ import {
 } from "../services/continuousMonitoringService";
 import { refreshMarketSignalsForBusiness } from "../services/marketSignalService";
 import {
+  getCrossSignalIntelligence,
+  refreshCrossSignalIntelligence,
+  getCrossSignalRelationshipDetail,
+  getCrossSignalClusterDetail,
+  getRelatedCrossSignalEvidence,
+  updateCrossSignalRelationshipStatus,
+} from "../services/crossSignalIntelligenceService";
+import {
   generateStrategyRecommendations,
   setStrategyRecommendationStatus,
   recordRecommendationOutcome,
@@ -701,5 +709,55 @@ export const businessMetricsRouter = router({
     .mutation(async ({ ctx, input }) => {
       await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
       return await upsertMonitoringPreference({ businessId: input.businessId, enabledCategoriesJson: input.enabledCategories ? JSON.stringify(input.enabledCategories) : null, minimumPriority: input.minimumPriority, minimumSeverity: input.minimumSeverity });
+    }),
+  /**
+   * Cross-Signal Intelligence & Relationship Analysis v1 Procedures (Day 23)
+   */
+  getCrossSignalIntelligence: protectedProcedure
+    .input(z.object({ businessId: z.number(), limit: z.number().int().min(1).max(12).optional() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return await getCrossSignalIntelligence(input.businessId, input.limit);
+    }),
+  refreshCrossSignalIntelligence: protectedProcedure
+    .input(z.object({ businessId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return await refreshCrossSignalIntelligence(input.businessId);
+    }),
+  getCrossSignalRelationshipDetail: protectedProcedure
+    .input(z.object({ businessId: z.number(), relationshipId: z.number().int().positive() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      const result = await getCrossSignalRelationshipDetail(input.businessId, input.relationshipId);
+      if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Signal relationship not found." });
+      return result;
+    }),
+  getCrossSignalClusterDetail: protectedProcedure
+    .input(z.object({ businessId: z.number(), clusterId: z.number().int().positive() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      const result = await getCrossSignalClusterDetail(input.businessId, input.clusterId);
+      if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Signal cluster not found." });
+      return result;
+    }),
+  getRelatedCrossSignalEvidence: protectedProcedure
+    .input(z.object({ businessId: z.number(), entityType: z.enum(["SITUATION", "OPPORTUNITY", "DECISION", "STRATEGY", "OUTCOME", "MONITORING"]), entityId: z.number().int().positive() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return await getRelatedCrossSignalEvidence(input.businessId, input.entityType, input.entityId);
+    }),
+  updateCrossSignalRelationshipStatus: protectedProcedure
+    .input(z.object({ businessId: z.number(), relationshipId: z.number().int().positive(), status: z.enum(["NEW", "ACTIVE", "WEAKENING", "RESOLVED"]), details: z.string().max(2000).optional() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      try {
+        const result = await updateCrossSignalRelationshipStatus(input.businessId, input.relationshipId, input.status, input.details);
+        if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Signal relationship not found." });
+        return result;
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Invalid signal relationship status transition." });
+      }
     }),
 });
