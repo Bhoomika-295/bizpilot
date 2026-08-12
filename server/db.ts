@@ -47,6 +47,16 @@ import {
   SignalCluster,
   InsertSignalCluster,
   InsertSignalRelationshipHistory,
+  businessTrajectories,
+  trajectoryForecastSnapshots,
+  trajectoryLearningSignals,
+  trajectoryHistory,
+  BusinessTrajectory,
+  InsertBusinessTrajectory,
+  TrajectoryForecastSnapshot,
+  InsertTrajectoryForecastSnapshot,
+  InsertTrajectoryLearningSignal,
+  InsertTrajectoryHistory,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -2223,4 +2233,153 @@ export async function upsertSignalCluster(data: SignalClusterWrite) {
   const update: Partial<InsertSignalCluster> = changed ? { ...data, id: existing.id, createdAt: existing.createdAt, updatedAt: new Date() } : { lastObservedAt: new Date(), updatedAt: new Date() };
   await db.update(signalClusters).set(update).where(and(eq(signalClusters.businessId, data.businessId), eq(signalClusters.id, existing.id)));
   return { id: existing.id, created: false, changed, previous: existing, row: { ...existing, ...data, ...update, id: existing.id } };
+}
+
+
+/**
+ * ============================================================
+ * DAY 24 — BUSINESS TRAJECTORY PERSISTENCE
+ * ============================================================
+ */
+export type BusinessTrajectoryWrite = Omit<InsertBusinessTrajectory, "id" | "createdAt" | "updatedAt">;
+export type TrajectoryForecastSnapshotWrite = Omit<InsertTrajectoryForecastSnapshot, "id" | "createdAt" | "updatedAt">;
+export type TrajectoryLearningSignalWrite = Omit<InsertTrajectoryLearningSignal, "id" | "createdAt">;
+export type TrajectoryHistoryWrite = Omit<InsertTrajectoryHistory, "id" | "createdAt">;
+
+export async function getBusinessTrajectories(
+  businessId: number,
+  options: { metricKey?: string; limit?: number } = {}
+): Promise<BusinessTrajectory[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(businessTrajectories.businessId, businessId)];
+  if (options.metricKey) conditions.push(eq(businessTrajectories.metricKey, options.metricKey));
+  return db
+    .select()
+    .from(businessTrajectories)
+    .where(and(...conditions))
+    .orderBy(desc(businessTrajectories.updatedAt), asc(businessTrajectories.id))
+    .limit(Math.min(options.limit ?? 25, 100));
+}
+
+export async function getBusinessTrajectoryById(businessId: number, trajectoryId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(businessTrajectories)
+    .where(and(eq(businessTrajectories.businessId, businessId), eq(businessTrajectories.id, trajectoryId)))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function getBusinessTrajectoryByMetric(businessId: number, metricKey: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(businessTrajectories)
+    .where(and(eq(businessTrajectories.businessId, businessId), eq(businessTrajectories.metricKey, metricKey)))
+    .orderBy(desc(businessTrajectories.updatedAt), desc(businessTrajectories.id))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function upsertBusinessTrajectory(data: BusinessTrajectoryWrite) {
+  const db = await getDb();
+  if (!db) return { id: null, created: false, changed: false, previous: null, row: null };
+  const existing = await getBusinessTrajectoryByMetric(data.businessId, data.metricKey);
+  if (!existing) {
+    const result = await db.insert(businessTrajectories).values(data);
+    const id = result && Array.isArray(result) && result[0]?.insertId ? Number(result[0].insertId) : null;
+    return { id, created: true, changed: true, previous: null, row: id ? ({ ...data, id } as BusinessTrajectory) : null };
+  }
+  const changed = existing.status !== data.status ||
+    existing.direction !== data.direction ||
+    existing.momentum !== data.momentum ||
+    existing.projectedValue !== data.projectedValue ||
+    existing.earlyWarningsJson !== data.earlyWarningsJson ||
+    existing.evidenceJson !== data.evidenceJson;
+  const update: Partial<InsertBusinessTrajectory> = changed
+    ? { ...data, id: existing.id, createdAt: existing.createdAt, updatedAt: new Date() }
+    : { lastObservedAt: data.lastObservedAt, updatedAt: new Date() };
+  await db
+    .update(businessTrajectories)
+    .set(update)
+    .where(and(eq(businessTrajectories.businessId, data.businessId), eq(businessTrajectories.id, existing.id)));
+  return { id: existing.id, created: false, changed, previous: existing, row: { ...existing, ...data, ...update, id: existing.id } };
+}
+
+export async function createTrajectoryForecastSnapshot(data: TrajectoryForecastSnapshotWrite) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(trajectoryForecastSnapshots).values(data);
+  return result && Array.isArray(result) && result[0]?.insertId ? Number(result[0].insertId) : null;
+}
+
+export async function getTrajectoryForecastSnapshots(
+  businessId: number,
+  options: { trajectoryId?: number; metricKey?: string; limit?: number } = {}
+): Promise<TrajectoryForecastSnapshot[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(trajectoryForecastSnapshots.businessId, businessId)];
+  if (options.trajectoryId !== undefined) conditions.push(eq(trajectoryForecastSnapshots.trajectoryId, options.trajectoryId));
+  if (options.metricKey) conditions.push(eq(trajectoryForecastSnapshots.metricKey, options.metricKey));
+  return db
+    .select()
+    .from(trajectoryForecastSnapshots)
+    .where(and(...conditions))
+    .orderBy(desc(trajectoryForecastSnapshots.forecastedAt), desc(trajectoryForecastSnapshots.id))
+    .limit(Math.min(options.limit ?? 25, 100));
+}
+
+export async function getTrajectoryForecastSnapshotById(businessId: number, snapshotId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(trajectoryForecastSnapshots)
+    .where(and(eq(trajectoryForecastSnapshots.businessId, businessId), eq(trajectoryForecastSnapshots.id, snapshotId)))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function updateTrajectoryForecastActual(
+  businessId: number,
+  snapshotId: number,
+  data: Pick<TrajectoryForecastSnapshotWrite, "actualValue" | "actualObservedAt" | "comparisonStatus" | "comparisonNotes">
+) {
+  const db = await getDb();
+  if (!db) return null;
+  await db
+    .update(trajectoryForecastSnapshots)
+    .set({ ...data, updatedAt: new Date() })
+    .where(and(eq(trajectoryForecastSnapshots.businessId, businessId), eq(trajectoryForecastSnapshots.id, snapshotId)));
+  return await getTrajectoryForecastSnapshotById(businessId, snapshotId);
+}
+
+export async function createTrajectoryLearningSignal(data: TrajectoryLearningSignalWrite) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(trajectoryLearningSignals).values(data);
+  return result && Array.isArray(result) && result[0]?.insertId ? Number(result[0].insertId) : null;
+}
+
+export async function createTrajectoryHistory(data: TrajectoryHistoryWrite) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(trajectoryHistory).values(data);
+  return result && Array.isArray(result) && result[0]?.insertId ? Number(result[0].insertId) : null;
+}
+
+export async function getTrajectoryHistory(businessId: number, trajectoryId: number, limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(trajectoryHistory)
+    .where(and(eq(trajectoryHistory.businessId, businessId), eq(trajectoryHistory.trajectoryId, trajectoryId)))
+    .orderBy(desc(trajectoryHistory.timestamp), desc(trajectoryHistory.id))
+    .limit(Math.min(limit, 100));
 }

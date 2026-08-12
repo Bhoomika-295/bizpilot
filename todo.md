@@ -391,3 +391,15 @@
 - [x] Integrate "What Changed Together" cross-signal intelligence card and detail modal into DashboardV2
 - [x] Add deterministic unit tests, tenant isolation tests, and run test suite and production build verification
 - [x] Save Day 23 checkpoint
+
+## Day 24: Business Trajectory & Early-Warning Forecasting v1
+- [x] Add tenant-isolated trajectory and forecast snapshot schema with observed/projected separation, freshness, confidence, and forecast-vs-actual foundation
+- [x] Implement deterministic business trajectory service using existing historical metric observations, direction, momentum, volatility, data sufficiency, confidence, forecast windows, and controlled trajectory states
+- [x] Add business-level trajectory synthesis using health, situations, opportunities, decisions, cross-signal relationships, strategic relevance, and freshness without duplicating upstream engines
+- [x] Implement explainable early-warning and improving-condition detection with no false precision, certainty, or causal claims
+- [x] Integrate trajectory context into strategy, decision, opportunity, situation, and monitoring/alert workflows without creating duplicate scoring or alert engines
+- [x] Expose protected tRPC procedures for trajectory summaries, metric details, forecast snapshots/history, forecast-vs-actual comparison, refresh, and lifecycle/learning interactions with strict tenant authorization
+- [x] Add Business Trajectory, Early Warnings, Short-Term Outlook, and observed-versus-projected detail visualization to DashboardV2
+- [x] Add deterministic unit, persistence, forecast-learning, tenant-isolation, and integration tests covering trajectory, momentum, volatility, confidence, warnings, cross-signal context, snapshots, and forecast-vs-actual foundation
+- [x] Run full test suite, TypeScript checks, and production build verification
+- [x] Save Day 24 checkpoint and stop before Day 25

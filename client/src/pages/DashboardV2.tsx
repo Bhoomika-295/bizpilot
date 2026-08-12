@@ -166,6 +166,23 @@ export default function DashboardV2() {
   const [selectedMonitoringAlert, setSelectedMonitoringAlert] = useState<any | null>(null);
   const [selectedCrossSignalRelationship, setSelectedCrossSignalRelationship] = useState<any | null>(null);
   const [selectedCrossSignalCluster, setSelectedCrossSignalCluster] = useState<any | null>(null);
+  const [selectedTrajectory, setSelectedTrajectory] = useState<any | null>(null);
+
+  const trajectoryQuery = trpc.businessMetrics.getBusinessTrajectory.useQuery(
+    { businessId: parseInt(businessId || "0"), forecastWindow: 7 },
+    { enabled: !!businessId && isAuthenticated }
+  );
+  const trajectoryDetailQuery = trpc.businessMetrics.getBusinessTrajectoryDetail.useQuery(
+    { businessId: parseInt(businessId || "0"), trajectoryId: selectedTrajectory?.id || 0 },
+    { enabled: !!businessId && isAuthenticated && !!selectedTrajectory?.id }
+  );
+  const refreshTrajectoryMutation = trpc.businessMetrics.refreshBusinessTrajectory.useMutation({
+    onSuccess: () => {
+      trajectoryQuery.refetch();
+      toast.success("Business trajectory refreshed from the latest available data");
+    },
+    onError: (err: any) => toast.error(`Trajectory refresh failed: ${err.message}`),
+  });
 
   const crossSignalQuery = trpc.businessMetrics.getCrossSignalIntelligence.useQuery(
     { businessId: parseInt(businessId || "0"), limit: 8 },
@@ -1100,6 +1117,88 @@ export default function DashboardV2() {
               ) : (
                 <div className="text-center py-6 text-sm text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">No new meaningful intelligence changes require attention. Refresh monitoring after adding or updating business data.</div>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Business Trajectory & Early Warnings (Day 24) */}
+        {trajectoryQuery.data && (
+          <Card className="border-sky-300 bg-white shadow-sm">
+            <CardHeader className="space-y-3 pb-4 border-b border-sky-100">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-xl font-semibold text-slate-900">Business Trajectory</CardTitle>
+                    <Badge variant="outline" className="border-sky-300 bg-sky-50 text-sky-800 font-medium">EARLY-WARNING FORECASTING v1</Badge>
+                  </div>
+                  <CardDescription className="mt-1">See where verified business indicators are heading. Projected values are clearly separated from observed data and are not promises.</CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => refreshTrajectoryMutation.mutate({ businessId: parseInt(businessId || "0"), forecastWindow: 7 })}
+                  disabled={refreshTrajectoryMutation.isPending}
+                  className="border-sky-200 text-sky-800"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${refreshTrajectoryMutation.isPending ? "animate-spin" : ""}`} />
+                  Refresh Outlook
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-5 space-y-5">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-sky-100 bg-sky-50/60 p-4">
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-wider text-sky-700">{trajectoryQuery.data.headline}</div>
+                  <p className="mt-1 text-sm text-slate-700">{trajectoryQuery.data.interpretation}</p>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-slate-600">
+                  <Badge variant="outline" className="border-sky-300 bg-white text-sky-800">{trajectoryQuery.data.state.replaceAll("_", " ")}</Badge>
+                  <span>Confidence: <strong className="text-slate-800">{trajectoryQuery.data.confidenceLevel}</strong></span>
+                  <span>Data: <strong className="text-slate-800">{trajectoryQuery.data.freshness}</strong></span>
+                </div>
+              </div>
+              {trajectoryQuery.data.earlyWarnings?.length > 0 && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-amber-800">Early Warnings</div>
+                  <ul className="mt-2 space-y-1 text-sm text-amber-900">
+                    {trajectoryQuery.data.earlyWarnings.slice(0, 3).map((warning: string, idx: number) => <li key={idx}>• {warning}</li>)}
+                  </ul>
+                </div>
+              )}
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                {trajectoryQuery.data.trajectories.map((trajectory: any) => {
+                  const tone = trajectory.status === "ACCELERATING_DECLINE" || trajectory.status === "EARLY_DECLINE" ? "border-red-200 bg-red-50" : trajectory.status === "SLOWING_GROWTH" ? "border-amber-200 bg-amber-50" : trajectory.status === "HEALTHY_GROWTH" ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50";
+                  const direction = trajectory.direction === "IMPROVING" ? "↗" : trajectory.direction === "DECLINING" ? "↘" : "→";
+                  return (
+                    <button key={trajectory.metricKey} type="button" onClick={() => setSelectedTrajectory(trajectory)} className={`rounded-xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-sm ${tone}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-semibold text-slate-900">{trajectory.metricLabel}</span>
+                        <span className="text-lg font-semibold text-slate-700">{direction}</span>
+                      </div>
+                      <div className="mt-3 flex items-end justify-between gap-3">
+                        <div>
+                          <div className="text-xs uppercase tracking-wider text-slate-500">Observed</div>
+                          <div className="text-lg font-bold text-slate-900">{trajectory.currentValue === null ? "—" : Number(trajectory.currentValue).toLocaleString()}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-xs uppercase tracking-wider text-slate-500">Projected {trajectory.forecastWindow ? `${trajectory.forecastWindow}d` : ""}</div>
+                          <div className="text-sm font-semibold text-slate-700">{trajectory.projectedValue === null ? "Not supported" : Number(trajectory.projectedValue).toLocaleString()}</div>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-1.5 text-[11px] text-slate-600">
+                        <span className="rounded border border-slate-200 bg-white/70 px-1.5 py-0.5">{trajectory.status.replaceAll("_", " ")}</span>
+                        <span className="rounded border border-slate-200 bg-white/70 px-1.5 py-0.5">Momentum: {trajectory.momentum}</span>
+                        <span className="rounded border border-slate-200 bg-white/70 px-1.5 py-0.5">{trajectory.confidenceLevel} confidence</span>
+                      </div>
+                      <div className="mt-3 text-xs font-medium text-sky-700">Explore evidence →</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+                <span>Updated from the latest available business data: {formatLastUpdated(trajectoryQuery.data.updatedAt)}</span>
+                <span>Projected values are directional and intentionally rounded.</span>
+              </div>
             </CardContent>
           </Card>
         )}
@@ -2264,6 +2363,60 @@ export default function DashboardV2() {
             </div>
           </div>
         )}
+
+        {/* Business Trajectory Detail Modal (Day 24) */}
+        {selectedTrajectory && (() => {
+          const detail = trajectoryDetailQuery.data;
+          const trajectory = detail?.trajectory || selectedTrajectory;
+          const snapshots = detail?.snapshots || [];
+          const history = detail?.history || [];
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" onClick={() => setSelectedTrajectory(null)}>
+              <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
+                <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-6">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-sky-700">Observed vs Projected</span>
+                      <Badge variant="outline" className="border-sky-300 bg-sky-50 text-sky-800">{trajectory.status?.replaceAll("_", " ")}</Badge>
+                    </div>
+                    <h2 className="mt-1 text-2xl font-bold text-slate-900">{trajectory.metricLabel}</h2>
+                    <p className="mt-1 text-sm text-slate-600">{trajectory.explanation}</p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedTrajectory(null)} className="h-8 w-8 p-0 text-slate-500">✕</Button>
+                </div>
+                <div className="space-y-6 p-6">
+                  <div className="grid gap-3 sm:grid-cols-4">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><div className="text-xs text-slate-500">Current observed</div><div className="mt-1 text-lg font-bold text-slate-900">{trajectory.currentValue === null ? "—" : Number(trajectory.currentValue).toLocaleString()}</div></div>
+                    <div className="rounded-xl border border-sky-200 bg-sky-50 p-3"><div className="text-xs text-sky-700">Projected</div><div className="mt-1 text-lg font-bold text-sky-900">{trajectory.projectedValue === null ? "Not supported" : Number(trajectory.projectedValue).toLocaleString()}</div></div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><div className="text-xs text-slate-500">Direction</div><div className="mt-1 text-sm font-bold text-slate-900">{trajectory.direction?.replaceAll("_", " ")}</div></div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><div className="text-xs text-slate-500">Confidence</div><div className="mt-1 text-sm font-bold text-slate-900">{trajectory.confidenceLevel}</div></div>
+                  </div>
+
+                  {trajectory.earlyWarnings?.length > 0 && (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                      <h4 className="text-xs font-semibold uppercase tracking-wider text-amber-800">Early-warning evidence</h4>
+                      <ul className="mt-2 space-y-1 text-sm text-amber-900">{trajectory.earlyWarnings.map((warning: string, idx: number) => <li key={idx}>• {warning}</li>)}</ul>
+                    </div>
+                  )}
+
+                  <div>
+                    <div className="mb-2 flex items-center justify-between"><h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Observed history</h4><span className="text-xs text-slate-500">{trajectory.evidenceCount} points · {trajectory.freshness} data</span></div>
+                    <div className="space-y-2">{(trajectory.observations || []).slice(-8).map((observation: any, idx: number) => <div key={idx} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-3 text-sm"><span className="text-slate-600">{new Date(observation.observedAt).toLocaleDateString()}</span><strong className="text-slate-900">{Number(observation.value).toLocaleString()}</strong><span className="text-xs text-slate-500">OBSERVED</span></div>)}</div>
+                  </div>
+
+                  <div>
+                    <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Forecast snapshots</h4>
+                    {snapshots.length > 0 ? <div className="space-y-2">{snapshots.slice(0, 5).map((snapshot: any) => <div key={snapshot.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-100 bg-sky-50/50 p-3 text-sm"><span className="text-slate-600">{new Date(snapshot.forecastedAt).toLocaleDateString()}</span><span>Projected <strong className="text-sky-900">{snapshot.projectedValue === null ? "—" : Number(snapshot.projectedValue).toLocaleString()}</strong></span><span className="text-xs text-slate-500">{snapshot.comparisonStatus || "Awaiting actual"}</span></div>)}</div> : <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">No stored forecast snapshots are available yet.</p>}
+                  </div>
+
+                  {history.length > 0 && <div><h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Trajectory history</h4><div className="space-y-2">{history.slice(0, 5).map((event: any) => <div key={event.id} className="flex items-center justify-between rounded-lg border border-slate-200 p-3 text-xs"><span className="text-slate-600">{new Date(event.createdAt || event.timestamp).toLocaleString()}</span><strong className="text-slate-800">{event.eventType?.replaceAll("_", " ")}</strong><span className="text-slate-500">{event.newStatus?.replaceAll("_", " ")}</span></div>)}</div></div>}
+
+                  <div className="flex items-center justify-between border-t border-slate-100 pt-4 text-xs text-slate-500"><span>Forecasts are directional, evidence-based estimates—not guarantees or causal claims.</span><Button variant="outline" size="sm" onClick={() => setSelectedTrajectory(null)}>Close</Button></div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Cross-Signal Relationship Detail Modal (Day 23) */}
         {selectedCrossSignalRelationship && (() => {

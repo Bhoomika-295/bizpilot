@@ -1034,3 +1034,142 @@ export const signalRelationshipHistory = mysqlTable(
 
 export type SignalRelationshipHistory = typeof signalRelationshipHistory.$inferSelect;
 export type InsertSignalRelationshipHistory = typeof signalRelationshipHistory.$inferInsert;
+
+
+/**
+ * ============================================================
+ * DAY 24 — BUSINESS TRAJECTORY & FORECAST LEARNING FOUNDATION
+ * ============================================================
+ */
+
+/**
+ * Business trajectories — deterministic, evidence-backed direction and momentum
+ * for a forecastable metric. Values are stored as snapshots so the dashboard can
+ * reuse the latest calculation without recomputing on every render.
+ */
+export const businessTrajectories = mysqlTable(
+  "businessTrajectories",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    metricKey: varchar("metricKey", { length: 80 }).notNull(),
+    metricLabel: varchar("metricLabel", { length: 120 }).notNull(),
+    currentValue: decimal("currentValue", { precision: 18, scale: 2 }),
+    previousValue: decimal("previousValue", { precision: 18, scale: 2 }),
+    direction: mysqlEnum("direction", ["IMPROVING", "DECLINING", "STABLE", "VOLATILE", "INSUFFICIENT_DATA"]).notNull(),
+    momentum: mysqlEnum("momentum", ["ACCELERATING", "DECELERATING", "STABLE", "UNKNOWN"]).notNull(),
+    forecastWindow: int("forecastWindow"),
+    projectedValue: decimal("projectedValue", { precision: 18, scale: 2 }),
+    projectedDirection: varchar("projectedDirection", { length: 80 }),
+    confidenceLevel: mysqlEnum("confidenceLevel", ["HIGH", "MEDIUM", "LOW", "UNKNOWN"]).notNull(),
+    dataSufficiency: mysqlEnum("dataSufficiency", ["HIGH", "MEDIUM", "LOW", "INSUFFICIENT"]).notNull(),
+    volatility: mysqlEnum("volatility", ["LOW", "MEDIUM", "HIGH", "UNKNOWN"]).notNull(),
+    status: mysqlEnum("status", ["HEALTHY_GROWTH", "STABLE", "SLOWING_GROWTH", "EARLY_DECLINE", "ACCELERATING_DECLINE", "RECOVERING", "VOLATILE", "INSUFFICIENT_DATA"]).notNull(),
+    evidenceCount: int("evidenceCount").notNull().default(0),
+    freshness: varchar("freshness", { length: 20 }).notNull().default("UNKNOWN"),
+    lastObservedAt: timestamp("lastObservedAt"),
+    evidenceJson: text("evidenceJson").notNull(),
+    supportingSignalsJson: text("supportingSignalsJson").notNull(),
+    contradictingSignalsJson: text("contradictingSignalsJson").notNull(),
+    earlyWarningsJson: text("earlyWarningsJson").notNull(),
+    explanation: text("explanation").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("businessTrajectories_businessId_idx").on(table.businessId),
+    metricKeyIdx: index("businessTrajectories_metricKey_idx").on(table.businessId, table.metricKey),
+    statusIdx: index("businessTrajectories_status_idx").on(table.businessId, table.status),
+    updatedAtIdx: index("businessTrajectories_updatedAt_idx").on(table.businessId, table.updatedAt),
+  })
+);
+export type BusinessTrajectory = typeof businessTrajectories.$inferSelect;
+export type InsertBusinessTrajectory = typeof businessTrajectories.$inferInsert;
+
+/**
+ * Forecast snapshots — immutable forecast observations used later for
+ * forecast-vs-actual comparisons and learning signals.
+ */
+export const trajectoryForecastSnapshots = mysqlTable(
+  "trajectoryForecastSnapshots",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    trajectoryId: int("trajectoryId").notNull(),
+    metricKey: varchar("metricKey", { length: 80 }).notNull(),
+    forecastWindow: int("forecastWindow").notNull(),
+    forecastedAt: timestamp("forecastedAt").defaultNow().notNull(),
+    observedThrough: timestamp("observedThrough").notNull(),
+    currentValue: decimal("currentValue", { precision: 18, scale: 2 }),
+    projectedValue: decimal("projectedValue", { precision: 18, scale: 2 }),
+    projectedDirection: varchar("projectedDirection", { length: 80 }),
+    trajectoryStatus: varchar("trajectoryStatus", { length: 40 }).notNull(),
+    confidenceLevel: varchar("confidenceLevel", { length: 20 }).notNull(),
+    dataSufficiency: varchar("dataSufficiency", { length: 20 }).notNull(),
+    evidenceJson: text("evidenceJson").notNull(),
+    actualValue: decimal("actualValue", { precision: 18, scale: 2 }),
+    actualObservedAt: timestamp("actualObservedAt"),
+    comparisonStatus: varchar("comparisonStatus", { length: 40 }),
+    comparisonNotes: text("comparisonNotes"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("trajectoryForecastSnapshots_businessId_idx").on(table.businessId),
+    trajectoryIdIdx: index("trajectoryForecastSnapshots_trajectoryId_idx").on(table.businessId, table.trajectoryId),
+    metricKeyIdx: index("trajectoryForecastSnapshots_metricKey_idx").on(table.businessId, table.metricKey),
+    forecastedAtIdx: index("trajectoryForecastSnapshots_forecastedAt_idx").on(table.businessId, table.forecastedAt),
+  })
+);
+export type TrajectoryForecastSnapshot = typeof trajectoryForecastSnapshots.$inferSelect;
+export type InsertTrajectoryForecastSnapshot = typeof trajectoryForecastSnapshots.$inferInsert;
+
+/**
+ * Forecast learning signals — small, auditable events that connect forecast
+ * results to the existing outcomes/learning loop without calibrating a model.
+ */
+export const trajectoryLearningSignals = mysqlTable(
+  "trajectoryLearningSignals",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    forecastSnapshotId: int("forecastSnapshotId").notNull(),
+    metricKey: varchar("metricKey", { length: 80 }).notNull(),
+    signalType: varchar("signalType", { length: 40 }).notNull(),
+    evidenceJson: text("evidenceJson").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("trajectoryLearningSignals_businessId_idx").on(table.businessId),
+    snapshotIdIdx: index("trajectoryLearningSignals_snapshotId_idx").on(table.businessId, table.forecastSnapshotId),
+    metricKeyIdx: index("trajectoryLearningSignals_metricKey_idx").on(table.businessId, table.metricKey),
+  })
+);
+export type TrajectoryLearningSignal = typeof trajectoryLearningSignals.$inferSelect;
+export type InsertTrajectoryLearningSignal = typeof trajectoryLearningSignals.$inferInsert;
+
+/**
+ * Trajectory history — lifecycle/evidence changes for auditability and detail
+ * views. It is intentionally separate from immutable forecast snapshots.
+ */
+export const trajectoryHistory = mysqlTable(
+  "trajectoryHistory",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    trajectoryId: int("trajectoryId").notNull(),
+    eventType: varchar("eventType", { length: 40 }).notNull(),
+    previousStatus: varchar("previousStatus", { length: 40 }),
+    newStatus: varchar("newStatus", { length: 40 }),
+    detailsJson: text("detailsJson"),
+    timestamp: timestamp("timestamp").defaultNow().notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("trajectoryHistory_businessId_idx").on(table.businessId),
+    trajectoryIdIdx: index("trajectoryHistory_trajectoryId_idx").on(table.businessId, table.trajectoryId),
+    timestampIdx: index("trajectoryHistory_timestamp_idx").on(table.businessId, table.timestamp),
+  })
+);
+export type TrajectoryHistory = typeof trajectoryHistory.$inferSelect;
+export type InsertTrajectoryHistory = typeof trajectoryHistory.$inferInsert;

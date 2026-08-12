@@ -52,6 +52,13 @@ import {
   recordRecommendationOutcome,
   getStrategyPerformanceAnalytics,
 } from "../services/strategyCopilotService";
+import {
+  getBusinessTrajectoryIntelligence,
+  getBusinessTrajectoryDetail,
+  refreshBusinessTrajectory,
+  getForecastHistory,
+  recordForecastActual,
+} from "../services/businessTrajectoryService";
 
 /**
  * Business Metrics Router
@@ -759,5 +766,42 @@ export const businessMetricsRouter = router({
         if (error instanceof TRPCError) throw error;
         throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "Invalid signal relationship status transition." });
       }
+    }),
+  /**
+   * Business Trajectory & Early-Warning Forecasting v1 Procedures (Day 24)
+   */
+  getBusinessTrajectory: protectedProcedure
+    .input(z.object({ businessId: z.number(), forecastWindow: z.union([z.literal(7), z.literal(14), z.literal(30)]).optional(), refresh: z.boolean().optional() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return await getBusinessTrajectoryIntelligence(input.businessId, { forecastWindow: input.forecastWindow, refresh: input.refresh });
+    }),
+  refreshBusinessTrajectory: protectedProcedure
+    .input(z.object({ businessId: z.number(), forecastWindow: z.union([z.literal(7), z.literal(14), z.literal(30)]).optional() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return await refreshBusinessTrajectory(input.businessId, { forecastWindow: input.forecastWindow });
+    }),
+  getBusinessTrajectoryDetail: protectedProcedure
+    .input(z.object({ businessId: z.number(), trajectoryId: z.number().int().positive() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      const result = await getBusinessTrajectoryDetail(input.businessId, input.trajectoryId);
+      if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Business trajectory not found." });
+      return result;
+    }),
+  getTrajectoryForecastHistory: protectedProcedure
+    .input(z.object({ businessId: z.number(), metricKey: z.string().max(80).optional() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return await getForecastHistory(input.businessId, input.metricKey);
+    }),
+  recordTrajectoryForecastActual: protectedProcedure
+    .input(z.object({ businessId: z.number(), snapshotId: z.number().int().positive(), actualValue: z.number(), actualObservedAt: z.date().optional() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      const result = await recordForecastActual(input.businessId, input.snapshotId, input.actualValue, input.actualObservedAt);
+      if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Forecast snapshot not found." });
+      return result;
     }),
 });
