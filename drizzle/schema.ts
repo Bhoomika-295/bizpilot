@@ -690,3 +690,37 @@ export const opportunities = mysqlTable(
 
 export type Opportunity = typeof opportunities.$inferSelect;
 export type InsertOpportunity = typeof opportunities.$inferInsert;
+
+
+
+/**
+ * Competitor Activities table — stores tenant-scoped meaningful competitor behavior events,
+ * activity types, trends, impact areas, and strategic relevance.
+ */
+export const competitorActivities = mysqlTable(
+  "competitorActivities",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    competitorId: int("competitorId").notNull(),
+    activityType: varchar("activityType", { length: 50 }).notNull().default("OTHER"), // PRICING, PRODUCT, MARKETING, EXPANSION, HIRING, PARTNERSHIP, POSITIONING, CUSTOMER, OPERATIONS, OTHER
+    title: varchar("title", { length: 512 }).notNull(),
+    description: text("description").notNull(),
+    sourceReference: varchar("sourceReference", { length: 512 }),
+    relevanceLevel: varchar("relevanceLevel", { length: 50 }).notNull().default("MEDIUM"), // LOW, MEDIUM, HIGH
+    impactAreasJson: text("impactAreasJson").notNull(), // JSON array of impact areas (e.g. ["pricing", "demand"])
+    activityTrend: varchar("activityTrend", { length: 50 }).notNull().default("STABLE"), // INCREASING, DECREASING, STABLE, NEW, UNKNOWN
+    strategicRelevance: text("strategicRelevance"),
+    detectedAt: timestamp("detectedAt").defaultNow().notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("competitorActivities_businessId_idx").on(table.businessId),
+    competitorIdIdx: index("competitorActivities_competitorId_idx").on(table.competitorId),
+    detectedAtIdx: index("competitorActivities_detectedAt_idx").on(table.detectedAt),
+  })
+);
+
+export type CompetitorActivity = typeof competitorActivities.$inferSelect;
+export type InsertCompetitorActivity = typeof competitorActivities.$inferInsert;

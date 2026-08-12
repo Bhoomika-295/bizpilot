@@ -20,6 +20,7 @@ import { reevaluateTenantStrategies, getAdaptiveStrategyTimeline } from "../serv
 import { simulateAndCreateScenario } from "../services/scenarioService";
 import { getScenarios, getScenarioById, deleteScenario, getOpportunities, getOpportunityById, updateOpportunityStatus } from "../db";
 import { evaluateAndDetectOpportunities } from "../services/opportunityService";
+import { evaluateCompetitorIntelligence } from "../services/competitiveIntelligenceService";
 import { refreshMarketSignalsForBusiness } from "../services/marketSignalService";
 import {
   generateStrategyRecommendations,
@@ -565,5 +566,15 @@ export const businessMetricsRouter = router({
     .mutation(async ({ ctx, input }) => {
       await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
       return await updateOpportunityStatus(input.businessId, input.opportunityId, input.status);
+    }),
+
+  /**
+   * Competitive Strategy Intelligence v2 Procedures (Day 19)
+   */
+  getCompetitorIntelligence: protectedProcedure
+    .input(z.object({ businessId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return await evaluateCompetitorIntelligence(input.businessId);
     }),
 });

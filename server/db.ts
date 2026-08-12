@@ -25,6 +25,9 @@ import {
   opportunities,
   Opportunity,
   InsertOpportunity,
+  competitorActivities,
+  CompetitorActivity,
+  InsertCompetitorActivity,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1492,4 +1495,61 @@ export async function updateOpportunityStatus(businessId: number, opportunityId:
     .set({ status })
     .where(and(eq(opportunities.id, opportunityId), eq(opportunities.businessId, businessId)));
   return true;
+}
+
+
+
+/**
+ * ============================================================
+ * COMPETITOR ACTIVITIES OPERATIONS (DAY 19)
+ * ============================================================
+ */
+
+export async function createCompetitorActivity(
+  businessId: number,
+  data: {
+    competitorId: number;
+    activityType?: string;
+    title: string;
+    description: string;
+    sourceReference?: string;
+    relevanceLevel?: string;
+    impactAreasJson?: string;
+    activityTrend?: string;
+    strategicRelevance?: string;
+  }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const [res] = await db.insert(competitorActivities).values({
+    businessId,
+    competitorId: data.competitorId,
+    activityType: data.activityType || "OTHER",
+    title: data.title,
+    description: data.description,
+    sourceReference: data.sourceReference || null,
+    relevanceLevel: data.relevanceLevel || "MEDIUM",
+    impactAreasJson: data.impactAreasJson || JSON.stringify([]),
+    activityTrend: data.activityTrend || "STABLE",
+    strategicRelevance: data.strategicRelevance || null,
+  });
+
+  return res && res.insertId ? Number(res.insertId) : null;
+}
+
+export async function getCompetitorActivities(businessId: number, competitorId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const conditions = [eq(competitorActivities.businessId, businessId)];
+  if (competitorId) {
+    conditions.push(eq(competitorActivities.competitorId, competitorId));
+  }
+
+  return await db
+    .select()
+    .from(competitorActivities)
+    .where(and(...conditions))
+    .orderBy(desc(competitorActivities.detectedAt));
 }

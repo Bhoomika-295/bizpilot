@@ -32,6 +32,7 @@ import {
   ExternalLink,
   RefreshCw,
   Globe,
+  Shield,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -166,6 +167,13 @@ export default function DashboardV2() {
     { businessId: parseInt(businessId || "0") },
     { enabled: !!businessId && isAuthenticated }
   );
+
+  const competitorIntelligenceQuery = trpc.businessMetrics.getCompetitorIntelligence.useQuery(
+    { businessId: parseInt(businessId || "0") },
+    { enabled: !!businessId && isAuthenticated }
+  );
+
+  const [selectedCompetitor, setSelectedCompetitor] = useState<any | null>(null);
 
   const updateOpportunityStatusMutation = trpc.businessMetrics.updateOpportunityStatus.useMutation({
     onSuccess: () => {
@@ -620,6 +628,120 @@ export default function DashboardV2() {
                   <RefreshCw className={`h-3.5 w-3.5 ${opportunitiesQuery.isLoading ? "animate-spin" : ""}`} />
                   Scan Now
                 </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Competitive Strategy Intelligence Card (Day 19) */}
+        <Card className="border-slate-300 bg-white shadow-sm">
+          <CardHeader className="space-y-3 pb-4 border-b border-slate-100">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-xl font-semibold text-slate-900">
+                    Competitive Strategy Intelligence
+                  </CardTitle>
+                  <Badge variant="outline" className="border-purple-300 bg-purple-50 text-purple-700 font-medium">
+                    COMPETITIVE INTEL v2
+                  </Badge>
+                </div>
+                <CardDescription className="mt-1">
+                  Track competitor behavior trends, pricing/product moves, and correlated internal business impact.
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => competitorIntelligenceQuery.refetch()}
+                  disabled={competitorIntelligenceQuery.isLoading}
+                  className="gap-1.5 text-xs border-slate-300 hover:bg-slate-50 text-slate-700"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${competitorIntelligenceQuery.isLoading ? "animate-spin" : ""}`} />
+                  Refresh Intelligence
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-5 space-y-4">
+            {competitorIntelligenceQuery.isLoading ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+              </div>
+            ) : competitorIntelligenceQuery.data && competitorIntelligenceQuery.data.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {competitorIntelligenceQuery.data.map((comp: any) => (
+                  <div
+                    key={comp.competitorId}
+                    className="flex flex-col justify-between rounded-lg border border-slate-200 bg-white p-4 shadow-xs hover:border-slate-300 transition-colors"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-bold text-slate-900">{comp.competitorName}</h4>
+                        <div className="flex items-center gap-1.5">
+                          <Badge
+                            variant="outline"
+                            className={
+                              comp.businessRelevance === "HIGH"
+                                ? "border-red-200 bg-red-50 text-red-700 text-[10px]"
+                                : comp.businessRelevance === "MEDIUM"
+                                ? "border-amber-200 bg-amber-50 text-amber-700 text-[10px]"
+                                : "border-slate-200 bg-slate-50 text-slate-600 text-[10px]"
+                            }
+                          >
+                            {comp.businessRelevance} RELEVANCE
+                          </Badge>
+                          <Badge
+                            variant="outline"
+                            className={
+                              comp.trend === "INCREASING"
+                                ? "border-purple-200 bg-purple-50 text-purple-700 text-[10px]"
+                                : "border-slate-200 bg-slate-50 text-slate-600 text-[10px]"
+                            }
+                          >
+                            {comp.trend}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 pt-1">
+                        <div>
+                          <span className="text-slate-400">Activity:</span>{" "}
+                          <span className="font-semibold text-slate-800">{comp.activityLevel}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400">Primary Move:</span>{" "}
+                          <span className="font-semibold text-slate-800">{comp.primaryActivity}</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded border border-slate-100 leading-relaxed italic">
+                        "{comp.whyItMatters}"
+                      </p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                      <span className="text-[11px] text-slate-500 font-medium">
+                        {comp.evidenceCount} verified signals
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => setSelectedCompetitor(comp)}
+                        className="bg-purple-600 hover:bg-purple-700 text-white text-xs gap-1"
+                      >
+                        <Shield className="h-3 w-3" />
+                        View Intelligence & Timeline
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed border-slate-200 p-8 text-center">
+                <Shield className="mx-auto h-8 w-8 text-purple-400" />
+                <h4 className="mt-2 text-sm font-medium text-slate-900">No Competitor Intelligence Tracked</h4>
+                <p className="mt-1 text-xs text-slate-500 max-w-md mx-auto">
+                  Add competitors in the watchlist or scan market signals to begin tracking behavioral trends and internal correlations.
+                </p>
               </div>
             )}
           </CardContent>
@@ -2154,6 +2276,94 @@ export default function DashboardV2() {
           </AlertDescription>
         </Alert>
       </div>
+
+      {/* Competitor Detail & Timeline Modal (Day 19) */}
+      {selectedCompetitor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-xl space-y-6">
+            <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-bold text-slate-900">{selectedCompetitor.competitorName}</h3>
+                  <Badge variant="outline" className="border-purple-200 bg-purple-50 text-purple-700 text-xs">
+                    {selectedCompetitor.trend} TREND
+                  </Badge>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Industry: {selectedCompetitor.industry || "General"} {selectedCompetitor.website ? `• ${selectedCompetitor.website}` : ""}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedCompetitor(null)}
+                className="h-8 w-8 p-0 text-slate-400 hover:text-slate-700"
+              >
+                ✕
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100 text-xs">
+                <div>
+                  <span className="text-slate-400 block font-medium">Activity Level</span>
+                  <strong className="text-slate-900 text-sm">{selectedCompetitor.activityLevel}</strong>
+                </div>
+                <div>
+                  <span className="text-slate-400 block font-medium">Primary Activity</span>
+                  <strong className="text-slate-900 text-sm">{selectedCompetitor.primaryActivity}</strong>
+                </div>
+                <div>
+                  <span className="text-slate-400 block font-medium">Business Relevance</span>
+                  <strong className="text-slate-900 text-sm">{selectedCompetitor.businessRelevance}</strong>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Why It Matters</h4>
+                <p className="text-xs text-slate-700 bg-purple-50/50 p-3 rounded-lg border border-purple-100 leading-relaxed italic">
+                  "{selectedCompetitor.whyItMatters}"
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Competitor Activity Timeline</h4>
+                {selectedCompetitor.timeline && selectedCompetitor.timeline.length > 0 ? (
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    {selectedCompetitor.timeline.map((act: any) => (
+                      <div key={act.id} className="p-3 rounded-lg border border-slate-200 bg-white shadow-2xs space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-slate-900">{act.title}</span>
+                          <span className="text-[10px] text-slate-400">
+                            {new Date(act.detectedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600">{act.description}</p>
+                        <div className="flex items-center gap-2 pt-1 text-[10px] text-slate-500">
+                          <span className="bg-slate-100 px-2 py-0.5 rounded font-medium text-slate-700">{act.activityType}</span>
+                          <span>Impact areas: {act.impactAreas.join(", ")}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500">No recorded activity events for this competitor.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-4 border-t border-slate-100">
+              <Button
+                size="sm"
+                onClick={() => setSelectedCompetitor(null)}
+                className="bg-slate-900 hover:bg-slate-800 text-white"
+              >
+                Close Intelligence
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }
