@@ -364,15 +364,15 @@
 - [x] Run full test suite, TypeScript checks, and production build verification
 - [x] Save Day 20 checkpoint
 
-## Day 22: Continuous Business Monitoring & Intelligence Alerts v1
-- [ ] Create tenant-isolated `monitoringEvents` table schema in Drizzle and generate migration SQL
-- [ ] Apply Day 22 migration via `webdev_execute_sql` and add Drizzle CRUD helpers in `server/db.ts`
-- [ ] Implement deterministic Continuous Monitoring Service (`server/services/continuousMonitoringService.ts`) consuming situations, opportunities, competitor intelligence, market signals, decision priorities, health score, freshness, and strategy state with deterministic fingerprinting and lifecycle states (`NEW`, `ACTIVE`, `ACKNOWLEDGED`, `RESOLVED`, `DISMISSED`)
-- [ ] Expose protected tRPC router procedures (`getMonitoringAlerts`, `refreshMonitoringAlerts`, `updateMonitoringAlertStatus`) in `server/routers/businessMetrics.ts`
-- [ ] Integrate "Continuous Intelligence Alerts & Monitoring" card and alert detail modal into `DashboardV2.tsx`
-- [ ] Add deterministic unit and tenant authorization tests (`server/continuousMonitoring.test.ts`)
-- [ ] Run full test suite, TypeScript checks, and production build verification
-- [ ] Save Day 22 checkpoint
+## Day 22: Continuous Business Monitoring & Intelligence Alerts v1 (Legacy Duplicate)
+- [x] Create tenant-isolated `monitoringEvents` table schema in Drizzle and generate migration SQL
+- [x] Apply Day 22 migration via `webdev_execute_sql` and add Drizzle CRUD helpers in `server/db.ts`
+- [x] Implement deterministic Continuous Monitoring Service (`server/services/continuousMonitoringService.ts`) consuming situations, opportunities, competitor intelligence, market signals, decision priorities, health score, freshness, and strategy state with deterministic fingerprinting and lifecycle states (`NEW`, `ACTIVE`, `ACKNOWLEDGED`, `RESOLVED`, `DISMISSED`)
+- [x] Expose protected tRPC router procedures (`getMonitoringAlerts`, `refreshMonitoringAlerts`, `updateMonitoringAlertStatus`) in `server/routers/businessMetrics.ts`
+- [x] Integrate "Continuous Intelligence Alerts & Monitoring" card and alert detail modal into `DashboardV2.tsx`
+- [x] Add deterministic unit and tenant authorization tests (`server/continuousMonitoring.test.ts`)
+- [x] Run full test suite, TypeScript checks, and production build verification
+- [x] Save Day 22 checkpoint
 
 ## Day 22: Continuous Business Monitoring & Intelligence Alerts v1
 - [x] Add tenant-isolated monitoring events, preferences, and history schema
