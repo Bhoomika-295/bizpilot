@@ -19,6 +19,7 @@ import {
   marketSignals,
   strategyStates,
   strategyEvents,
+  strategyVersions,
   scenarios,
   Scenario,
   InsertScenario,
@@ -814,6 +815,41 @@ export async function getStrategies(businessId: number) {
     .from(strategies)
     .where(eq(strategies.businessId, businessId))
     .orderBy(desc(strategies.createdAt));
+}
+
+export async function getStrategyVersions(businessId: number, strategyId: number, limit = 25) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(strategyVersions)
+    .where(and(eq(strategyVersions.businessId, businessId), eq(strategyVersions.strategyId, strategyId)))
+    .orderBy(desc(strategyVersions.versionNumber), desc(strategyVersions.createdAt))
+    .limit(Math.min(limit, 100));
+}
+
+export async function createStrategyVersion(data: {
+  businessId: number;
+  strategyId: number;
+  versionNumber: number;
+  objective: string;
+  targetMetric?: string | null;
+  proposedActions?: string | null;
+  expectedOutcome?: string | null;
+  timeframe?: string | null;
+  assumptions?: string | null;
+  risks?: string | null;
+  confidence?: string | null;
+  changeReasonCategory?: string | null;
+  rationale: string;
+  evidenceJson?: string | null;
+  reviewEventId?: number | null;
+  versionStatus?: string;
+}) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(strategyVersions).values({ ...data, versionStatus: data.versionStatus ?? "DRAFT" });
+  return result && Array.isArray(result) && result[0]?.insertId ? Number(result[0].insertId) : null;
 }
 
 /**

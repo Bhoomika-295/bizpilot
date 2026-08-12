@@ -38,6 +38,7 @@ import {
   updateMonitoringAlertStatus,
 } from "../services/continuousMonitoringService";
 import { refreshMarketSignalsForBusiness } from "../services/marketSignalService";
+import { evaluateStrategyHealthForBusiness, recordStrategyReviewAction } from "../services/strategyHealthService";
 import {
   getCrossSignalIntelligence,
   refreshCrossSignalIntelligence,
@@ -934,5 +935,44 @@ export const businessMetricsRouter = router({
       const result = await attachScenarioOutcome(input.businessId, input.scenarioId, input.outcomeId);
       if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "Scenario path not found." });
       return result;
+    }),
+  getStrategyHealth: protectedProcedure
+    .input(z.object({ businessId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return evaluateStrategyHealthForBusiness(input.businessId);
+    }),
+  recordStrategyReview: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+        strategyId: z.number().int().positive(),
+        action: z.enum(["CONTINUE", "ADJUST", "REPLACE", "PAUSE", "ARCHIVE"]),
+        reason: z.string().min(3).max(2000),
+        changeReasonCategory: z.string().max(60).optional(),
+        evidenceSummary: z.array(z.string().max(1000)).max(30).optional(),
+        proposedObjective: z.string().max(255).optional(),
+        proposedTargetMetric: z.string().max(255).optional(),
+        proposedActions: z.string().max(4000).optional(),
+        expectedOutcome: z.string().max(4000).optional(),
+        assumptions: z.string().max(4000).optional(),
+        risks: z.string().max(4000).optional(),
+        confidence: z.number().min(0).max(1).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return recordStrategyReviewAction(input.businessId, input.strategyId, input.action, {
+        reason: input.reason,
+        changeReasonCategory: input.changeReasonCategory,
+        evidenceSummary: input.evidenceSummary,
+        proposedObjective: input.proposedObjective,
+        proposedTargetMetric: input.proposedTargetMetric,
+        proposedActions: input.proposedActions,
+        expectedOutcome: input.expectedOutcome,
+        assumptions: input.assumptions,
+        risks: input.risks,
+        confidence: input.confidence,
+      });
     }),
 });

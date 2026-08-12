@@ -411,3 +411,11 @@
 - [x] Integrate "Strategic Scenario Paths & Comparison Scorecard" card and interactive comparison modal into DashboardV2
 - [x] Add deterministic unit tests, tenant isolation tests, and run test suite and production build verification
 - [x] Save Day 25 checkpoint
+
+## Day 27: Adaptive Strategy Monitoring & Strategy Health v2
+- [x] Add tenant-isolated strategy health and assumption monitoring table schema in Drizzle and generate migration SQL
+- [x] Implement deterministic Strategy Health Service (`server/services/strategyHealthService.ts`) synthesizing strategy objectives, objective health, metric mapping, assumption monitoring, trajectory alignment, cross-signal analysis, historical learning, scenario alignment, and competitor/market environment changes
+- [x] Expose protected tRPC procedures (`getStrategyHealth`, `refreshStrategyHealth`, `updateStrategyAssumptionStatus`) with strict tenant authorization checks
+- [x] Integrate "Strategy Health & Adaptive Monitoring" card and detail modal into `DashboardV2.tsx`
+- [x] Add deterministic unit tests, tenant isolation tests, and run test suite and production build verification
+- [x] Save Day 27 checkpoint

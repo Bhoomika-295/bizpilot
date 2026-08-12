@@ -1237,3 +1237,98 @@ export const trajectoryHistory = mysqlTable(
 );
 export type TrajectoryHistory = typeof trajectoryHistory.$inferSelect;
 export type InsertTrajectoryHistory = typeof trajectoryHistory.$inferInsert;
+
+
+/**
+ * ============================================================
+ * DAY 27: STRATEGY HEALTH & ADAPTIVE MONITORING TABLES
+ * ============================================================
+ */
+
+export const strategyHealthSnapshots = mysqlTable(
+  "strategyHealthSnapshots",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    strategyId: int("strategyId").notNull(),
+    healthState: varchar("healthState", { length: 50 }).notNull().default("HEALTHY"),
+    objectivePerformance: varchar("objectivePerformance", { length: 50 }).notNull().default("ON_TRACK"),
+    trajectoryAlignment: varchar("trajectoryAlignment", { length: 50 }).notNull().default("ON_TRACK"),
+    assumptionState: varchar("assumptionState", { length: 50 }).notNull().default("VALIDATED"),
+    environmentFit: varchar("environmentFit", { length: 50 }).notNull().default("STABLE"),
+    historicalEvidence: varchar("historicalEvidence", { length: 50 }).notNull().default("MIXED"),
+    strategicFit: varchar("strategicFit", { length: 50 }).notNull().default("HIGH"),
+    dataConfidence: varchar("dataConfidence", { length: 50 }).notNull().default("HIGH"),
+    reviewPriority: varchar("reviewPriority", { length: 50 }).notNull().default("LOW"),
+    evidenceSummaryJson: text("evidenceSummaryJson"),
+    reviewQuestionsJson: text("reviewQuestionsJson"),
+    evidenceFingerprint: varchar("evidenceFingerprint", { length: 255 }),
+    snapshotJson: text("snapshotJson"),
+    lastEvaluatedAt: timestamp("lastEvaluatedAt").defaultNow().notNull(),
+    nextReviewAt: timestamp("nextReviewAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("strategyHealthSnapshots_businessId_idx").on(table.businessId),
+    strategyIdIdx: index("strategyHealthSnapshots_strategyId_idx").on(table.strategyId),
+  })
+);
+
+export type StrategyHealthSnapshot = typeof strategyHealthSnapshots.$inferSelect;
+export type InsertStrategyHealthSnapshot = typeof strategyHealthSnapshots.$inferInsert;
+
+export const strategyReviewEvents = mysqlTable(
+  "strategyReviewEvents",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    strategyId: int("strategyId").notNull(),
+    eventType: varchar("eventType", { length: 80 }).notNull(),
+    reviewPriority: varchar("reviewPriority", { length: 50 }).notNull().default("MEDIUM"),
+    reason: text("reason").notNull(),
+    evidenceJson: text("evidenceJson"),
+    reviewerDecision: varchar("reviewerDecision", { length: 50 }),
+    changeReasonCategory: varchar("changeReasonCategory", { length: 60 }),
+    timestamp: timestamp("timestamp").defaultNow().notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("strategyReviewEvents_businessId_idx").on(table.businessId),
+    strategyIdIdx: index("strategyReviewEvents_strategyId_idx").on(table.strategyId),
+  })
+);
+
+export type StrategyReviewEvent = typeof strategyReviewEvents.$inferSelect;
+export type InsertStrategyReviewEvent = typeof strategyReviewEvents.$inferInsert;
+
+export const strategyVersions = mysqlTable(
+  "strategyVersions",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    strategyId: int("strategyId").notNull(),
+    versionNumber: int("versionNumber").notNull(),
+    objective: varchar("objective", { length: 255 }).notNull(),
+    targetMetric: varchar("targetMetric", { length: 255 }),
+    proposedActions: text("proposedActions"),
+    expectedOutcome: text("expectedOutcome"),
+    timeframe: varchar("timeframe", { length: 100 }),
+    assumptions: text("assumptions"),
+    risks: text("risks"),
+    confidence: decimal("confidence", { precision: 3, scale: 2 }),
+    changeReasonCategory: varchar("changeReasonCategory", { length: 60 }),
+    rationale: text("rationale").notNull(),
+    evidenceJson: text("evidenceJson"),
+    reviewEventId: int("reviewEventId"),
+    versionStatus: varchar("versionStatus", { length: 30 }).notNull().default("DRAFT"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("strategyVersions_businessId_idx").on(table.businessId),
+    strategyIdIdx: index("strategyVersions_strategyId_idx").on(table.businessId, table.strategyId),
+    versionIdx: index("strategyVersions_version_idx").on(table.businessId, table.strategyId, table.versionNumber),
+  })
+);
+export type StrategyVersion = typeof strategyVersions.$inferSelect;
+export type InsertStrategyVersion = typeof strategyVersions.$inferInsert;

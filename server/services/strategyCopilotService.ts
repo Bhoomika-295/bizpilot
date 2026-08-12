@@ -7,6 +7,7 @@ import {
 } from "./businessMetricEngine";
 import { getMarketSignals, createRecommendation, getRecommendations, updateRecommendationStatus, updateRecommendationOutcome } from "../db";
 import { getBusinessSituationTrends } from "./situationTrendService";
+import { evaluateStrategyHealthForBusiness, type StrategyHealthCard } from "./strategyHealthService";
 
 export type StrategyPriority = "HIGH" | "MEDIUM" | "LOW";
 export type StrategyStatus = "OPEN" | "DISMISSED" | "COMPLETED";
@@ -36,6 +37,7 @@ export interface StrategyCopilotBriefing {
   dataFreshness: DataFreshness;
   marketFreshnessLastUpdated: Date | null;
   periodLabel: string;
+  strategyHealth?: Array<Pick<StrategyHealthCard, "strategyId" | "objective" | "healthState" | "reviewPriority" | "evidenceSummary" | "copilotSummary">>;
 }
 
 /**
@@ -69,6 +71,7 @@ export async function generateStrategyRecommendations(
       dataFreshness: freshness,
       marketFreshnessLastUpdated,
       periodLabel: changes.periodLabel,
+      strategyHealth: [],
     };
   }
 
@@ -243,6 +246,12 @@ export async function generateStrategyRecommendations(
     }
   }
 
+  let strategyHealth: StrategyHealthCard[] = [];
+  try {
+    strategyHealth = await evaluateStrategyHealthForBusiness(businessId);
+  } catch (error) {
+    console.warn("[StrategyCopilot] Strategy Health context unavailable", error instanceof Error ? error.message : "unknown error");
+  }
   return {
     status: "ready",
     staleWarning,
@@ -250,6 +259,14 @@ export async function generateStrategyRecommendations(
     dataFreshness: freshness,
     marketFreshnessLastUpdated,
     periodLabel: changes.periodLabel,
+    strategyHealth: strategyHealth.map((item) => ({
+      strategyId: item.strategyId,
+      objective: item.objective,
+      healthState: item.healthState,
+      reviewPriority: item.reviewPriority,
+      evidenceSummary: item.evidenceSummary,
+      copilotSummary: item.copilotSummary,
+    })),
   };
 }
 

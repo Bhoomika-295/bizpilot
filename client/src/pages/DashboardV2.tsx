@@ -150,6 +150,7 @@ export default function DashboardV2() {
     onSuccess: () => {
       adaptiveTimelineQuery.refetch();
       strategyBriefingQuery.refetch();
+      strategyHealthQuery.refetch();
       toast.success("Strategies re-evaluated against current business context");
     },
     onError: (err: any) => {
@@ -157,6 +158,22 @@ export default function DashboardV2() {
     },
   });
 
+  const strategyHealthQuery = trpc.businessMetrics.getStrategyHealth.useQuery(
+    { businessId: parseInt(businessId || "0") },
+    { enabled: !!businessId && isAuthenticated }
+  );
+  const recordStrategyReviewMutation = trpc.businessMetrics.recordStrategyReview.useMutation({
+    onSuccess: () => {
+      strategyHealthQuery.refetch();
+      setSelectedStrategyHealth(null);
+      setStrategyReviewReason("");
+      toast.success("Strategy review recorded");
+    },
+    onError: (err: any) => toast.error(`Strategy review failed: ${err.message}`),
+  });
+
+  const [selectedStrategyHealth, setSelectedStrategyHealth] = useState<any | null>(null);
+  const [strategyReviewReason, setStrategyReviewReason] = useState("");
   const [selectedSituation, setSelectedSituation] = useState<any | null>(null);
   const [selectedPriority, setSelectedPriority] = useState<any | null>(null);
   const [isScenarioBuilderOpen, setIsScenarioBuilderOpen] = useState(false);
@@ -1097,6 +1114,89 @@ export default function DashboardV2() {
             )}
           </CardContent>
         </Card>
+
+        {/* Strategy Health & Adaptive Review (Day 27) */}
+        {strategyHealthQuery.data && (
+          <Card className="border-violet-300 bg-gradient-to-br from-violet-50/30 via-white to-slate-50 shadow-sm">
+            <CardHeader className="space-y-3 border-b border-violet-100 pb-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 text-xl font-semibold text-slate-900">
+                      <Shield className="h-5 w-5 text-violet-600" />
+                      Strategy Health
+                    </CardTitle>
+                    <Badge variant="outline" className="border-violet-300 bg-violet-50 font-medium text-violet-700">ADAPTIVE STRATEGY MONITORING v2</Badge>
+                  </div>
+                  <CardDescription className="mt-1 text-slate-600">
+                    A transparent health check for current strategies using objectives, verified trajectories, assumptions, outcomes, and environmental evidence. No automatic strategy changes are made.
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => strategyHealthQuery.refetch()}
+                  disabled={strategyHealthQuery.isFetching}
+                  className="border-violet-200 text-violet-800"
+                >
+                  <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${strategyHealthQuery.isFetching ? "animate-spin" : ""}`} />
+                  Refresh Health
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-5">
+              {strategyHealthQuery.data.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 py-6 text-center text-sm text-slate-500">
+                  No persisted strategies are available yet. Strategy Health will appear after a strategy is created through the existing strategy workflow.
+                </div>
+              ) : (
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {strategyHealthQuery.data.slice(0, 8).map((card: any) => {
+                    const tone = card.healthState === "AT_RISK" || card.healthState === "MISALIGNED"
+                      ? "border-rose-300 bg-rose-50 text-rose-800"
+                      : card.healthState === "WATCH" || card.healthState === "UNDER_REVIEW"
+                      ? "border-amber-300 bg-amber-50 text-amber-800"
+                      : card.healthState === "INSUFFICIENT_DATA"
+                      ? "border-slate-300 bg-slate-100 text-slate-700"
+                      : "border-emerald-300 bg-emerald-50 text-emerald-800";
+                    return (
+                      <button
+                        type="button"
+                        key={card.strategyId}
+                        onClick={() => setSelectedStrategyHealth(card)}
+                        className="group rounded-xl border border-slate-200 bg-white p-4 text-left shadow-2xs transition-all hover:border-violet-300 hover:shadow-sm"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="mb-1 flex flex-wrap items-center gap-2">
+                              <Badge variant="outline" className={`text-xs font-semibold ${tone}`}>{card.healthState.replaceAll("_", " ")}</Badge>
+                              <span className="text-xs font-medium uppercase tracking-wide text-slate-500">{card.reviewPriority} review</span>
+                            </div>
+                            <h3 className="text-base font-semibold text-slate-900 group-hover:text-violet-700">{card.objective}</h3>
+                            <p className="mt-1 text-xs text-slate-500">Target metric: {card.targetMetric || "Not mapped"} · Data confidence: {card.dataConfidence}</p>
+                          </div>
+                          <span className="text-xs font-medium text-violet-700 group-hover:underline">Review →</span>
+                        </div>
+                        <div className="mt-4 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                          <div className="rounded-lg bg-slate-50 p-2"><span className="text-slate-500">Objective</span><strong className="mt-1 block text-slate-800">{card.objectivePerformance.replaceAll("_", " ")}</strong></div>
+                          <div className="rounded-lg bg-slate-50 p-2"><span className="text-slate-500">Trajectory</span><strong className="mt-1 block text-slate-800">{card.trajectoryAlignment.replaceAll("_", " ")}</strong></div>
+                          <div className="rounded-lg bg-slate-50 p-2"><span className="text-slate-500">Assumptions</span><strong className="mt-1 block text-slate-800">{card.assumptionState.replaceAll("_", " ")}</strong></div>
+                          <div className="rounded-lg bg-slate-50 p-2"><span className="text-slate-500">Environment</span><strong className="mt-1 block text-slate-800">{card.environmentFit.replaceAll("_", " ")}</strong></div>
+                        </div>
+                        <p className="mt-3 text-sm leading-relaxed text-slate-700">{card.evidenceSummary?.[0]}</p>
+                        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+                          <span>{card.timeline?.length || 0} timeline events retained</span>
+                          <span>Last evaluated {new Date(card.lastEvaluatedAt).toLocaleString()}</span>
+                          <span className="text-violet-700">Verified evidence only</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Continuous Monitoring & Intelligence Alerts (Day 22) */}
         {monitoringAlertsQuery.data && (
@@ -2462,6 +2562,91 @@ export default function DashboardV2() {
             </div>
           </div>
         )}
+
+        {/* Strategy Health Review Workspace (Day 27) */}
+        {selectedStrategyHealth && (() => {
+          const card = selectedStrategyHealth;
+          const tone = card.healthState === "AT_RISK" || card.healthState === "MISALIGNED"
+            ? "border-rose-300 bg-rose-50 text-rose-800"
+            : card.healthState === "WATCH" || card.healthState === "UNDER_REVIEW"
+            ? "border-amber-300 bg-amber-50 text-amber-800"
+            : "border-emerald-300 bg-emerald-50 text-emerald-800";
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" onClick={() => setSelectedStrategyHealth(null)}>
+              <div className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
+                <div className="flex items-start justify-between gap-4 border-b border-violet-100 bg-violet-50/50 p-6">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-violet-700">Strategy Health Review</span>
+                      <Badge variant="outline" className={`font-semibold ${tone}`}>{card.healthState.replaceAll("_", " ")}</Badge>
+                      <Badge variant="outline" className="border-slate-300 bg-white text-slate-700">{card.reviewPriority} PRIORITY</Badge>
+                    </div>
+                    <h2 className="mt-1 text-2xl font-bold text-slate-900">{card.objective}</h2>
+                    <p className="mt-1 max-w-3xl text-sm text-slate-600">The system is surfacing evidence for human review. It does not cancel, replace, or execute a strategy automatically.</p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedStrategyHealth(null)} className="h-8 w-8 p-0 text-slate-500">✕</Button>
+                </div>
+
+                <div className="space-y-6 p-6">
+                  <div className="grid gap-3 sm:grid-cols-4">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><div className="text-xs text-slate-500">Objective performance</div><div className="mt-1 text-sm font-bold text-slate-900">{card.objectivePerformance.replaceAll("_", " ")}</div></div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><div className="text-xs text-slate-500">Trajectory alignment</div><div className="mt-1 text-sm font-bold text-slate-900">{card.trajectoryAlignment.replaceAll("_", " ")}</div></div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><div className="text-xs text-slate-500">Assumption state</div><div className="mt-1 text-sm font-bold text-slate-900">{card.assumptionState.replaceAll("_", " ")}</div></div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><div className="text-xs text-slate-500">Environment fit</div><div className="mt-1 text-sm font-bold text-slate-900">{card.environmentFit.replaceAll("_", " ")}</div></div>
+                  </div>
+
+                  <div className="grid gap-5 md:grid-cols-2">
+                    <div>
+                      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Why this state?</h4>
+                      <div className="rounded-xl border border-slate-200 bg-white p-4">
+                        <ul className="space-y-2 text-sm text-slate-700">{(card.evidenceSummary || []).map((item: string, idx: number) => <li key={idx} className="flex items-start gap-2"><span className="mt-0.5 text-violet-600">•</span><span>{item}</span></li>)}</ul>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Review questions</h4>
+                      <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+                        <ul className="space-y-2 text-sm text-amber-900">{(card.reviewQuestions || []).map((item: string, idx: number) => <li key={idx} className="flex items-start gap-2"><span className="mt-0.5">{idx + 1}.</span><span>{item}</span></li>)}</ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Evidence transparency</h4>
+                    <p className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-700">Target metric: <strong>{card.targetMetric || "Not mapped"}</strong>. Historical outcome evidence: <strong>{card.historicalEvidence}</strong>. Data confidence: <strong>{card.dataConfidence}</strong>. Last evaluated: <strong>{new Date(card.lastEvaluatedAt).toLocaleString()}</strong>. Unchanged evidence reuses the persisted snapshot; new or changed evidence triggers a fresh deterministic evaluation.</p>
+                  </div>
+
+                  {card.timeline?.length > 0 && (
+                    <div>
+                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Strategy timeline</h4><span className="text-xs text-slate-500">Created · reviewed · revised · outcomes</span></div>
+                      <div className="space-y-2 border-l-2 border-violet-100 pl-4">{card.timeline.slice(-8).reverse().map((event: any) => <div key={event.id} className="relative rounded-lg border border-slate-200 bg-white p-3 text-sm"><span className="absolute -left-[1.35rem] top-4 h-2 w-2 rounded-full bg-violet-500 ring-4 ring-white" /><div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-slate-800">{event.title}</strong><span className="text-xs text-slate-500">{new Date(event.occurredAt).toLocaleString()}</span></div><p className="mt-1 text-xs leading-relaxed text-slate-600">{event.detail}</p></div>)}</div>
+                    </div>
+                  )}
+
+                  {card.history?.length > 0 && (
+                    <div>
+                      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Review history</h4>
+                      <div className="space-y-2">{card.history.slice(0, 6).map((event: any) => <div key={event.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 p-3 text-xs"><span className="text-slate-500">{new Date(event.timestamp || event.createdAt).toLocaleString()}</span><strong className="text-slate-800">{String(event.reviewerDecision || event.eventType).replaceAll("_", " ")}</strong><span className="text-slate-600">{event.reason}</span></div>)}</div>
+                    </div>
+                  )}
+
+                  <div className="space-y-3 border-t border-slate-100 pt-4">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500" htmlFor="strategy-review-reason">Decision rationale</label>
+                    <textarea id="strategy-review-reason" value={strategyReviewReason} onChange={(event) => setStrategyReviewReason(event.target.value)} placeholder="Record why this strategy should continue, be adjusted, paused, replaced, or archived." className="min-h-20 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <span className="text-xs text-slate-500">Review actions are persisted as human decisions and do not automatically mutate the strategy.</span>
+                      <div className="flex flex-wrap gap-2">
+                        {(["CONTINUE", "ADJUST", "PAUSE", "REPLACE"] as const).map((action) => (
+                          <Button key={action} size="sm" variant={action === "REPLACE" ? "destructive" : "outline"} disabled={recordStrategyReviewMutation.isPending || strategyReviewReason.trim().length < 3} onClick={() => recordStrategyReviewMutation.mutate({ businessId: parseInt(businessId || "0"), strategyId: card.strategyId, action, reason: strategyReviewReason.trim(), evidenceSummary: card.evidenceSummary })}>{action}</Button>
+                        ))}
+                        <Button variant="ghost" size="sm" onClick={() => setSelectedStrategyHealth(null)}>Close</Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Business Trajectory Detail Modal (Day 24) */}
         {selectedTrajectory && (() => {
