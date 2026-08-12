@@ -13,6 +13,7 @@ import {
   recommendations,
   strategies,
   outcomes,
+  InsertOutcome,
   externalDataSources,
   csvImports,
   competitors,
@@ -83,6 +84,12 @@ import {
   dailyBriefs,
   DailyBrief,
   InsertDailyBrief,
+  actionPlans,
+  ActionPlan,
+  InsertActionPlan,
+  actionPlanEvents,
+  ActionPlanEvent,
+  InsertActionPlanEvent,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1959,6 +1966,13 @@ export async function getOutcomeByIdForBusiness(businessId: number, outcomeId: n
   return rows[0] || null;
 }
 
+export async function createActionLinkedOutcome(input: InsertOutcome) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(outcomes).values(input);
+  return result;
+}
+
 
 /**
  * ============================================================
@@ -2932,4 +2946,78 @@ export async function createDailyBrief(data: InsertDailyBrief) {
     .where(and(eq(dailyBriefs.businessId, data.businessId), eq(dailyBriefs.id, id)))
     .limit(1);
   return rows[0] || null;
+}
+
+
+/**
+ * ============================================================
+ * DAY 31–32: ACTION PLAN OPERATIONS
+ * ============================================================
+ */
+export async function createActionPlan(data: InsertActionPlan) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return await db.insert(actionPlans).values(data);
+}
+
+export async function getActionPlansForBusiness(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(actionPlans)
+    .where(eq(actionPlans.businessId, businessId))
+    .orderBy(desc(actionPlans.updatedAt));
+}
+
+export async function getActionPlanById(businessId: number, actionPlanId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(actionPlans)
+    .where(and(eq(actionPlans.businessId, businessId), eq(actionPlans.id, actionPlanId)))
+    .limit(1);
+  return rows[0];
+}
+
+export async function updateActionPlan(
+  businessId: number,
+  actionPlanId: number,
+  data: Partial<InsertActionPlan>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return await db
+    .update(actionPlans)
+    .set({ ...data, updatedAt: new Date() })
+    .where(and(eq(actionPlans.businessId, businessId), eq(actionPlans.id, actionPlanId)));
+}
+
+export async function createActionPlanEvent(data: InsertActionPlanEvent) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return await db.insert(actionPlanEvents).values(data);
+}
+
+export async function getActionPlanEvents(businessId: number, actionPlanId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(actionPlanEvents)
+    .where(and(eq(actionPlanEvents.businessId, businessId), eq(actionPlanEvents.actionPlanId, actionPlanId)))
+    .orderBy(desc(actionPlanEvents.createdAt));
+}
+
+
+export async function getStrategyById(businessId: number, strategyId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(strategies)
+    .where(and(eq(strategies.businessId, businessId), eq(strategies.id, strategyId)))
+    .limit(1);
+  return rows[0];
 }

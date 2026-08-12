@@ -1,0 +1,1 @@
+ALTER TABLE `dailyBriefs` MODIFY COLUMN `actionsSummaryJson` text;

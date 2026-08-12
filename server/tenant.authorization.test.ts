@@ -185,3 +185,22 @@ describe("external radar tenant authorization", () => {
     });
   });
 });
+
+
+describe("action plan tenant authorization", () => {
+  it("rejects action queue access for a business the user does not own", async () => {
+    const caller = appRouter.createCaller(createContext());
+    await expect(caller.actionPlans.queue({ businessId: 999999999 })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: "You do not have access to this business.",
+    });
+  });
+
+  it("rejects source-to-action proposals for a business the user does not own", async () => {
+    const caller = appRouter.createCaller(createContext());
+    await expect(caller.actionPlans.proposeFromAttention({ businessId: 999999999, attentionItemId: 1 })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: "You do not have access to this business.",
+    });
+  });
+});

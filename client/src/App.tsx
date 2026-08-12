@@ -13,6 +13,7 @@ import CsvImport from "./pages/CsvImport";
 import UserProfile from "./pages/UserProfile";
 import CustomersV2 from "./pages/CustomersV2";
 import CompetitorsPage from "./pages/CompetitorsPage";
+import ActionsPage from "./pages/ActionsPage";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -23,6 +24,7 @@ function Router() {
       <Route path={"/onboarding"} component={Onboarding} />
       <Route path={"/profile"} component={UserProfile} />
       <Route path={"/dashboard/:businessId"} component={DashboardV2} />
+      <Route path={"/actions/:businessId"} component={ActionsPage} />
       <Route path={"/competitors/:businessId"} component={CompetitorsPage} />
       <Route path={"/customers/:businessId"} component={CustomersV2} />
       <Route path={"/data/:businessId"} component={DataManagement} />

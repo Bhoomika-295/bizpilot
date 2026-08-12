@@ -12,6 +12,7 @@ import { getOrRefreshExternalRadar } from "./externalRadarService";
 import { evaluateStrategyHealthForBusiness } from "./strategyHealthService";
 import { getDecisionQueue } from "./decisionIntelligenceService";
 import { getOpportunities } from "../db";
+import { getActionQueueForBusiness, getExecutionRiskSummary } from "./actionPlanService";
 
 export async function generateOrGetDailyBrief(businessId: number, forceRefresh = false) {
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -34,9 +35,20 @@ export async function generateOrGetDailyBrief(businessId: number, forceRefresh =
   const strategyHealthList = await evaluateStrategyHealthForBusiness(businessId);
   const decisionQueue = await getDecisionQueue(businessId);
   const opportunities = await getOpportunities(businessId);
-
+  const actionExecution = await getActionQueueForBusiness(businessId, now);
+  const actionRows = actionExecution.actions;
   const topHealth = healthScore.score ?? 50;
   const topStrategy = strategyHealthList[0] || null;
+  const todayActions = actionRows.filter((action: any) => action.dueDate && new Date(action.dueDate).toISOString().slice(0, 10) === todayStr && !["COMPLETED", "CANCELLED", "EXPIRED"].includes(action.status));
+  const highPriorityOverdue = actionRows.filter((action: any) => action.overdue && ["CRITICAL", "HIGH"].includes(action.priority));
+  const executionRisk = getExecutionRiskSummary(actionRows as any, now);
+  const strategyActions = topStrategy?.strategyId ? actionRows.filter((action: any) => action.strategyId === topStrategy.strategyId) : [];
+  const strategyExecution = {
+    total: strategyActions.length,
+    completed: strategyActions.filter((action: any) => action.status === "COMPLETED").length,
+    inProgress: strategyActions.filter((action: any) => action.status === "IN_PROGRESS").length,
+    blocked: strategyActions.filter((action: any) => action.status === "BLOCKED").length,
+  };
 
   let opening = `Executive Briefing for ${todayStr}: Overall health score is ${topHealth}/100. `;
   if (attention.now.length > 0) {
@@ -46,6 +58,9 @@ export async function generateOrGetDailyBrief(businessId: number, forceRefresh =
   }
   if (radar.earlyWarnings.length > 0) {
     opening += `External radar has surfaced ${radar.earlyWarnings.length} early-warning signals to review.`;
+  }
+  if (actionExecution.summary.overdue > 0 || actionExecution.summary.blocked > 0) {
+    opening += ` Execution follow-through includes ${actionExecution.summary.overdue} overdue and ${actionExecution.summary.blocked} blocked action${actionExecution.summary.overdue + actionExecution.summary.blocked === 1 ? "" : "s"}.`;
   }
 
   const briefPayload = {
@@ -80,13 +95,25 @@ export async function generateOrGetDailyBrief(businessId: number, forceRefresh =
       healthState: topStrategy?.healthState || "STABLE",
       objectivePerformance: topStrategy?.objectivePerformance || "ON_TRACK",
       summary: topStrategy?.evidenceSummary?.[0] || "Strategy performing within expected parameters.",
+      execution: strategyExecution,
     }),
     decisionsSummaryJson: JSON.stringify({
       pendingCount: decisionQueue.length,
       topDecisions: decisionQueue.slice(0, 3),
     }),
+    actionsSummaryJson: JSON.stringify({
+      dueToday: todayActions.length,
+      overdue: actionExecution.summary.overdue,
+      blocked: actionExecution.summary.blocked,
+      active: actionExecution.summary.active,
+      executionRisk: executionRisk.message,
+      executionRiskLevel: executionRisk.level,
+      topOverdue: highPriorityOverdue.slice(0, 3),
+    }),
     outcomesJson: JSON.stringify({
       trackedOutcomes: [],
+      execution: actionExecution.summary,
+      outcomeStatus: actionExecution.summary.outcomes,
     }),
   };
 
@@ -103,6 +130,7 @@ export async function generateOrGetDailyBrief(businessId: number, forceRefresh =
     opportunitiesThreatsJson: briefPayload.opportunitiesThreatsJson,
     strategyStatusJson: briefPayload.strategyStatusJson,
     decisionsSummaryJson: briefPayload.decisionsSummaryJson,
+    actionsSummaryJson: briefPayload.actionsSummaryJson,
     outcomesJson: briefPayload.outcomesJson,
     fingerprint,
   });
@@ -131,6 +159,7 @@ function parseBrief(row: any) {
     opportunitiesThreats: JSON.parse(row.opportunitiesThreatsJson || "{}"),
     strategyStatus: JSON.parse(row.strategyStatusJson || "{}"),
     decisions: JSON.parse(row.decisionsSummaryJson || "{}"),
+    actionsSummary: JSON.parse(row.actionsSummaryJson || "{}"),
     outcomes: JSON.parse(row.outcomesJson || "{}"),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,

@@ -176,6 +176,34 @@
       "when": 1786552398892,
       "tag": "0024_calm_george_stacy",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "5",
+      "when": 1786553877177,
+      "tag": "0025_graceful_ken_ellis",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "5",
+      "when": 1786554970125,
+      "tag": "0026_far_sunset_bain",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "5",
+      "when": 1786555200809,
+      "tag": "0027_foamy_microbe",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "5",
+      "when": 1786555256828,
+      "tag": "0028_rare_rick_jones",
+      "breakpoints": true
     }
   ]
 }

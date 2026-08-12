@@ -25,6 +25,7 @@ import {
   Database,
   FileUp,
   LayoutDashboard,
+  ListChecks,
   LogOut,
   PanelLeft,
   ShieldAlert,
@@ -43,6 +44,7 @@ function getMenuItems(businessId?: string) {
 
   return [
     { icon: LayoutDashboard, label: "Dashboard", path: `/dashboard/${businessId}` },
+    { icon: ListChecks, label: "Actions", path: `/actions/${businessId}` },
     { icon: ShieldAlert, label: "Competitors", path: `/competitors/${businessId}` },
     { icon: Users, label: "Customers", path: `/customers/${businessId}` },
     { icon: Database, label: "Data", path: `/data/${businessId}` },

@@ -1,0 +1,1 @@
+ALTER TABLE `dailyBriefs` ADD `actionsSummaryJson` text DEFAULT ('{}') NOT NULL;

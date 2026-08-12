@@ -1,4 +1,4 @@
-import { useParams } from "wouter";
+import { useLocation, useParams } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -41,6 +41,7 @@ type PeriodType = "last30" | "previous30";
 
 export default function DashboardV2() {
   const { businessId } = useParams<{ businessId: string }>();
+  const [, setLocation] = useLocation();
   const { user, isAuthenticated } = useAuth({ redirectOnUnauthenticated: true });
   const [period, setPeriod] = useState<PeriodType>("last30");
   const [now] = useState(() => new Date());
@@ -206,6 +207,10 @@ export default function DashboardV2() {
     { businessId: parseInt(businessId || "0") },
     { enabled: !!businessId && isAuthenticated }
   );
+  const actionQueueQuery = trpc.actionPlans.queue.useQuery(
+    { businessId: parseInt(businessId || "0") },
+    { enabled: !!businessId && isAuthenticated }
+  );
   const refreshDailyBriefMutation = trpc.businessMetrics.refreshDailyBrief.useMutation({
     onSuccess: () => {
       dailyBriefQuery.refetch();
@@ -233,6 +238,39 @@ export default function DashboardV2() {
       toast.success("Attention queue refreshed");
     },
     onError: (err: any) => toast.error(`Attention refresh failed: ${err.message}`),
+  });
+  const createActionFromAttentionMutation = trpc.actionPlans.createFromAttention.useMutation({
+    onSuccess: () => {
+      setSelectedAttentionItem(null);
+      toast.success("Action proposal created from this attention item");
+      setLocation(`/actions/${businessId}`);
+    },
+    onError: (err: any) => toast.error(`Action proposal failed: ${err.message}`),
+  });
+
+  const createActionFromDecisionMutation = trpc.actionPlans.createFromDecision.useMutation({
+    onSuccess: () => {
+      setSelectedDecision(null);
+      toast.success("Decision follow-through action proposed");
+      setLocation(`/actions/${businessId}`);
+    },
+    onError: (err: any) => toast.error(`Decision action proposal failed: ${err.message}`),
+  });
+  const createActionFromStrategyMutation = trpc.actionPlans.createFromStrategy.useMutation({
+    onSuccess: () => {
+      setSelectedStrategyHealth(null);
+      toast.success("Strategy execution action proposed");
+      setLocation(`/actions/${businessId}`);
+    },
+    onError: (err: any) => toast.error(`Strategy action proposal failed: ${err.message}`),
+  });
+  const createActionFromOpportunityMutation = trpc.actionPlans.createFromOpportunity.useMutation({
+    onSuccess: () => {
+      setSelectedOpportunity(null);
+      toast.success("Opportunity validation action proposed");
+      setLocation(`/actions/${businessId}`);
+    },
+    onError: (err: any) => toast.error(`Opportunity action proposal failed: ${err.message}`),
   });
 
   const [selectedAttentionItem, setSelectedAttentionItem] = useState<any | null>(null);
@@ -1599,6 +1637,18 @@ export default function DashboardV2() {
                   )}
                 </div>
               </div>
+              {actionQueueQuery.data && (actionQueueQuery.data.summary.overdue > 0 || actionQueueQuery.data.summary.blocked > 0) && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <div className="text-xs font-bold uppercase tracking-wider text-amber-800">Execution follow-through signal</div>
+                      <p className="mt-1 text-sm text-amber-950">{actionQueueQuery.data.summary.overdue} overdue · {actionQueueQuery.data.summary.blocked} blocked action{actionQueueQuery.data.summary.overdue + actionQueueQuery.data.summary.blocked === 1 ? "" : "s"} remain in the execution queue.</p>
+                      <p className="mt-1 text-xs text-amber-800">Only action status, due dates, priority, and existing attention context are used here; this is not a separate alert engine.</p>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setLocation(`/actions/${businessId}`)}>Review Actions →</Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
@@ -1628,6 +1678,14 @@ export default function DashboardV2() {
                   </Button>
                   <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setLocation(`/actions/${businessId}`)}
+                  >
+                    Open Actions →
+                  </Button>
+                  <Button
+                    type="button"
                     size="sm"
                     className="bg-slate-900 hover:bg-slate-800 text-white"
                     onClick={() => setIsDailyBriefModalOpen(true)}
@@ -1642,7 +1700,7 @@ export default function DashboardV2() {
                 <div className="text-xs font-semibold uppercase tracking-wider text-emerald-800">Executive Opening</div>
                 <p className="mt-1.5 text-sm text-slate-800 leading-relaxed">{dailyBriefQuery.data.executiveOpening}</p>
               </div>
-              <div className="grid gap-3 md:grid-cols-4">
+              <div className="grid gap-3 md:grid-cols-5">
                 <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                   <span className="text-xs text-slate-500 font-medium block">Health Score</span>
                   <div className="mt-1 text-xl font-bold text-slate-900">{dailyBriefQuery.data.health?.score ?? "—"}/100</div>
@@ -1664,6 +1722,28 @@ export default function DashboardV2() {
                   <span className="text-xs text-slate-500 font-medium block">Strategy Status</span>
                   <div className="mt-1 text-xl font-bold text-slate-900">{dailyBriefQuery.data.strategyStatus?.healthState || "STABLE"}</div>
                   <span className="text-[11px] text-slate-600 block mt-0.5">Objective performance</span>
+                </div>
+                <div className="rounded-lg border border-indigo-100 bg-indigo-50/60 p-3">
+                  <span className="text-xs text-indigo-700 font-medium block">Action Execution</span>
+                  <div className="mt-1 text-xl font-bold text-slate-900">{actionQueueQuery.data?.summary.active || 0} active</div>
+                  <span className="text-[11px] text-indigo-800 block mt-0.5">{actionQueueQuery.data?.summary.overdue || 0} overdue · {actionQueueQuery.data?.summary.outcomeCaptureRate || 0}% outcomes captured</span>
+                </div>
+              </div>
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="rounded-lg border border-indigo-100 bg-indigo-50/60 p-3">
+                  <span className="text-xs font-medium text-indigo-700">Actions today</span>
+                  <div className="mt-1 text-xl font-bold text-slate-900">{dailyBriefQuery.data.actionsSummary?.dueToday || 0} due</div>
+                  <span className="text-[11px] text-indigo-800">{dailyBriefQuery.data.actionsSummary?.overdue || 0} overdue · {dailyBriefQuery.data.actionsSummary?.blocked || 0} blocked</span>
+                </div>
+                <div className="rounded-lg border border-amber-100 bg-amber-50/60 p-3">
+                  <span className="text-xs font-medium text-amber-700">Execution risk</span>
+                  <div className="mt-1 text-sm font-semibold text-slate-900">{dailyBriefQuery.data.actionsSummary?.executionRiskLevel || "LOW"}</div>
+                  <span className="mt-1 block text-[11px] text-amber-900">{dailyBriefQuery.data.actionsSummary?.executionRisk || "No high-priority execution risk is currently flagged."}</span>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <span className="text-xs font-medium text-slate-600">Execution vs outcome</span>
+                  <div className="mt-1 text-xl font-bold text-slate-900">{dailyBriefQuery.data.outcomes?.execution?.completionRate || 0}%</div>
+                  <span className="text-[11px] text-slate-600">Execution metric · outcome {dailyBriefQuery.data.outcomes?.outcomeStatus || "NO_OUTCOMES"}</span>
                 </div>
               </div>
             </CardContent>
@@ -2293,7 +2373,7 @@ export default function DashboardV2() {
                   <div><h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Potential consequences</h4><p className="text-sm text-slate-700 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-200">{decision.potentialConsequences}</p></div>
 
                   <div>
-                    <div className="flex items-center justify-between mb-2"><h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Action options</h4><Button variant="outline" size="sm" onClick={() => setIsScenarioBuilderOpen(true)} className="border-indigo-200 text-indigo-700">Explore Scenario</Button></div>
+                    <div className="flex items-center justify-between mb-2 gap-2"><h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Action options</h4><div className="flex items-center gap-2"><Button variant="outline" size="sm" onClick={() => setIsScenarioBuilderOpen(true)} className="border-indigo-200 text-indigo-700">Explore Scenario</Button><Button size="sm" onClick={() => createActionFromDecisionMutation.mutate({ businessId: parseInt(businessId || "0"), decisionId: decision.id })} disabled={createActionFromDecisionMutation.isPending}>Create Action</Button></div></div>
                     <div className="grid gap-2">{(decision.actionOptions || []).map((option: any, idx: number) => <div key={idx} className="p-3 rounded-lg border border-slate-200 bg-white"><div className="text-sm font-semibold text-slate-900">{option.label}</div><div className="text-xs text-slate-600 mt-1">{option.rationale} · {option.reversible}</div></div>)}</div>
                   </div>
 
@@ -2724,6 +2804,7 @@ export default function DashboardV2() {
                 )}
 
                 <div className="pt-2 flex items-center justify-between border-t border-slate-100">
+                  <Button size="sm" onClick={() => createActionFromOpportunityMutation.mutate({ businessId: parseInt(businessId || "0"), opportunityId: selectedOpportunity.id })} disabled={createActionFromOpportunityMutation.isPending}>Create Action</Button>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-medium text-slate-600">Status:</span>
                     {(["NEW", "ACTIVE", "PURSUED", "DISMISSED"] as const).map((st) => (
@@ -2963,6 +3044,7 @@ export default function DashboardV2() {
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <span className="text-xs text-slate-500">Review actions are persisted as human decisions and do not automatically mutate the strategy.</span>
                       <div className="flex flex-wrap gap-2">
+                        <Button size="sm" onClick={() => createActionFromStrategyMutation.mutate({ businessId: parseInt(businessId || "0"), strategyId: card.strategyId })} disabled={createActionFromStrategyMutation.isPending}>Create Action</Button>
                         {(["CONTINUE", "ADJUST", "PAUSE", "REPLACE"] as const).map((action) => (
                           <Button key={action} size="sm" variant={action === "REPLACE" ? "destructive" : "outline"} disabled={recordStrategyReviewMutation.isPending || strategyReviewReason.trim().length < 3} onClick={() => recordStrategyReviewMutation.mutate({ businessId: parseInt(businessId || "0"), strategyId: card.strategyId, action, reason: strategyReviewReason.trim(), evidenceSummary: card.evidenceSummary })}>{action}</Button>
                         ))}
@@ -4070,8 +4152,19 @@ export default function DashboardV2() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-slate-100">
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-slate-100">
               <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  disabled={createActionFromAttentionMutation.isPending}
+                  onClick={() => createActionFromAttentionMutation.mutate({
+                    businessId: parseInt(businessId || "0"),
+                    attentionItemId: selectedAttentionItem.id,
+                  })}
+                  className="bg-indigo-600 text-white hover:bg-indigo-700"
+                >
+                  {createActionFromAttentionMutation.isPending ? "Creating…" : "Create Action Proposal"}
+                </Button>
                 <Button
                   size="sm"
                   variant="outline"
@@ -4177,8 +4270,28 @@ export default function DashboardV2() {
                     <div>Health State: <strong className="text-slate-900">{dailyBriefQuery.data.strategyStatus?.healthState}</strong></div>
                     <div>Objective Performance: <strong className="text-slate-900">{dailyBriefQuery.data.strategyStatus?.objectivePerformance}</strong></div>
                     <p className="text-xs text-slate-600 mt-2">{dailyBriefQuery.data.strategyStatus?.summary}</p>
+                    <div className="mt-3 border-t border-slate-200 pt-3 text-xs text-slate-700">
+                      <div className="font-semibold uppercase tracking-wide text-slate-500">Strategy execution</div>
+                      <div className="mt-1">{dailyBriefQuery.data.strategyStatus?.execution?.completed || 0} completed of {dailyBriefQuery.data.strategyStatus?.execution?.total || 0} connected actions</div>
+                      <div className="text-[11px] text-slate-500">{dailyBriefQuery.data.strategyStatus?.execution?.inProgress || 0} in progress · {dailyBriefQuery.data.strategyStatus?.execution?.blocked || 0} blocked</div>
+                    </div>
                   </div>
                 </div>
+              </div>
+
+              <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-800">Action execution</h4>
+                  <Button variant="outline" size="sm" onClick={() => setLocation(`/actions/${businessId}`)}>Open Actions →</Button>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-4 text-sm text-slate-700">
+                  <div><span className="text-xs text-slate-500">Due today</span><div className="font-bold text-slate-900">{dailyBriefQuery.data.actionsSummary?.dueToday || 0}</div></div>
+                  <div><span className="text-xs text-slate-500">Overdue</span><div className="font-bold text-rose-700">{dailyBriefQuery.data.actionsSummary?.overdue || 0}</div></div>
+                  <div><span className="text-xs text-slate-500">Blocked</span><div className="font-bold text-amber-700">{dailyBriefQuery.data.actionsSummary?.blocked || 0}</div></div>
+                  <div><span className="text-xs text-slate-500">Outcome status</span><div className="font-bold text-slate-900">{dailyBriefQuery.data.outcomes?.outcomeStatus || "NO_OUTCOMES"}</div></div>
+                </div>
+                <p className="text-xs leading-relaxed text-indigo-950">{dailyBriefQuery.data.actionsSummary?.executionRisk || "No high-priority execution risk is currently flagged."}</p>
+                <p className="text-[11px] text-indigo-800">Action progress is an execution metric; it does not by itself confirm business success.</p>
               </div>
 
               <div className="space-y-3">

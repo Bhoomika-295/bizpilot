@@ -326,6 +326,7 @@ export const outcomes = mysqlTable(
     businessId: int("businessId").notNull(),
     recommendationId: int("recommendationId"),
     strategyId: int("strategyId"),
+    actionPlanId: int("actionPlanId"),
     predictedValue: decimal("predictedValue", { precision: 12, scale: 2 }),
     actualValue: decimal("actualValue", { precision: 12, scale: 2 }),
     metric: varchar("metric", { length: 255 }),
@@ -336,6 +337,7 @@ export const outcomes = mysqlTable(
   },
   (table) => ({
     businessIdIdx: index("businessId_idx").on(table.businessId),
+    actionPlanIdx: index("outcomes_actionPlan_idx").on(table.businessId, table.actionPlanId),
   })
 );
 
@@ -1527,6 +1529,7 @@ export const dailyBriefs = mysqlTable(
     opportunitiesThreatsJson: text("opportunitiesThreatsJson").notNull(),
     strategyStatusJson: text("strategyStatusJson").notNull(),
     decisionsSummaryJson: text("decisionsSummaryJson").notNull(),
+    actionsSummaryJson: text("actionsSummaryJson"),
     outcomesJson: text("outcomesJson").notNull(),
     fingerprint: varchar("fingerprint", { length: 255 }).notNull(),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -1540,3 +1543,79 @@ export const dailyBriefs = mysqlTable(
 
 export type DailyBrief = typeof dailyBriefs.$inferSelect;
 export type InsertDailyBrief = typeof dailyBriefs.$inferInsert;
+
+
+/**
+ * ============================================================
+ * DAY 31–32: INTELLIGENT ACTION PLANNING & EXECUTION LOOP v1
+ * ============================================================
+ * Actions are business-intelligence follow-through records, not generic tasks.
+ * They preserve the verified source relationship and require explicit user state changes.
+ */
+export const actionPlans = mysqlTable(
+  "actionPlans",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    description: text("description").notNull(),
+    actionType: varchar("actionType", { length: 40 }).notNull().default("REVIEW"),
+    status: mysqlEnum("status", ["PROPOSED", "APPROVED", "IN_PROGRESS", "BLOCKED", "COMPLETED", "CANCELLED", "EXPIRED"]).default("PROPOSED").notNull(),
+    priority: varchar("priority", { length: 20 }).notNull().default("MEDIUM"),
+    sourceType: varchar("sourceType", { length: 40 }).notNull().default("MANUAL"),
+    sourceId: int("sourceId"),
+    decisionId: int("decisionId"),
+    strategyId: int("strategyId"),
+    objectiveId: int("objectiveId"),
+    situationId: int("situationId"),
+    opportunityId: int("opportunityId"),
+    threatId: int("threatId"),
+    ownerUserId: int("ownerUserId"),
+    dueDate: timestamp("dueDate"),
+    startedAt: timestamp("startedAt"),
+    completedAt: timestamp("completedAt"),
+    blockedAt: timestamp("blockedAt"),
+    completedBy: int("completedBy"),
+    expectedOutcome: text("expectedOutcome"),
+    actualOutcome: text("actualOutcome"),
+    evidence: text("evidence"),
+    blockReason: text("blockReason"),
+    completionNotes: text("completionNotes"),
+    createdByUserId: int("createdByUserId").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("actionPlans_businessId_idx").on(table.businessId),
+    statusIdx: index("actionPlans_status_idx").on(table.businessId, table.status),
+    dueDateIdx: index("actionPlans_dueDate_idx").on(table.businessId, table.dueDate),
+    ownerIdx: index("actionPlans_ownerUserId_idx").on(table.businessId, table.ownerUserId),
+    sourceIdx: index("actionPlans_source_idx").on(table.businessId, table.sourceType, table.sourceId),
+    decisionIdx: index("actionPlans_decisionId_idx").on(table.businessId, table.decisionId),
+    strategyIdx: index("actionPlans_strategyId_idx").on(table.businessId, table.strategyId),
+  })
+);
+export type ActionPlan = typeof actionPlans.$inferSelect;
+export type InsertActionPlan = typeof actionPlans.$inferInsert;
+
+export const actionPlanEvents = mysqlTable(
+  "actionPlanEvents",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    actionPlanId: int("actionPlanId").notNull(),
+    eventType: varchar("eventType", { length: 40 }).notNull(),
+    previousStatus: varchar("previousStatus", { length: 20 }),
+    newStatus: varchar("newStatus", { length: 20 }),
+    actorUserId: int("actorUserId").notNull(),
+    detailsJson: text("detailsJson"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("actionPlanEvents_businessId_idx").on(table.businessId),
+    actionPlanIdx: index("actionPlanEvents_actionPlanId_idx").on(table.businessId, table.actionPlanId),
+    createdAtIdx: index("actionPlanEvents_createdAt_idx").on(table.businessId, table.createdAt),
+  })
+);
+export type ActionPlanEvent = typeof actionPlanEvents.$inferSelect;
+export type InsertActionPlanEvent = typeof actionPlanEvents.$inferInsert;

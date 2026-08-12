@@ -437,9 +437,23 @@
 - [x] Save Day 29 checkpoint
 
 ## Day 30: Brand Rename + Daily Business Intelligence Brief v1
-- [ ] Apply "BizPilot" brand rename across all user-facing touchpoints (navbar, titles, landing page, footer, onboarding)
-- [ ] Add tenant-isolated daily brief table schema in Drizzle and generate migration SQL
-- [ ] Implement deterministic Daily Brief Service (`server/services/dailyBriefService.ts`) aggregating executive opening, health, changes, attention, external radar, opportunities/threats, strategy status, decisions, and outcomes
-- [ ] Expose protected tRPC procedures (`getDailyBrief`, `refreshDailyBrief`) with strict tenant authorization checks
-- [ ] Integrate "Daily Business Intelligence Brief" executive workspace card and modal into `DashboardV2.tsx`
-- [ ] Add deterministic unit tests, tenant isolation tests, and run full verification suite and production build
+- [x] Apply "BizPilot" brand rename across all user-facing touchpoints (navbar, titles, landing page, footer, onboarding)
+- [x] Add tenant-isolated daily brief table schema in Drizzle and generate migration SQL
+- [x] Implement deterministic Daily Brief Service (`server/services/dailyBriefService.ts`) aggregating executive opening, health, changes, attention, external radar, opportunities/threats, strategy status, decisions, and outcomes
+- [x] Expose protected tRPC procedures (`getDailyBrief`, `refreshDailyBrief`) with strict tenant authorization checks
+- [x] Integrate "Daily Business Intelligence Brief" executive workspace card and modal into `DashboardV2.tsx`
+- [x] Add deterministic unit tests, tenant isolation tests, and run full verification suite and production build
+
+## Day 31–32: Intelligent Action Planning & Execution Loop v1
+- [x] Add tenant-isolated action plans and lifecycle history schema with source/decision/strategy/objective relationships, owner, due dates, outcomes, and indexes
+- [x] Add action-plan persistence helpers and deterministic action service with lifecycle validation, priority inheritance, due-date grouping, overdue/escalation, and execution summaries
+- [x] Add protected action tRPC procedures for queue, detail, create, edit, approve, assign, start, block, unblock, complete, cancel, reopen, and history with strict tenant and owner authorization
+- [x] Integrate Attention → Action, Decision → Action, Strategy → Action, Opportunity → Action, and Threat → Action proposal flows with explicit user approval; threat proposals remain gated because no verified threat entity exists in the current intelligence schema
+- [x] Build premium Actions page, action detail workspace, completion/outcome capture, blocked and overdue views, and execution-vs-outcome presentation
+- [x] Extend Daily Brief, Attention Center, decision follow-through, and strategy execution summaries with action intelligence without duplicating ranking or health engines
+- [x] Add deterministic action lifecycle, integration, outcome, learning, analytics, tenant-isolation, and owner-authorization tests
+- [x] Run TypeScript checks, full tests, production build, and environment-limited visual verification
+- [x] Save the verified Day 31–32 checkpoint and stop before Day 33
+## Day 31–32 Verification Notes
+- [x] Document authenticated visual verification as environment-limited if the preview has no owned business data; rely on automated, persistence, authorization, and production-build evidence
+- [x] Confirm no autonomous execution, fake outcomes, unsupported claims, frontend secrets, or generic project-management features were introduced
