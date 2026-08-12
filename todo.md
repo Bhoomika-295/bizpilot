@@ -251,16 +251,16 @@
 - [x] Save Day 14 checkpoint and stop
 
 ## Day 15: Decision Priority & Strategic Focus Engine v1
-- [ ] Inspect existing business situations, trends, signals, Strategy Copilot, and dashboard layout
-- [ ] Create `decisionPriorities` table in Drizzle schema and execute migration SQL via `webdev_execute_sql`
-- [ ] Add Drizzle CRUD helpers for decision priorities in `server/db.ts`
-- [ ] Implement deterministic Decision Priority Engine (`server/services/decisionPriorityEngine.ts`) multi-signal scoring, trend amplification, health interaction, fresh data penalties, and "Why now?" explanation generator
-- [ ] Extend Strategy Copilot service (`server/services/strategyCopilotService.ts`) to consume decision priorities and avoid recommendation fatigue
-- [ ] Expose protected tRPC router procedures (`getDecisionPriorities`, `getDecisionPriorityDetail`) in `server/routers/businessMetrics.ts`
-- [ ] Integrate "Today's Strategic Focus" (Top 3 Focus Areas) card and Evidence Drill-Down modal into `DashboardV2.tsx`
-- [ ] Add deterministic unit and integration tests for priority scoring, fatigue prevention, and tenant authorization (`server/decisionPriority.test.ts`)
-- [ ] Run full test suite, TypeScript checks, and production build verification
-- [ ] Save Day 15 checkpoint and stop
+- [x] Inspect existing business situations, trends, signals, Strategy Copilot, and dashboard layout
+- [x] Create `decisionPriorities` table in Drizzle schema and execute migration SQL via `webdev_execute_sql`
+- [x] Add Drizzle CRUD helpers for decision priorities in `server/db.ts`
+- [x] Implement deterministic Decision Priority Engine (`server/services/decisionPriorityEngine.ts`) multi-signal scoring, trend amplification, health interaction, fresh data penalties, and "Why now?" explanation generator
+- [x] Extend Strategy Copilot service (`server/services/strategyCopilotService.ts`) to consume decision priorities and avoid recommendation fatigue
+- [x] Expose protected tRPC router procedures (`getDecisionPriorities`, `getDecisionPriorityDetail`) in `server/routers/businessMetrics.ts`
+- [x] Integrate "Today's Strategic Focus" (Top 3 Focus Areas) card and Evidence Drill-Down modal into `DashboardV2.tsx`
+- [x] Add deterministic unit and integration tests for priority scoring, fatigue prevention, and tenant authorization (`server/decisionPriority.test.ts`)
+- [x] Run full test suite, TypeScript checks, and production build verification
+- [x] Save Day 15 checkpoint and stop
 
 ## Day 15: Decision Priority & Strategic Focus Engine v1
 - [x] Inspect existing Strategy Copilot, Business Situations, and Dashboard V2 layout
@@ -274,15 +274,15 @@
 - [x] Save Day 15 checkpoint and stop
 
 ## Day 16: Adaptive Strategy Engine v1
-- [ ] Inspect existing Strategy Copilot, Strategy Recommendations, Decision Priorities, and Dashboard V2 layout
-- [ ] Create `strategyStates` and `strategyEvents` tables in Drizzle and execute migration SQL via `webdev_execute_sql`
-- [ ] Add Drizzle CRUD helpers for strategy states and events in `server/db.ts`
-- [ ] Implement deterministic Adaptive Strategy Engine (`server/services/adaptiveStrategyService.ts`) with context comparison, staleness detection, re-evaluation outcomes (KEEP, UPDATE, DEPRIORITIZE, REPLACE, EXPIRED), and change explanation generation
-- [ ] Expose protected tRPC router procedures for `getAdaptiveStrategyState`, `reevaluateStrategy`, and `getStrategyTimeline`
-- [ ] Integrate Adaptive Strategy Evolution card, re-evaluation history, and status management into `DashboardV2.tsx`
-- [ ] Add deterministic unit and integration tests for strategy re-evaluation, stability preservation when nothing changes, evidence change replacement, and tenant authorization (`server/adaptiveStrategy.test.ts`)
-- [ ] Run full test suite, TypeScript checks, and production build verification
-- [ ] Save Day 16 checkpoint and stop
+- [x] Inspect existing Strategy Copilot, Strategy Recommendations, Decision Priorities, and Dashboard V2 layout
+- [x] Create `strategyStates` and `strategyEvents` tables in Drizzle and execute migration SQL via `webdev_execute_sql`
+- [x] Add Drizzle CRUD helpers for strategy states and events in `server/db.ts`
+- [x] Implement deterministic Adaptive Strategy Engine (`server/services/adaptiveStrategyService.ts`) with context comparison, staleness detection, re-evaluation outcomes (KEEP, UPDATE, DEPRIORITIZE, REPLACE, EXPIRED), and change explanation generation
+- [x] Expose protected tRPC router procedures for `getAdaptiveStrategyState`, `reevaluateStrategy`, and `getStrategyTimeline`
+- [x] Integrate Adaptive Strategy Evolution card, re-evaluation history, and status management into `DashboardV2.tsx`
+- [x] Add deterministic unit and integration tests for strategy re-evaluation, stability preservation when nothing changes, evidence change replacement, and tenant authorization (`server/adaptiveStrategy.test.ts`)
+- [x] Run full test suite, TypeScript checks, and production build verification
+- [x] Save Day 16 checkpoint and stop
 
 ## Day 16: Adaptive Strategy & Re-evaluation Engine v1
 - [x] Inspect existing Strategy Copilot, Business Situations, and Dashboard V2 layout
@@ -296,15 +296,15 @@
 - [x] Save Day 16 checkpoint and stop
 
 ## Day 17: Scenario & What-If Intelligence v1
-- [ ] Inspect existing project state, database schema, and Dashboard V2 layout
-- [ ] Create `scenarios` table schema in Drizzle and execute migration SQL via `webdev_execute_sql`
-- [ ] Add Drizzle CRUD helpers for scenarios in `server/db.ts`
-- [ ] Implement deterministic Scenario Intelligence Engine (`server/services/scenarioService.ts`) with baseline comparison, impact mapping, range-based estimation, and strategic impact analysis
-- [ ] Expose protected tRPC router procedures for `getScenarios`, `createScenario`, `getScenarioById`, and `deleteScenario`
-- [ ] Integrate Scenario Intelligence card, Scenario Builder modal, and Baseline vs Scenario comparison modal into `DashboardV2.tsx`
-- [ ] Add deterministic unit and integration tests for scenario calculation, baseline isolation, and tenant authorization (`server/scenario.test.ts`)
-- [ ] Run full test suite, TypeScript checks, and production build verification
-- [ ] Save Day 17 checkpoint and stop
+- [x] Inspect existing project state, database schema, and Dashboard V2 layout
+- [x] Create `scenarios` table schema in Drizzle and execute migration SQL via `webdev_execute_sql`
+- [x] Add Drizzle CRUD helpers for scenarios in `server/db.ts`
+- [x] Implement deterministic Scenario Intelligence Engine (`server/services/scenarioService.ts`) with baseline comparison, impact mapping, range-based estimation, and strategic impact analysis
+- [x] Expose protected tRPC router procedures for `getScenarios`, `createScenario`, `getScenarioById`, and `deleteScenario`
+- [x] Integrate Scenario Intelligence card, Scenario Builder modal, and Baseline vs Scenario comparison modal into `DashboardV2.tsx`
+- [x] Add deterministic unit and integration tests for scenario calculation, baseline isolation, and tenant authorization (`server/scenario.test.ts`)
+- [x] Run full test suite, TypeScript checks, and production build verification
+- [x] Save Day 17 checkpoint and stop
 
 ## Day 17: Scenario & What-If Intelligence v1
 - [x] Inspect existing Strategy Copilot, Business Situations, and Dashboard V2 layout
@@ -330,16 +330,16 @@
 - [x] Save Day 18 checkpoint and stop
 
 ## Day 19: Competitive Strategy Intelligence v2
-- [ ] Inspect existing competitor watchlist, market signals, adaptive strategy engine, and Dashboard V2 layout
-- [ ] Create `competitorActivities` table schema in Drizzle and execute migration SQL via `webdev_execute_sql`
-- [ ] Add Drizzle CRUD helpers for competitor activities in `server/db.ts`
-- [ ] Implement deterministic Competitive Strategy Intelligence v2 Engine (`server/services/competitiveIntelligenceService.ts`) with activity categorization (PRICING, PRODUCT, MARKETING, EXPANSION, HIRING, PARTNERSHIP, POSITIONING, CUSTOMER, OPERATIONS, OTHER), activity trend analysis (INCREASING, DECREASING, STABLE, NEW, UNKNOWN), internal signal correlation, impact areas, and strategic relevance scoring
-- [ ] Expose protected tRPC router procedures for `getCompetitorIntelligence`, `getCompetitorActivityTimeline`, and `getCompetitorDetail`
-- [ ] Integrate "Competitive Strategy Intelligence" card, competitor timeline modal, and detail view into `DashboardV2.tsx`
-- [ ] Extend Strategy Copilot and Adaptive Strategy engines to factor in competitor activity trends and trigger strategy review alerts when competitor behavior shifts meaningfully
-- [ ] Add deterministic unit and integration tests for competitor activity trend calculation, correlation, and tenant authorization (`server/competitiveIntelligence.test.ts`)
-- [ ] Run full test suite, TypeScript checks, and production build verification
-- [ ] Save Day 19 checkpoint and stop
+- [x] Inspect existing competitor watchlist, market signals, adaptive strategy engine, and Dashboard V2 layout
+- [x] Create `competitorActivities` table schema in Drizzle and execute migration SQL via `webdev_execute_sql`
+- [x] Add Drizzle CRUD helpers for competitor activities in `server/db.ts`
+- [x] Implement deterministic Competitive Strategy Intelligence v2 Engine (`server/services/competitiveIntelligenceService.ts`) with activity categorization (PRICING, PRODUCT, MARKETING, EXPANSION, HIRING, PARTNERSHIP, POSITIONING, CUSTOMER, OPERATIONS, OTHER), activity trend analysis (INCREASING, DECREASING, STABLE, NEW, UNKNOWN), internal signal correlation, impact areas, and strategic relevance scoring
+- [x] Expose protected tRPC router procedures for `getCompetitorIntelligence`, `getCompetitorActivityTimeline`, and `getCompetitorDetail`
+- [x] Integrate "Competitive Strategy Intelligence" card, competitor timeline modal, and detail view into `DashboardV2.tsx`
+- [x] Extend Strategy Copilot and Adaptive Strategy engines to factor in competitor activity trends and trigger strategy review alerts when competitor behavior shifts meaningfully
+- [x] Add deterministic unit and integration tests for competitor activity trend calculation, correlation, and tenant authorization (`server/competitiveIntelligence.test.ts`)
+- [x] Run full test suite, TypeScript checks, and production build verification
+- [x] Save Day 19 checkpoint and stop
 
 ## Day 19: Competitive Strategy Intelligence Engine v2
 - [x] Inspect existing Competitor Watchlist, Market Signals, and Dashboard V2 layout
