@@ -83,6 +83,12 @@ import {
   InsertAttentionReviewLog,
   scenarioAssumptions,
   scenarioReviews,
+  foresightSignals,
+  ForesightSignal,
+  InsertForesightSignal,
+  foresightWatchlist,
+  ForesightWatchlistRecord,
+  InsertForesightWatchlistRecord,
   dailyBriefs,
   DailyBrief,
   InsertDailyBrief,
@@ -3096,4 +3102,47 @@ export async function createScenarioReview(data: {
     notes: data.notes || null,
   });
   return res[0]?.insertId || null;
+}
+
+export async function getForesightSignalsForBusiness(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(foresightSignals).where(eq(foresightSignals.businessId, businessId));
+}
+
+export async function createForesightSignal(data: InsertForesightSignal) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(foresightSignals).values(data);
+  const [created] = await db.select().from(foresightSignals).where(eq(foresightSignals.id, result.insertId));
+  return created;
+}
+
+export async function updateForesightSignal(id: number, businessId: number, data: Partial<InsertForesightSignal>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(foresightSignals).set(data).where(and(eq(foresightSignals.id, id), eq(foresightSignals.businessId, businessId)));
+  const [updated] = await db.select().from(foresightSignals).where(eq(foresightSignals.id, id));
+  return updated;
+}
+
+export async function getForesightWatchlistForBusiness(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(foresightWatchlist).where(eq(foresightWatchlist.businessId, businessId));
+}
+
+export async function createForesightWatchlistRecord(data: InsertForesightWatchlistRecord) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(foresightWatchlist).values(data);
+  const [created] = await db.select().from(foresightWatchlist).where(eq(foresightWatchlist.id, result.insertId));
+  return created;
+}
+
+export async function removeForesightWatchlistRecord(id: number, businessId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(foresightWatchlist).where(and(eq(foresightWatchlist.id, id), eq(foresightWatchlist.businessId, businessId)));
+  return true;
 }

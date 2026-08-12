@@ -7,6 +7,7 @@ import * as db from "./db";
 import { TRPCError } from "@trpc/server";
 import { businessMetricsRouter } from "./routers/businessMetrics";
 import { actionPlansRouter } from "./routers/actionPlans";
+import { foresightRouter } from "./routers/foresight";
 import { verifyBusinessOwnership } from "./services/businessDataService";
 
 async function requireBusinessAccess(userId: number, businessId: number) {
@@ -50,6 +51,7 @@ export const appRouter = router({
    * ============================================================
    */
   actionPlans: actionPlansRouter,
+  foresight: foresightRouter,
 
   business: router({
     create: protectedProcedure

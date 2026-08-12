@@ -211,6 +211,13 @@
       "when": 1786555910786,
       "tag": "0029_many_puff_adder",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "5",
+      "when": 1786556405898,
+      "tag": "0030_complex_machine_man",
+      "breakpoints": true
     }
   ]
 }

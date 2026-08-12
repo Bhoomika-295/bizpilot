@@ -1667,3 +1667,56 @@ export const scenarioReviews = mysqlTable(
 );
 export type ScenarioReviewRecord = typeof scenarioReviews.$inferSelect;
 export type InsertScenarioReviewRecord = typeof scenarioReviews.$inferInsert;
+
+export const foresightSignals = mysqlTable(
+  "foresightSignals",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    description: text("description").notNull(),
+    type: varchar("type", { length: 50 }).notNull().default("EARLY_SIGNAL"), // EMERGING_RISK, EMERGING_OPPORTUNITY, EARLY_SIGNAL, TREND_ACCELERATION, TREND_REVERSAL, STRUCTURAL_CHANGE, SCENARIO_TRIGGER, STRATEGIC_DRIFT
+    status: varchar("status", { length: 30 }).notNull().default("WATCH"), // WATCH, ACTIVE, CONFIRMED, RESOLVED, DISMISSED
+    priority: varchar("priority", { length: 20 }).notNull().default("MEDIUM"), // CRITICAL, HIGH, MEDIUM, LOW
+    confidence: varchar("confidence", { length: 30 }).notNull().default("MEDIUM"), // HIGH, MEDIUM, LOW, INSUFFICIENT_DATA
+    horizon: varchar("horizon", { length: 50 }).notNull().default("30–90 DAYS"), // 30 DAYS, 30–90 DAYS, 180+ DAYS
+    sourceType: varchar("sourceType", { length: 50 }),
+    sourceId: int("sourceId"),
+    evidenceJson: text("evidenceJson").notNull(),
+    strategyImpact: varchar("strategyImpact", { length: 20 }).notNull().default("MEDIUM"), // HIGH, MEDIUM, LOW
+    possibleResponse: text("possibleResponse"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("foresightSignals_businessId_idx").on(table.businessId),
+    statusIdx: index("foresightSignals_status_idx").on(table.status),
+    priorityIdx: index("foresightSignals_priority_idx").on(table.priority),
+  })
+);
+export type ForesightSignal = typeof foresightSignals.$inferSelect;
+export type InsertForesightSignal = typeof foresightSignals.$inferInsert;
+
+export const foresightWatchlist = mysqlTable(
+  "foresightWatchlist",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    targetType: varchar("targetType", { length: 50 }).notNull().default("SIGNAL"), // SIGNAL, RISK, OPPORTUNITY, TREND, SCENARIO, STRATEGY
+    targetId: int("targetId").notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    currentValue: varchar("currentValue", { length: 100 }),
+    previousValue: varchar("previousValue", { length: 100 }),
+    changeSummary: varchar("changeSummary", { length: 100 }),
+    status: varchar("status", { length: 30 }).notNull().default("WATCHING"), // WATCHING, CHANGED, ESCALATING, IMPROVING, RESOLVED, DISMISSED
+    notes: text("notes"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("foresightWatchlist_businessId_idx").on(table.businessId),
+    targetIdx: index("foresightWatchlist_target_idx").on(table.businessId, table.targetType, table.targetId),
+  })
+);
+export type ForesightWatchlistRecord = typeof foresightWatchlist.$inferSelect;
+export type InsertForesightWatchlistRecord = typeof foresightWatchlist.$inferInsert;
