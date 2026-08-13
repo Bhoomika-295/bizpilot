@@ -14,6 +14,7 @@ import UserProfile from "./pages/UserProfile";
 import CustomersV2 from "./pages/CustomersV2";
 import CompetitorsPage from "./pages/CompetitorsPage";
 import ActionsPage from "./pages/ActionsPage";
+import DecisionOutcomePage from "./pages/DecisionOutcomePage";
 import MemoryPage from "./pages/MemoryPage";
 import CommandCenterPage from "./pages/CommandCenterPage";
 import RootCausePage from "./pages/RootCausePage";
@@ -32,6 +33,7 @@ function Router() {
       <Route path={"/why/:businessId"} component={RootCausePage} />
       <Route path={"/readiness/:businessId"} component={FutureReadinessPage} />
       <Route path={"/actions/:businessId"} component={ActionsPage} />
+      <Route path={"/decision-outcomes/:businessId"} component={DecisionOutcomePage} />
       <Route path={"/memory/:businessId"} component={MemoryPage} />
       <Route path={"/competitors/:businessId"} component={CompetitorsPage} />
       <Route path={"/customers/:businessId"} component={CustomersV2} />

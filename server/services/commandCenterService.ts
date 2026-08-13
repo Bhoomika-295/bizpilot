@@ -22,6 +22,7 @@ import { generateOrGetDailyBrief } from "./dailyBriefService";
 import { getBusinessMemoryDetail } from "./businessMemoryService";
 import { getOrganizationalLearningSnapshot } from "./organizationalLearningService";
 import { getMonitoringAlerts } from "./continuousMonitoringService";
+import { getBusinessFollowThrough } from "./intelligenceChainService";
 
 export type CommandCenterPriorityLane = "NOW" | "NEXT" | "WATCH";
 export type CommandCenterPrioritySource =
@@ -85,8 +86,25 @@ export interface CommandCenterSnapshot {
     overdue: number;
     blocked: number;
     completed: number;
+    healthy: number;
+    atRisk: number;
+    unknown: number;
+    decisionLinked: number;
+    outcomeReviewPending: number;
     riskLevel: string;
     riskMessage: string;
+  };
+  followThrough: {
+    decisionsMade: number;
+    decisionsAwaitingExecution: number;
+    actionsCreated: number;
+    actionsCompleted: number;
+    blockedActions: number;
+    outcomesRecorded: number;
+    outcomesAwaitingReview: number;
+    lessonsCreated: number;
+    highSeverityGapCount: number;
+    gaps: Array<{ kind: string; title: string; explanation: string; decisionId?: number; actionId?: number; outcomeId?: number }>;
   };
   strategy: {
     state: string;
@@ -329,7 +347,7 @@ function buildPriorities(input: {
 export async function getCommandCenterSnapshot(businessId: number): Promise<CommandCenterSnapshot> {
   const now = new Date();
   const brief = await generateOrGetDailyBrief(businessId, false);
-  const [attention, decisions, actions, situations, strategyHealth, memories, patterns, foresight, scenarios, outcomes, monitoringAlerts, rootCauses, learningSnapshot] = await Promise.all([
+  const [attention, decisions, actions, situations, strategyHealth, memories, patterns, foresight, scenarios, outcomes, monitoringAlerts, rootCauses, learningSnapshot, followThrough] = await Promise.all([
     getAttentionQueueForBusiness(businessId),
     getDecisionQueue(businessId, 10),
     getActionQueueForBusiness(businessId, now),
@@ -343,6 +361,7 @@ export async function getCommandCenterSnapshot(businessId: number): Promise<Comm
     getMonitoringAlerts(businessId, { limit: 10 }),
     getRootCauseInvestigations(businessId),
     getOrganizationalLearningSnapshot(businessId, { limit: 100 }),
+    getBusinessFollowThrough(businessId),
   ]);
 
   const priorityLanes = buildPriorities({ attention, decisions, actions: actions.actions, situations, foresight, scenarios, rootCauses });
@@ -359,6 +378,9 @@ export async function getCommandCenterSnapshot(businessId: number): Promise<Comm
     }
   })();
   const executionRisk = getExecutionRiskSummary(actions.actions as any, now);
+  const executionHealth = actionSummary.executionHealth || {};
+  const decisionLinkedActions = actions.actions.filter((action: any) => action.decisionId);
+  const outcomeReviewPending = actions.actions.filter((action: any) => action.status === "COMPLETED" && !action.actualOutcome).length;
   const latestBriefAt = asDate(brief.updatedAt) || asDate(brief.createdAt);
   const recurringPatternCount = patterns.filter((pattern: any) => asNumber(pattern.occurrences) >= 2).length;
   const relevantLessons = learningSnapshot.lessons
@@ -403,8 +425,25 @@ export async function getCommandCenterSnapshot(businessId: number): Promise<Comm
       overdue: asNumber(actionSummary.overdue),
       blocked: asNumber(actionSummary.blocked),
       completed: asNumber(actionSummary.completed),
+      healthy: asNumber(executionHealth.healthy),
+      atRisk: asNumber(executionHealth.atRisk),
+      unknown: asNumber(executionHealth.unknown),
+      decisionLinked: decisionLinkedActions.length,
+      outcomeReviewPending,
       riskLevel: asText(executionRisk.level, "LOW"),
       riskMessage: asText(executionRisk.message, "Execution risk is not elevated."),
+    },
+    followThrough: {
+      decisionsMade: followThrough.decisionsMade,
+      decisionsAwaitingExecution: followThrough.decisionsAwaitingExecution,
+      actionsCreated: followThrough.actionsCreated,
+      actionsCompleted: followThrough.actionsCompleted,
+      blockedActions: followThrough.blockedActions,
+      outcomesRecorded: followThrough.outcomesRecorded,
+      outcomesAwaitingReview: followThrough.outcomesAwaitingReview,
+      lessonsCreated: followThrough.lessonsCreated,
+      highSeverityGapCount: followThrough.gaps.filter((gap) => gap.severity === "HIGH").length,
+      gaps: followThrough.gaps.slice(0, 8).map((gap) => ({ kind: gap.kind, title: gap.title, explanation: gap.explanation, decisionId: gap.decisionId, actionId: gap.actionId, outcomeId: gap.outcomeId })),
     },
     strategy: {
       state: asText(strategyHealth?.healthState, asText(briefStrategy.healthState, "UNKNOWN")),
@@ -500,9 +539,9 @@ export function buildCommandCenterBriefSections(snapshot: CommandCenterSnapshot)
       {
         key: "actions",
         title: "Actions required",
-        summary: snapshot.execution.overdue > 0 || snapshot.execution.blocked > 0 ? snapshot.execution.riskMessage : `${snapshot.execution.active} active action${snapshot.execution.active === 1 ? "" : "s"} remain in the execution queue.`,
-        status: snapshot.execution.overdue > 0 || snapshot.execution.blocked > 0 ? "WATCH" : snapshot.execution.active > 0 ? "READY" : "EMPTY",
-        evidence: [`${snapshot.execution.active} active`, `${snapshot.execution.overdue} overdue`, `${snapshot.execution.blocked} blocked`],
+        summary: snapshot.execution.overdue > 0 || snapshot.execution.blocked > 0 || snapshot.execution.atRisk > 0 ? snapshot.execution.riskMessage : `${snapshot.execution.active} active action${snapshot.execution.active === 1 ? "" : "s"} remain in the execution queue.`,
+        status: snapshot.execution.overdue > 0 || snapshot.execution.blocked > 0 || snapshot.execution.atRisk > 0 ? "WATCH" : snapshot.execution.active > 0 ? "READY" : "EMPTY",
+        evidence: [`${snapshot.execution.active} active`, `${snapshot.execution.overdue} overdue`, `${snapshot.execution.blocked} blocked`, `${snapshot.execution.atRisk} at risk`, `${snapshot.execution.decisionLinked} decision-linked`],
       },
       {
         key: "learning",

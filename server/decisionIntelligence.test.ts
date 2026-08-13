@@ -120,6 +120,9 @@ describe("Decision Intelligence & Strategy Adaptation v2", () => {
     expect(first[0].evidenceChain.length).toBeGreaterThanOrEqual(2);
     expect(first[0].whatWeDontKnow.length).toBeGreaterThan(0);
     expect(first[0].actionOptions[0].reversible).toBe("REVERSIBLE");
+    expect(first[0].tradeOffs.length).toBeGreaterThan(0);
+    expect(first[0].qualityMetrics).toEqual(expect.objectContaining({ evidenceQuality: expect.any(String), contextCompleteness: expect.any(String), optionCoverage: expect.any(String), riskAwareness: expect.any(String), historicalContext: expect.any(String), outcomeFollowUp: expect.any(String), summaryExplanation: expect.any(String) }));
+    expect(first[0].versionNumber).toBe(1);
   });
 
   it("filters unsupported sources and preserves explicit uncertainty instead of fabricating impact", () => {
@@ -174,5 +177,7 @@ describe("Decision Intelligence & Strategy Adaptation v2", () => {
     expect(candidate.actionOptions[0]).toHaveProperty("reversible");
     expect(candidate.confidence).toBeDefined();
     expect(candidate.reversibility).toBeDefined();
+    expect(candidate.tradeOffs.every((tradeOff) => tradeOff.optionLabel && tradeOff.gains.length > 0 && tradeOff.sacrifices.length > 0)).toBe(true);
+    expect(candidate.qualityMetrics.evidenceQuality).toMatch(/HIGH|MEDIUM|LOW|UNKNOWN/);
   });
 });

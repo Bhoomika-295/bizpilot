@@ -2000,6 +2000,40 @@ export async function createActionLinkedOutcome(input: InsertOutcome) {
   return result;
 }
 
+export async function getOutcomesForActionPlan(businessId: number, actionPlanId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(outcomes)
+    .where(and(eq(outcomes.businessId, businessId), eq(outcomes.actionPlanId, actionPlanId)))
+    .orderBy(desc(outcomes.updatedAt), desc(outcomes.id));
+}
+
+export async function getOutcomesForBusiness(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(outcomes)
+    .where(eq(outcomes.businessId, businessId))
+    .orderBy(desc(outcomes.updatedAt), desc(outcomes.id));
+}
+
+export async function updateOutcomeReview(
+  businessId: number,
+  outcomeId: number,
+  data: Partial<InsertOutcome>,
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(outcomes)
+    .set({ ...data, updatedAt: new Date() })
+    .where(and(eq(outcomes.businessId, businessId), eq(outcomes.id, outcomeId)));
+  return await getOutcomeByIdForBusiness(businessId, outcomeId);
+}
+
 
 /**
  * ============================================================

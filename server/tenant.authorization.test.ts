@@ -231,6 +231,13 @@ describe("action plan tenant authorization", () => {
       message: "You do not have access to this business.",
     });
   });
+
+  it("rejects follow-through and decision-to-outcome chain access for a business the user does not own", async () => {
+    const caller = appRouter.createCaller(createContext());
+    const expected = { code: "FORBIDDEN", message: "You do not have access to this business." };
+    await expect(caller.actionPlans.followThrough({ businessId: 999999999 })).rejects.toMatchObject(expected);
+    await expect(caller.actionPlans.decisionToOutcome({ businessId: 999999999, decisionId: 1 })).rejects.toMatchObject(expected);
+  });
 });
 
 

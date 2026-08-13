@@ -12,6 +12,7 @@ export const ACTION_STATUSES = [
 ] as const;
 
 export type ActionStatus = (typeof ACTION_STATUSES)[number];
+export type ExecutionHealth = "HEALTHY" | "AT_RISK" | "BLOCKED" | "OVERDUE" | "UNKNOWN";
 export type ActionEventType =
   | "CREATED"
   | "EDITED"
@@ -62,6 +63,58 @@ export function getDueBucket(action: Pick<ActionPlan, "status" | "dueDate">, now
   return "SCHEDULED" as const;
 }
 
+export function parseDependencyIds(action: Pick<ActionPlan, "dependencyIdsJson">) {
+  try {
+    const value = action.dependencyIdsJson ? JSON.parse(action.dependencyIdsJson) : [];
+    return Array.isArray(value) ? value.filter((id): id is number => Number.isInteger(id) && id > 0) : [];
+  } catch {
+    return [];
+  }
+}
+
+export interface ExecutionHealthView {
+  health: ExecutionHealth;
+  reason: string;
+  blockedDurationHours: number;
+  dependencyIds: number[];
+  incompleteDependencyIds: number[];
+}
+
+export function evaluateExecutionHealth(
+  action: Pick<ActionPlan, "id" | "status" | "priority" | "ownerUserId" | "dueDate" | "blockedAt" | "blockReason" | "actualOutcome" | "dependencyIdsJson">,
+  actionsById: Map<number, Pick<ActionPlan, "id" | "status">> = new Map(),
+  now = new Date(),
+): ExecutionHealthView {
+  const dependencyIds = parseDependencyIds(action);
+  const incompleteDependencyIds = dependencyIds.filter((id) => {
+    const dependency = actionsById.get(id);
+    return !dependency || dependency.status !== "COMPLETED";
+  });
+  const blockedDurationHours = action.blockedAt
+    ? Math.max(0, Math.floor((now.getTime() - action.blockedAt.getTime()) / 3_600_000))
+    : 0;
+  if (action.status === "BLOCKED") {
+    return { health: "BLOCKED", reason: action.blockReason || "Action is explicitly blocked; review the recorded blocker.", blockedDurationHours, dependencyIds, incompleteDependencyIds };
+  }
+  if (incompleteDependencyIds.length > 0) {
+    return { health: "BLOCKED", reason: `Waiting on incomplete dependencies: ${incompleteDependencyIds.join(", ")}.`, blockedDurationHours, dependencyIds, incompleteDependencyIds };
+  }
+  if (isActionOverdue(action, now)) {
+    return { health: "OVERDUE", reason: "The action is past its due date and is not in a terminal state.", blockedDurationHours, dependencyIds, incompleteDependencyIds };
+  }
+  if (action.status === "COMPLETED") {
+    return { health: action.actualOutcome?.trim() ? "HEALTHY" : "AT_RISK", reason: action.actualOutcome?.trim() ? "Completed with an outcome recorded." : "Completed without a captured actual outcome.", blockedDurationHours, dependencyIds, incompleteDependencyIds };
+  }
+  if (action.status === "PROPOSED") {
+    return { health: "UNKNOWN", reason: "Execution health is unknown until the action is approved and owned.", blockedDurationHours, dependencyIds, incompleteDependencyIds };
+  }
+  if (!action.ownerUserId) {
+    return { health: "AT_RISK", reason: "No execution owner is assigned.", blockedDurationHours, dependencyIds, incompleteDependencyIds };
+  }
+  const dueSoon = action.dueDate && action.dueDate.getTime() - now.getTime() <= 2 * 86_400_000;
+  return { health: dueSoon ? "AT_RISK" : "HEALTHY", reason: dueSoon ? "Due within two days; confirm progress and evidence." : "Execution is progressing without a detected blocker.", blockedDurationHours, dependencyIds, incompleteDependencyIds };
+}
+
 export function getExecutionSummary(actions: ActionPlan[], now = new Date()) {
   const active = actions.filter((action) => !TERMINAL_STATUSES.has(action.status as ActionStatus));
   const completed = actions.filter((action) => action.status === "COMPLETED");
@@ -83,6 +136,13 @@ export function getExecutionSummary(actions: ActionPlan[], now = new Date()) {
     outcomeCaptureRate: completed.length ? Math.round((completedWithOutcome.length / completed.length) * 100) : 0,
     outcomes,
     priorityExposure: active.reduce((max, action) => Math.max(max, PRIORITY_SCORE[action.priority] ?? 0), 0),
+    executionHealth: {
+      healthy: actions.filter((action) => (action.executionHealth || "UNKNOWN") === "HEALTHY").length,
+      atRisk: actions.filter((action) => (action.executionHealth || "UNKNOWN") === "AT_RISK").length,
+      blocked: actions.filter((action) => (action.executionHealth || "UNKNOWN") === "BLOCKED").length,
+      overdue: actions.filter((action) => (action.executionHealth || "UNKNOWN") === "OVERDUE").length,
+      unknown: actions.filter((action) => !["HEALTHY", "AT_RISK", "BLOCKED", "OVERDUE"].includes(action.executionHealth || "UNKNOWN")).length,
+    },
   };
 }
 
@@ -136,18 +196,23 @@ export function assertTransition(from: ActionStatus, to: ActionStatus) {
 export async function getActionQueueForBusiness(businessId: number, now = new Date()) {
   const actions = await db.getActionPlansForBusiness(businessId);
   const sorted = sortActionQueue(actions, now);
-  return {
-    actions: sorted.map((action) => ({ ...action, dueBucket: getDueBucket(action, now), overdue: isActionOverdue(action, now) })),
-    summary: getExecutionSummary(actions, now),
-    generatedAt: now,
-  };
+  const actionsById = new Map(actions.map((action) => [action.id, action]));
+  const enriched = sorted.map((action) => {
+    const health = evaluateExecutionHealth(action, actionsById, now);
+    return { ...action, dueBucket: getDueBucket(action, now), overdue: isActionOverdue(action, now), ...health, executionHealth: health.health, executionHealthReason: health.reason };
+  });
+  const summary = getExecutionSummary(enriched as ActionPlan[], now);
+  return { actions: enriched, summary, generatedAt: now };
 }
 
 export async function getActionDetailForBusiness(businessId: number, actionPlanId: number) {
   const action = await db.getActionPlanById(businessId, actionPlanId);
   if (!action) return undefined;
   const history = await db.getActionPlanEvents(businessId, actionPlanId);
-  return { action, history, dueBucket: getDueBucket(action), overdue: isActionOverdue(action) };
+  const outcomes = await db.getOutcomesForActionPlan(businessId, actionPlanId);
+  const allActions = await db.getActionPlansForBusiness(businessId);
+  const health = evaluateExecutionHealth(action, new Map(allActions.map((item) => [item.id, item])), new Date());
+  return { action: { ...action, ...health, executionHealth: health.health, executionHealthReason: health.reason }, outcomes, history, dueBucket: getDueBucket(action), overdue: isActionOverdue(action) };
 }
 
 export async function transitionAction(
@@ -200,6 +265,7 @@ export function buildActionProposal(input: {
   summary: string;
   priority?: string;
   expectedOutcome?: string;
+  dependencyIds?: number[];
   decisionId?: number;
   strategyId?: number;
   objectiveId?: number;
@@ -215,6 +281,8 @@ export function buildActionProposal(input: {
     sourceType: input.sourceType,
     sourceId: input.sourceId,
     expectedOutcome: input.expectedOutcome?.trim() || "Record the observed result against this evidence-backed action.",
+    expectedResult: input.expectedOutcome?.trim() || "Record the observed result against this evidence-backed action.",
+    dependencyIdsJson: input.dependencyIds?.length ? JSON.stringify(Array.from(new Set(input.dependencyIds.filter((id) => Number.isInteger(id) && id > 0)))) : null,
     decisionId: input.decisionId,
     strategyId: input.strategyId,
     objectiveId: input.objectiveId,

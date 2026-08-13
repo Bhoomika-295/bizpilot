@@ -167,7 +167,7 @@ export default function CommandCenterPage() {
               </CardContent>
             </Card>
             <MetricCard label="Priority queue" value={snapshot.priorities.total} supporting={`${snapshot.priorities.now.length} Now-tier`} icon={Target} tone="text-red-700" />
-            <MetricCard label="Execution risk" value={snapshot.execution.riskLevel} supporting={`${snapshot.execution.overdue} overdue · ${snapshot.execution.blocked} blocked`} icon={TimerReset} tone={snapshot.execution.riskLevel === "LOW" ? "text-emerald-700" : "text-amber-700"} />
+            <MetricCard label="Execution risk" value={snapshot.execution.riskLevel} supporting={`${snapshot.execution.overdue} overdue · ${snapshot.execution.blocked} blocked · ${snapshot.execution.atRisk} at risk`} icon={TimerReset} tone={snapshot.execution.riskLevel === "LOW" ? "text-emerald-700" : "text-amber-700"} />
             <MetricCard label="Strategy state" value={snapshot.strategy.state.replaceAll("_", " ")} supporting={snapshot.strategy.objectivePerformance.replaceAll("_", " ")} icon={Waypoints} tone="text-sky-700" />
             <MetricCard label="Validated learning" value={snapshot.memory.validatedLessonCount} supporting={`${snapshot.memory.recurringPatternCount} recurring patterns · ${snapshot.memory.contradictionCount} conflicts`} icon={BrainCircuit} tone="text-violet-700" />
             <MetricCard label="Future paths" value={snapshot.signals.activeScenarioCount} supporting={`${snapshot.signals.activeForesightCount} foresight signals`} icon={Compass} tone="text-indigo-700" />

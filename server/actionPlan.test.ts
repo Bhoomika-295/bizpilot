@@ -4,6 +4,7 @@ const dbMocks = vi.hoisted(() => ({
   getActionPlansForBusiness: vi.fn(),
   getActionPlanById: vi.fn(),
   getActionPlanEvents: vi.fn(),
+  getOutcomesForActionPlan: vi.fn(),
   updateActionPlan: vi.fn(),
   createActionPlanEvent: vi.fn(),
 }));
@@ -18,6 +19,8 @@ import {
   getDueBucket,
   getExecutionSummary,
   getExecutionRiskSummary,
+  evaluateExecutionHealth,
+  parseDependencyIds,
   formatActionOutcomeNotes,
   isActionOverdue,
   sortActionQueue,
@@ -46,13 +49,13 @@ function action(overrides: Record<string, unknown> = {}) {
     createdByUserId: 11,
     dueDate: new Date("2026-08-12T12:00:00.000Z"),
     startedAt: null,
-    blockedAt: null,
     completedAt: null,
     completedBy: null,
     actualOutcome: null,
     expectedOutcome: "Capture five responses and compare willingness to pay against the baseline.",
     completionNotes: null,
     blockReason: null,
+    dependencyIdsJson: null,
     evidence: "Attention item #7: pricing sensitivity is rising.",
     createdAt: new Date("2026-08-10T12:00:00.000Z"),
     updatedAt: new Date("2026-08-10T12:00:00.000Z"),
@@ -91,6 +94,28 @@ describe("Intelligent Action Planning & Execution Loop v1", () => {
     expect(summary.blocked).toBe(1);
     expect(summary.outcomeCaptureRate).toBe(50);
     expect(summary.outcomes).toBe("PARTIAL");
+  });
+
+  it("evaluates blocked duration and incomplete dependencies without inferring causation", () => {
+    const now = new Date("2026-08-14T12:00:00.000Z");
+    const blocked = action({ status: "BLOCKED", blockedAt: new Date("2026-08-12T12:00:00.000Z"), blockReason: "Awaiting finance approval." });
+    const blockedHealth = evaluateExecutionHealth(blocked, new Map([[blocked.id, blocked]]), now);
+    expect(blockedHealth.health).toBe("BLOCKED");
+    expect(blockedHealth.blockedDurationHours).toBe(48);
+    expect(blockedHealth.reason).toContain("finance approval");
+
+    const waiting = action({ id: 2, dependencyIdsJson: JSON.stringify([1, 99]) });
+    const dependencyHealth = evaluateExecutionHealth(waiting, new Map([[1, action({ id: 1, status: "IN_PROGRESS" })], [2, waiting]]), now);
+    expect(parseDependencyIds(waiting)).toEqual([1, 99]);
+    expect(dependencyHealth.health).toBe("BLOCKED");
+    expect(dependencyHealth.incompleteDependencyIds).toEqual([1, 99]);
+  });
+
+  it("marks completed actions without observed outcomes as at risk", () => {
+    const completed = action({ status: "COMPLETED", actualOutcome: null });
+    const health = evaluateExecutionHealth(completed, new Map([[completed.id, completed]]), new Date("2026-08-14T12:00:00.000Z"));
+    expect(health.health).toBe("AT_RISK");
+    expect(health.reason).toContain("without a captured actual outcome");
   });
 
   it("allows only explicitly supported lifecycle transitions", () => {

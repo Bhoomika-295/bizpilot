@@ -84,7 +84,9 @@ export interface DecisionCandidateView {
   relatedSituationIds: number[]; relatedOpportunityIds: number[]; relatedCompetitorIds: number[]; relatedSignalIds: number[];
   relatedScenarioIds: number[]; relatedStrategyIds: number[]; evidenceChain: EvidenceChainItem[]; whyMatters: string;
   whatWeKnow: string[]; whatWeDontKnow: string[]; potentialConsequences: string; reversibility: DecisionReversibility;
-  actionOptions: DecisionActionOption[]; recommendedNextStep?: string; recommendedNextStepReason?: string;
+  actionOptions: DecisionActionOption[]; tradeOffs: TradeOffItem[]; qualityMetrics: DecisionQualityMetrics;
+  makerUserId?: number | null; makerNote?: string | null; versionNumber: number; parentDecisionId?: number | null;
+  recommendedNextStep?: string; recommendedNextStepReason?: string;
   strategicAlignment: StrategicAlignment; strategicAlignmentReason?: string; dependencyText?: string; conflictKeys: string[];
   status: DecisionLifecycleStatus; outcomeId?: number | null; sourceFingerprint: string; lastEvaluatedAt?: Date;
   expiresAt?: Date | null; createdAt?: Date; updatedAt?: Date;
@@ -276,26 +278,41 @@ function situationDraft(s: SituationTrendAnalysis, c: DecisionContext): Draft | 
   if (s.currentStatus === "RESOLVED" || !(s.currentPriority === "HIGH" || ["WORSENING", "NEW", "RECURRING"].includes(s.trendDirection))) return null;
   const kind = category(s.title); const e = evidence(s.timeline[0]?.supportingCount || 0); const a = alignment(s.title, kind, c.strategies);
   const title = `Review ${s.title.toLowerCase()}`;
-  return finish({ businessId: c.businessId, decisionKey: `SITUATION:${s.situationId}`, title, category: kind, urgency: urgency(s.trendDirection, s.currentPriority, s.currentPriority, c.freshness?.status, "", s.timeline[0]?.supportingCount || 0), potentialImpact: s.currentPriority === "HIGH" || s.trendDirection === "WORSENING" ? "HIGH" : "MEDIUM", evidenceStrength: e, confidence: e === "HIGH" ? "HIGH" : e === "MEDIUM" ? "MEDIUM" : "LIMITED", sourceType: "SITUATION", relatedSituationIds: [s.situationId], relatedOpportunityIds: [], relatedCompetitorIds: [], relatedSignalIds: [], relatedScenarioIds: [], relatedStrategyIds: [], evidenceChain: [{ type: "SITUATION", id: s.situationId, label: s.title, detail: s.trendSummary }, { type: "SITUATION_TREND", label: "Trend direction", detail: `${s.trendDirection}; ${s.durationDays} days observed.` }], whyMatters: `${s.trendSummary} This ${s.currentPriority.toLowerCase()}-priority situation deserves a decision review.`, whatWeKnow: [s.trendSummary, `Current status: ${s.currentStatus}.`, `Current priority: ${s.currentPriority}.`], whatWeDontKnow: ["Whether the signals are causally related.", "Whether the pattern will persist beyond the current review period."], potentialConsequences: `If the pattern persists, ${s.title.toLowerCase()} may continue to constrain performance. The downstream consequence cannot be reliably estimated from current data.`, reversibility: reversibility(s.title), actionOptions: buildRichOptions(title, kind), recommendedNextStep: e === "HIGH" ? "Review the supporting evidence before changing the current strategy." : undefined, recommendedNextStepReason: e === "HIGH" ? "Evidence is strong enough to justify review, but not to force an automatic action." : undefined, strategicAlignment: a.value, strategicAlignmentReason: a.reason, dependencyText: has(title, ["capacity", "expansion"]) ? "Validate demand before committing to capacity expansion." : undefined, conflictKeys: conflictKeys(title) }, c);
+  const actionOptions = buildRichOptions(title, kind);
+  const tradeOffs = buildTradeOffs(actionOptions);
+  const qualityMetrics = evaluateDecisionQuality({ evidenceStrength: e, knowCount: 3, dontKnowCount: 2, optionCount: actionOptions.length, hasStrategicAlignment: a.value !== "UNKNOWN", hasHistoricalContext: true });
+  return finish({ businessId: c.businessId, decisionKey: `SITUATION:${s.situationId}`, title, category: kind, urgency: urgency(s.trendDirection, s.currentPriority, s.currentPriority, c.freshness?.status, "", s.timeline[0]?.supportingCount || 0), potentialImpact: s.currentPriority === "HIGH" || s.trendDirection === "WORSENING" ? "HIGH" : "MEDIUM", evidenceStrength: e, confidence: e === "HIGH" ? "HIGH" : e === "MEDIUM" ? "MEDIUM" : "LIMITED", sourceType: "SITUATION", relatedSituationIds: [s.situationId], relatedOpportunityIds: [], relatedCompetitorIds: [], relatedSignalIds: [], relatedScenarioIds: [], relatedStrategyIds: [], evidenceChain: [{ type: "SITUATION", id: s.situationId, label: s.title, detail: s.trendSummary }, { type: "SITUATION_TREND", label: "Trend direction", detail: `${s.trendDirection}; ${s.durationDays} days observed.` }], whyMatters: `${s.trendSummary} This ${s.currentPriority.toLowerCase()}-priority situation deserves a decision review.`, whatWeKnow: [s.trendSummary, `Current status: ${s.currentStatus}.`, `Current priority: ${s.currentPriority}.`], whatWeDontKnow: ["Whether the signals are causally related.", "Whether the pattern will persist beyond the current review period."], potentialConsequences: `If the pattern persists, ${s.title.toLowerCase()} may continue to constrain performance. The downstream consequence cannot be reliably estimated from current data.`, reversibility: reversibility(s.title), actionOptions, tradeOffs, qualityMetrics, makerUserId: null, makerNote: null, versionNumber: 1, parentDecisionId: null, recommendedNextStep: e === "HIGH" ? "Review the supporting evidence before changing the current strategy." : undefined, recommendedNextStepReason: e === "HIGH" ? "Evidence is strong enough to justify review, but not to force an automatic action." : undefined, strategicAlignment: a.value, strategicAlignmentReason: a.reason, dependencyText: has(title, ["capacity", "expansion"]) ? "Validate demand before committing to capacity expansion." : undefined, conflictKeys: conflictKeys(title) }, c);
 }
 function opportunityDraft(o: any, c: DecisionContext): Draft | null {
   if (["DISMISSED", "EXPIRED", "PURSUED"].includes(o.status)) return null;
   const kind = category(`${o.title} ${o.category}`); const e = evidence(1, text(o.evidenceStrength)); const a = alignment(o.title, kind, c.strategies); const title = `Assess whether to pursue ${text(o.title, "this opportunity").toLowerCase()}`; const summary = text(o.summary, "An opportunity has been recorded for review.");
-  return finish({ businessId: c.businessId, decisionKey: `OPPORTUNITY:${o.id}`, title, category: kind, urgency: urgency("", o.priority, o.potentialImpact, c.freshness?.status, o.urgency, 1), potentialImpact: ["HIGH", "MEDIUM", "LOW"].includes(o.potentialImpact) ? o.potentialImpact : "MEDIUM", evidenceStrength: e, confidence: e === "HIGH" ? "HIGH" : e === "MEDIUM" ? "MEDIUM" : "LIMITED", sourceType: "OPPORTUNITY", relatedSituationIds: ids(parse(o.supportingSituationsJson, [])), relatedOpportunityIds: [o.id], relatedCompetitorIds: [], relatedSignalIds: [], relatedScenarioIds: [], relatedStrategyIds: [], evidenceChain: [{ type: "OPPORTUNITY", id: o.id, label: o.title, detail: summary }, { type: "OPPORTUNITY_EVIDENCE", label: "Evidence strength", detail: text(o.evidenceStrength, "Recorded opportunity evidence") }], whyMatters: summary, whatWeKnow: [summary, `Opportunity priority is ${text(o.priority, "MEDIUM")}.`, `Potential impact is ${text(o.potentialImpact, "MEDIUM")}.`], whatWeDontKnow: ["Expected value cannot be quantified reliably from current data.", "Operational capacity and customer response remain uncertain."], potentialConsequences: "If the opportunity is not investigated, a potentially valuable path may remain untested. Its magnitude cannot be reliably estimated from current data.", reversibility: reversibility(o.title), actionOptions: buildRichOptions(title, kind), recommendedNextStep: e === "HIGH" ? text(o.potentialNextStep, "Review the opportunity evidence first.") : undefined, recommendedNextStepReason: e === "HIGH" ? "High-strength evidence supports review, but action remains a human decision." : undefined, strategicAlignment: a.value, strategicAlignmentReason: a.reason, dependencyText: has(o.title, ["capacity", "expansion"]) ? "Demand validation should be completed before capacity expansion." : undefined, conflictKeys: conflictKeys(title) }, c);
+  const actionOptions = buildRichOptions(title, kind);
+  const tradeOffs = buildTradeOffs(actionOptions);
+  const qualityMetrics = evaluateDecisionQuality({ evidenceStrength: e, knowCount: 2, dontKnowCount: 2, optionCount: actionOptions.length, hasStrategicAlignment: a.value !== "UNKNOWN", hasHistoricalContext: true });
+  return finish({ businessId: c.businessId, decisionKey: `OPPORTUNITY:${o.id}`, title, category: kind, urgency: urgency("", o.priority, o.potentialImpact, c.freshness?.status, o.urgency, 1), potentialImpact: ["HIGH", "MEDIUM", "LOW"].includes(o.potentialImpact) ? o.potentialImpact : "MEDIUM", evidenceStrength: e, confidence: e === "HIGH" ? "HIGH" : e === "MEDIUM" ? "MEDIUM" : "LIMITED", sourceType: "OPPORTUNITY", relatedSituationIds: ids(parse(o.supportingSituationsJson, [])), relatedOpportunityIds: [o.id], relatedCompetitorIds: [], relatedSignalIds: [], relatedScenarioIds: [], relatedStrategyIds: [], evidenceChain: [{ type: "OPPORTUNITY", id: o.id, label: o.title, detail: summary }, { type: "OPPORTUNITY_EVIDENCE", label: "Evidence strength", detail: text(o.evidenceStrength, "Recorded opportunity evidence") }], whyMatters: summary, whatWeKnow: [summary, `Opportunity priority is ${text(o.priority, "MEDIUM")}.`, `Potential impact is ${text(o.potentialImpact, "MEDIUM")}.`], whatWeDontKnow: ["Expected value cannot be quantified reliably from current data.", "Operational capacity and customer response remain uncertain."], potentialConsequences: "If the opportunity is not investigated, a potentially valuable path may remain untested. Its magnitude cannot be reliably estimated from current data.", reversibility: reversibility(o.title), actionOptions, tradeOffs, qualityMetrics, makerUserId: null, makerNote: null, versionNumber: 1, parentDecisionId: null, recommendedNextStep: e === "HIGH" ? text(o.potentialNextStep, "Review the opportunity evidence first.") : undefined, recommendedNextStepReason: e === "HIGH" ? "High-strength evidence supports review, but action remains a human decision." : undefined, strategicAlignment: a.value, strategicAlignmentReason: a.reason, dependencyText: has(o.title, ["capacity", "expansion"]) ? "Demand validation should be completed before capacity expansion." : undefined, conflictKeys: conflictKeys(title) }, c);
 }
 function competitorDraft(comp: CompetitorIntelligenceSummary, c: DecisionContext): Draft | null {
   if (comp.businessRelevance === "LOW" || comp.evidenceCount === 0) return null;
   const e = evidence(comp.evidenceCount, comp.businessRelevance === "HIGH" ? "HIGH" : "MEDIUM"); const title = `Review response to ${comp.competitorName} ${comp.primaryActivity.toLowerCase()} activity`; const a = alignment(title, "COMPETITIVE", c.strategies);
-  return finish({ businessId: c.businessId, decisionKey: `COMPETITOR:${comp.competitorId}`, title, category: "COMPETITIVE", urgency: urgency(comp.trend, comp.businessRelevance, comp.businessRelevance, c.freshness?.status, "", comp.evidenceCount), potentialImpact: comp.businessRelevance === "HIGH" ? "HIGH" : "MEDIUM", evidenceStrength: e, confidence: e === "HIGH" ? "HIGH" : "MEDIUM", sourceType: "COMPETITOR", relatedSituationIds: [], relatedOpportunityIds: [], relatedCompetitorIds: [comp.competitorId], relatedSignalIds: [], relatedScenarioIds: [], relatedStrategyIds: [], evidenceChain: [{ type: "COMPETITOR", id: comp.competitorId, label: comp.competitorName, detail: `${comp.evidenceCount} tracked activities; ${comp.trend.toLowerCase()} trend.` }, ...comp.timeline.slice(0, 3).map((a) => ({ type: "COMPETITOR_ACTIVITY", id: a.id, label: a.title, detail: a.description }))], whyMatters: `${comp.whyItMatters} This activity is relevant enough to deserve review.`, whatWeKnow: [`${comp.competitorName} has ${comp.evidenceCount} tracked activities.`, `Primary activity: ${comp.primaryActivity.toLowerCase()}.`, `Activity trend: ${comp.trend.toLowerCase()}.`], whatWeDontKnow: ["Whether activity is causally related to customer behavior.", "The competitor's intended strategy.", "Customer price or offer sensitivity."], potentialConsequences: "If activity continues without review, competitive pressure may increase. The financial consequence cannot be reliably estimated from current data.", reversibility: reversibility(comp.primaryActivity), actionOptions: buildRichOptions(title, "COMPETITIVE"), recommendedNextStep: e === "HIGH" ? "Review competitor positioning before changing your own pricing or offer." : undefined, recommendedNextStepReason: e === "HIGH" ? "Meaningful competitor activity is evidenced, but customer response remains uncertain." : undefined, strategicAlignment: a.value, strategicAlignmentReason: a.reason, conflictKeys: conflictKeys(title) }, c);
+  const actionOptions = buildRichOptions(title, "COMPETITIVE");
+  const tradeOffs = buildTradeOffs(actionOptions);
+  const qualityMetrics = evaluateDecisionQuality({ evidenceStrength: e, knowCount: 2, dontKnowCount: 2, optionCount: actionOptions.length, hasStrategicAlignment: a.value !== "UNKNOWN", hasHistoricalContext: true });
+  return finish({ businessId: c.businessId, decisionKey: `COMPETITOR:${comp.competitorId}`, title, category: "COMPETITIVE", urgency: urgency(comp.trend, comp.businessRelevance, comp.businessRelevance, c.freshness?.status, "", comp.evidenceCount), potentialImpact: comp.businessRelevance === "HIGH" ? "HIGH" : "MEDIUM", evidenceStrength: e, confidence: e === "HIGH" ? "HIGH" : "MEDIUM", sourceType: "COMPETITOR", relatedSituationIds: [], relatedOpportunityIds: [], relatedCompetitorIds: [comp.competitorId], relatedSignalIds: [], relatedScenarioIds: [], relatedStrategyIds: [], evidenceChain: [{ type: "COMPETITOR", id: comp.competitorId, label: comp.competitorName, detail: `${comp.evidenceCount} tracked activities; ${comp.trend.toLowerCase()} trend.` }, ...comp.timeline.slice(0, 3).map((a) => ({ type: "COMPETITOR_ACTIVITY", id: a.id, label: a.title, detail: a.description }))], whyMatters: `${comp.whyItMatters} This activity is relevant enough to deserve review.`, whatWeKnow: [`${comp.competitorName} has ${comp.evidenceCount} tracked activities.`, `Primary activity: ${comp.primaryActivity.toLowerCase()}.`, `Activity trend: ${comp.trend.toLowerCase()}.`], whatWeDontKnow: ["Whether activity is causally related to customer behavior.", "The competitor's intended strategy.", "Customer price or offer sensitivity."], potentialConsequences: "If activity continues without review, competitive pressure may increase. The financial consequence cannot be reliably estimated from current data.", reversibility: reversibility(comp.primaryActivity), actionOptions, tradeOffs, qualityMetrics, makerUserId: null, makerNote: null, versionNumber: 1, parentDecisionId: null, recommendedNextStep: e === "HIGH" ? "Review competitor positioning before changing your own pricing or offer." : undefined, recommendedNextStepReason: e === "HIGH" ? "Meaningful competitor activity is evidenced, but customer response remains uncertain." : undefined, strategicAlignment: a.value, strategicAlignmentReason: a.reason, conflictKeys: conflictKeys(title) }, c);
 }
 function marketDraft(signal: any, c: DecisionContext): Draft | null {
   const importance = Number(signal.importanceScore || 0); if (signal.relevanceLevel !== "HIGH" && importance < 4) return null;
   const title = `Investigate market signal: ${text(signal.title, "meaningful market change")}`; const kind = category(`${signal.title} ${signal.impactArea}`); const e = evidence(1, signal.relevanceLevel === "HIGH" ? "HIGH" : "MEDIUM"); const a = alignment(title, kind, c.strategies); const detail = text(signal.explanation || signal.snippet, "A meaningful market signal was recorded.");
-  return finish({ businessId: c.businessId, decisionKey: `MARKET_SIGNAL:${signal.id}`, title, category: kind, urgency: urgency("", signal.relevanceLevel, importance >= 4 ? "HIGH" : "MEDIUM", c.freshness?.status, "", 1), potentialImpact: importance >= 4 ? "HIGH" : "MEDIUM", evidenceStrength: e, confidence: e === "HIGH" ? "HIGH" : "MEDIUM", sourceType: "MARKET_SIGNAL", relatedSituationIds: [], relatedOpportunityIds: [], relatedCompetitorIds: [], relatedSignalIds: [signal.id], relatedScenarioIds: [], relatedStrategyIds: [], evidenceChain: [{ type: "MARKET_SIGNAL", id: signal.id, label: signal.title, detail }, { type: "MARKET_SOURCE", label: "Source", detail: text(signal.source, "External market source") }], whyMatters: `${detail} Its ${text(signal.impactArea, "market").toLowerCase()} impact area makes it relevant for decision review.`, whatWeKnow: [detail, `Relevance: ${text(signal.relevanceLevel, "LOW")}.`, `Importance score: ${importance || "not scored"}.`], whatWeDontKnow: ["Whether the signal will persist.", "How directly it will affect this business.", "Whether it is causally related to internal changes."], potentialConsequences: "If the signal persists and is not investigated, a relevant market change may be missed. Its magnitude cannot be reliably estimated from current data.", reversibility: "REVERSIBLE", actionOptions: buildRichOptions(title, kind), recommendedNextStep: e === "HIGH" ? "Review the market source and business relevance before changing the current plan." : undefined, recommendedNextStepReason: e === "HIGH" ? "The signal is highly relevant, but persistence and impact remain uncertain." : undefined, strategicAlignment: a.value, strategicAlignmentReason: a.reason, conflictKeys: conflictKeys(title) }, c);
+  const actionOptions = buildRichOptions(title, kind);
+  const tradeOffs = buildTradeOffs(actionOptions);
+  const qualityMetrics = evaluateDecisionQuality({ evidenceStrength: e, knowCount: 2, dontKnowCount: 2, optionCount: actionOptions.length, hasStrategicAlignment: a.value !== "UNKNOWN", hasHistoricalContext: true });
+  return finish({ businessId: c.businessId, decisionKey: `MARKET_SIGNAL:${signal.id}`, title, category: kind, urgency: urgency("", signal.relevanceLevel, importance >= 4 ? "HIGH" : "MEDIUM", c.freshness?.status, "", 1), potentialImpact: importance >= 4 ? "HIGH" : "MEDIUM", evidenceStrength: e, confidence: e === "HIGH" ? "HIGH" : "MEDIUM", sourceType: "MARKET_SIGNAL", relatedSituationIds: [], relatedOpportunityIds: [], relatedCompetitorIds: [], relatedSignalIds: [signal.id], relatedScenarioIds: [], relatedStrategyIds: [], evidenceChain: [{ type: "MARKET_SIGNAL", id: signal.id, label: signal.title, detail }, { type: "MARKET_SOURCE", label: "Source", detail: text(signal.source, "External market source") }], whyMatters: `${detail} Its ${text(signal.impactArea, "market").toLowerCase()} impact area makes it relevant for decision review.`, whatWeKnow: [detail, `Relevance: ${text(signal.relevanceLevel, "LOW")}.`, `Importance score: ${importance || "not scored"}.`], whatWeDontKnow: ["Whether the signal will persist.", "How directly it will affect this business.", "Whether it is causally related to internal changes."], potentialConsequences: "If the signal persists and is not investigated, a relevant market change may be missed. Its magnitude cannot be reliably estimated from current data.", reversibility: "REVERSIBLE", actionOptions, tradeOffs, qualityMetrics, makerUserId: null, makerNote: null, versionNumber: 1, parentDecisionId: null, recommendedNextStep: e === "HIGH" ? "Review the market source and business relevance before changing the current plan." : undefined, recommendedNextStepReason: e === "HIGH" ? "The signal is highly relevant, but persistence and impact remain uncertain." : undefined, strategicAlignment: a.value, strategicAlignmentReason: a.reason, conflictKeys: conflictKeys(title) }, c);
 }
 function scenarioDraft(s: any, c: DecisionContext): Draft | null {
   if (s.status === "ARCHIVED") return null; const title = `Review scenario implication: ${text(s.title, "saved scenario")}`; const kind = category(`${s.title} ${s.scenarioType}`); const e = evidence(1, text(s.evidenceQuality)); const a = alignment(title, kind, c.strategies); const detail = text(s.description, `A ${text(s.scenarioType, "CUSTOM").toLowerCase()} scenario has been saved for review.`);
-  return finish({ businessId: c.businessId, decisionKey: `SCENARIO:${s.id}`, title, category: kind, urgency: "MONITOR", potentialImpact: e === "HIGH" ? "HIGH" : "MEDIUM", evidenceStrength: e, confidence: e === "HIGH" ? "HIGH" : e === "MEDIUM" ? "MEDIUM" : "LIMITED", sourceType: "SCENARIO", relatedSituationIds: ids(parse(s.affectedSituationsJson, [])), relatedOpportunityIds: [], relatedCompetitorIds: [], relatedSignalIds: [], relatedScenarioIds: [s.id], relatedStrategyIds: [], evidenceChain: [{ type: "SCENARIO", id: s.id, label: s.title, detail }, { type: "SCENARIO_EVIDENCE", label: "Evidence quality", detail: text(s.evidenceQuality, "MEDIUM EVIDENCE") }], whyMatters: `${detail} It provides a controlled way to explore implications before deciding whether to act.`, whatWeKnow: [detail, `Scenario type: ${text(s.scenarioType, "CUSTOM")}.`, `Evidence quality: ${text(s.evidenceQuality, "MEDIUM EVIDENCE")}.`], whatWeDontKnow: ["Whether assumptions will hold.", "Whether modeled implications will occur.", "The operational response required."], potentialConsequences: "Ignoring the scenario leaves its assumptions unreviewed; a reliable quantitative consequence cannot be estimated from the scenario alone.", reversibility: "REVERSIBLE", actionOptions: buildRichOptions(title, kind), recommendedNextStep: "Review scenario assumptions before deciding whether to act.", recommendedNextStepReason: "Scenario analysis is decision support and does not establish that it will occur.", strategicAlignment: a.value, strategicAlignmentReason: a.reason, conflictKeys: conflictKeys(title) }, c);
+  const actionOptions = buildRichOptions(title, kind);
+  const tradeOffs = buildTradeOffs(actionOptions);
+  const qualityMetrics = evaluateDecisionQuality({ evidenceStrength: e, knowCount: 2, dontKnowCount: 2, optionCount: actionOptions.length, hasStrategicAlignment: a.value !== "UNKNOWN", hasHistoricalContext: true });
+  return finish({ businessId: c.businessId, decisionKey: `SCENARIO:${s.id}`, title, category: kind, urgency: "MONITOR", potentialImpact: e === "HIGH" ? "HIGH" : "MEDIUM", evidenceStrength: e, confidence: e === "HIGH" ? "HIGH" : "MEDIUM", sourceType: "SCENARIO", relatedSituationIds: ids(parse(s.affectedSituationsJson, [])), relatedOpportunityIds: [], relatedCompetitorIds: [], relatedSignalIds: [], relatedScenarioIds: [s.id], relatedStrategyIds: [], evidenceChain: [{ type: "SCENARIO", id: s.id, label: s.title, detail }, { type: "SCENARIO_EVIDENCE", label: "Evidence quality", detail: text(s.evidenceQuality, "MEDIUM EVIDENCE") }], whyMatters: `${detail} It provides a controlled way to explore implications before deciding whether to act.`, whatWeKnow: [detail, `Scenario type: ${text(s.scenarioType, "CUSTOM")}.`, `Evidence quality: ${text(s.evidenceQuality, "MEDIUM EVIDENCE")}.`], whatWeDontKnow: ["Whether assumptions will hold.", "Whether modeled implications will occur.", "The operational response required."], potentialConsequences: "Ignoring the scenario leaves its assumptions unreviewed; a reliable quantitative consequence cannot be estimated from the scenario alone.", reversibility: "REVERSIBLE", actionOptions, tradeOffs, qualityMetrics, makerUserId: null, makerNote: null, versionNumber: 1, parentDecisionId: null, recommendedNextStep: "Review scenario assumptions before deciding whether to act.", recommendedNextStepReason: "Scenario analysis is decision support and does not establish that it will occur.", strategicAlignment: a.value, strategicAlignmentReason: a.reason, conflictKeys: conflictKeys(title) }, c);
 }
 
 export function generateDecisionCandidates(c: DecisionContext): Draft[] {
@@ -314,9 +331,99 @@ export function generateDecisionCandidates(c: DecisionContext): Draft[] {
 }
 
 function toWrite(d: Draft): DecisionCandidateWrite {
-  return { businessId: d.businessId, decisionKey: d.decisionKey, title: d.title, category: d.category, priority: d.priority, priorityScore: d.priorityScore, urgency: d.urgency, potentialImpact: d.potentialImpact, evidenceStrength: d.evidenceStrength, confidence: d.confidence, sourceType: d.sourceType, relatedSituationIdsJson: JSON.stringify(d.relatedSituationIds), relatedOpportunityIdsJson: JSON.stringify(d.relatedOpportunityIds), relatedCompetitorIdsJson: JSON.stringify(d.relatedCompetitorIds), relatedSignalIdsJson: JSON.stringify(d.relatedSignalIds), relatedScenarioIdsJson: JSON.stringify(d.relatedScenarioIds), relatedStrategyIdsJson: JSON.stringify(d.relatedStrategyIds), evidenceChainJson: JSON.stringify(d.evidenceChain), whyMatters: d.whyMatters, whatWeKnowJson: JSON.stringify(d.whatWeKnow), whatWeDontKnowJson: JSON.stringify(d.whatWeDontKnow), potentialConsequences: d.potentialConsequences, reversibility: d.reversibility, actionOptionsJson: JSON.stringify(d.actionOptions), recommendedNextStep: d.recommendedNextStep || null, recommendedNextStepReason: d.recommendedNextStepReason || null, strategicAlignment: d.strategicAlignment, strategicAlignmentReason: d.strategicAlignmentReason || null, dependencyText: d.dependencyText || null, conflictKeysJson: JSON.stringify(d.conflictKeys), status: "OPEN", outcomeId: null, sourceFingerprint: d.sourceFingerprint || hash(d), lastEvaluatedAt: new Date(), expiresAt: null } as DecisionCandidateWrite;
+  return {
+    businessId: d.businessId,
+    decisionKey: d.decisionKey,
+    title: d.title,
+    category: d.category,
+    priority: d.priority,
+    priorityScore: d.priorityScore,
+    urgency: d.urgency,
+    potentialImpact: d.potentialImpact,
+    evidenceStrength: d.evidenceStrength,
+    confidence: d.confidence,
+    sourceType: d.sourceType,
+    relatedSituationIdsJson: JSON.stringify(d.relatedSituationIds),
+    relatedOpportunityIdsJson: JSON.stringify(d.relatedOpportunityIds),
+    relatedCompetitorIdsJson: JSON.stringify(d.relatedCompetitorIds),
+    relatedSignalIdsJson: JSON.stringify(d.relatedSignalIds),
+    relatedScenarioIdsJson: JSON.stringify(d.relatedScenarioIds),
+    relatedStrategyIdsJson: JSON.stringify(d.relatedStrategyIds),
+    evidenceChainJson: JSON.stringify(d.evidenceChain),
+    whyMatters: d.whyMatters,
+    whatWeKnowJson: JSON.stringify(d.whatWeKnow),
+    whatWeDontKnowJson: JSON.stringify(d.whatWeDontKnow),
+    potentialConsequences: d.potentialConsequences,
+    reversibility: d.reversibility,
+    actionOptionsJson: JSON.stringify(d.actionOptions),
+    tradeOffsJson: JSON.stringify(d.tradeOffs),
+    qualityMetricsJson: JSON.stringify(d.qualityMetrics),
+    makerUserId: d.makerUserId ?? null,
+    makerNote: d.makerNote ?? null,
+    versionNumber: d.versionNumber,
+    parentDecisionId: d.parentDecisionId ?? null,
+    recommendedNextStep: d.recommendedNextStep || null,
+    recommendedNextStepReason: d.recommendedNextStepReason || null,
+    strategicAlignment: d.strategicAlignment,
+    strategicAlignmentReason: d.strategicAlignmentReason || null,
+    dependencyText: d.dependencyText || null,
+    conflictKeysJson: JSON.stringify(d.conflictKeys),
+    status: "OPEN",
+    outcomeId: null,
+    sourceFingerprint: d.sourceFingerprint || hash(d),
+    lastEvaluatedAt: new Date(),
+    expiresAt: null,
+  };
 }
-function view(row: any): DecisionCandidateView { return { id: row.id, businessId: row.businessId, decisionKey: row.decisionKey, title: row.title, category: row.category, priority: row.priority, priorityScore: row.priorityScore, urgency: row.urgency, potentialImpact: row.potentialImpact, evidenceStrength: row.evidenceStrength, confidence: row.confidence, sourceType: row.sourceType, relatedSituationIds: parse(row.relatedSituationIdsJson, []), relatedOpportunityIds: parse(row.relatedOpportunityIdsJson, []), relatedCompetitorIds: parse(row.relatedCompetitorIdsJson, []), relatedSignalIds: parse(row.relatedSignalIdsJson, []), relatedScenarioIds: parse(row.relatedScenarioIdsJson, []), relatedStrategyIds: parse(row.relatedStrategyIdsJson, []), evidenceChain: parse(row.evidenceChainJson, []), whyMatters: row.whyMatters, whatWeKnow: parse(row.whatWeKnowJson, []), whatWeDontKnow: parse(row.whatWeDontKnowJson, []), potentialConsequences: row.potentialConsequences, reversibility: row.reversibility, actionOptions: parse(row.actionOptionsJson, []), recommendedNextStep: row.recommendedNextStep || undefined, recommendedNextStepReason: row.recommendedNextStepReason || undefined, strategicAlignment: row.strategicAlignment, strategicAlignmentReason: row.strategicAlignmentReason || undefined, dependencyText: row.dependencyText || undefined, conflictKeys: parse(row.conflictKeysJson, []), status: row.status, outcomeId: row.outcomeId, sourceFingerprint: row.sourceFingerprint, lastEvaluatedAt: row.lastEvaluatedAt, expiresAt: row.expiresAt, createdAt: row.createdAt, updatedAt: row.updatedAt }; }
+function view(row: any): DecisionCandidateView {
+  const options = parse<DecisionActionOption[]>(row.actionOptionsJson, []);
+  return {
+    id: row.id,
+    businessId: row.businessId,
+    decisionKey: row.decisionKey,
+    title: row.title,
+    category: row.category,
+    priority: row.priority,
+    priorityScore: row.priorityScore,
+    urgency: row.urgency,
+    potentialImpact: row.potentialImpact,
+    evidenceStrength: row.evidenceStrength,
+    confidence: row.confidence,
+    sourceType: row.sourceType,
+    relatedSituationIds: parse(row.relatedSituationIdsJson, []),
+    relatedOpportunityIds: parse(row.relatedOpportunityIdsJson, []),
+    relatedCompetitorIds: parse(row.relatedCompetitorIdsJson, []),
+    relatedSignalIds: parse(row.relatedSignalIdsJson, []),
+    relatedScenarioIds: parse(row.relatedScenarioIdsJson, []),
+    relatedStrategyIds: parse(row.relatedStrategyIdsJson, []),
+    evidenceChain: parse(row.evidenceChainJson, []),
+    whyMatters: row.whyMatters,
+    whatWeKnow: parse(row.whatWeKnowJson, []),
+    whatWeDontKnow: parse(row.whatWeDontKnowJson, []),
+    potentialConsequences: row.potentialConsequences,
+    reversibility: row.reversibility,
+    actionOptions: options,
+    tradeOffs: parse<TradeOffItem[]>(row.tradeOffsJson, buildTradeOffs(options)),
+    qualityMetrics: parse<DecisionQualityMetrics>(row.qualityMetricsJson, evaluateDecisionQuality({ evidenceStrength: row.evidenceStrength, knowCount: parse<string[]>(row.whatWeKnowJson, []).length, dontKnowCount: parse<string[]>(row.whatWeDontKnowJson, []).length, optionCount: options.length, hasStrategicAlignment: row.strategicAlignment !== "UNKNOWN", hasHistoricalContext: true })),
+    makerUserId: row.makerUserId ?? null,
+    makerNote: row.makerNote ?? null,
+    versionNumber: row.versionNumber ?? 1,
+    parentDecisionId: row.parentDecisionId ?? null,
+    recommendedNextStep: row.recommendedNextStep || undefined,
+    recommendedNextStepReason: row.recommendedNextStepReason || undefined,
+    strategicAlignment: row.strategicAlignment,
+    strategicAlignmentReason: row.strategicAlignmentReason || undefined,
+    dependencyText: row.dependencyText || undefined,
+    conflictKeys: parse(row.conflictKeysJson, []),
+    status: row.status,
+    outcomeId: row.outcomeId,
+    sourceFingerprint: row.sourceFingerprint,
+    lastEvaluatedAt: row.lastEvaluatedAt,
+    expiresAt: row.expiresAt,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
 
 export async function loadDecisionContext(businessId: number, start = new Date(Date.now() - 30 * 86400000), end = new Date()): Promise<DecisionContext> {
   const [situations, opportunities, competitors, marketSignals, scenarios, strategies, decisionPriorities, healthScore, freshness] = await Promise.all([getBusinessSituationTrends(businessId), getOpportunities(businessId), evaluateCompetitorIntelligence(businessId), getMarketSignals(businessId), getScenarios(businessId), getStrategies(businessId), getDecisionPriorities(businessId, 20), calculateBusinessHealthScore(businessId, start, end), getDataFreshness(businessId)]);
@@ -336,3 +443,85 @@ export function canTransitionDecision(current: DecisionLifecycleStatus, next: De
 export async function updateDecisionLifecycle(businessId: number, decisionId: number, status: DecisionLifecycleStatus, details?: string) { const existing = await getDecisionCandidateById(businessId, decisionId); if (!existing) return null; if (!canTransitionDecision(existing.status as DecisionLifecycleStatus, status)) throw new Error(`Invalid decision lifecycle transition from ${existing.status} to ${status}.`); const row = await updateDecisionCandidateLifecycle(businessId, decisionId, status, undefined, details); return row ? view(row) : null; }
 export async function linkDecisionOutcome(businessId: number, decisionId: number, outcomeId: number) { const existing = await getDecisionCandidateById(businessId, decisionId); if (!existing) return null; const row = await updateDecisionCandidateLifecycle(businessId, decisionId, existing.status as DecisionLifecycleStatus, outcomeId, JSON.stringify({ outcomeId, linked: true })); if (row && existing.outcomeId !== outcomeId) await createDecisionEvent({ businessId, decisionId, eventType: "OUTCOME_LINKED", previousStatus: existing.status, newStatus: existing.status, detailsJson: JSON.stringify({ outcomeId }) }); return row ? view(row) : null; }
 export async function getDecisionHistory(businessId: number, decisionId: number, limit = 50) { const row = await getDecisionCandidateById(businessId, decisionId); return row ? { decision: view(row), events: await getDecisionEvents(businessId, decisionId, limit) } : null; }
+
+export function buildTradeOffs(options: DecisionActionOption[]): TradeOffItem[] {
+  return options.map((opt) => ({
+    optionLabel: opt.label,
+    gains: [opt.expectedBenefit, `Rationale: ${opt.rationale}`],
+    sacrifices: [opt.potentialRisk, `Unknowns: ${opt.unknownFactors}`],
+  }));
+}
+
+export function evaluateDecisionQuality(input: {
+  evidenceStrength: DecisionEvidenceStrength;
+  knowCount: number;
+  dontKnowCount: number;
+  optionCount: number;
+  hasStrategicAlignment: boolean;
+  hasHistoricalContext: boolean;
+}): DecisionQualityMetrics {
+  const eq = input.evidenceStrength === "HIGH" ? "HIGH" : input.evidenceStrength === "MEDIUM" ? "MEDIUM" : "LIMITED";
+  const cc = input.knowCount >= 2 ? "HIGH" : input.knowCount === 1 ? "MEDIUM" : "LOW";
+  const oc = input.optionCount >= 3 ? "HIGH" : input.optionCount >= 2 ? "MEDIUM" : "LOW";
+  const ra = input.dontKnowCount <= 2 ? "HIGH" : "MEDIUM";
+  const hc = input.hasHistoricalContext ? "HIGH" : "MEDIUM";
+  const of = "MEDIUM";
+  return {
+    evidenceQuality: eq as QualitativeConfidenceLevel,
+    contextCompleteness: cc as QualitativeConfidenceLevel,
+    optionCoverage: oc as QualitativeConfidenceLevel,
+    riskAwareness: ra as QualitativeConfidenceLevel,
+    historicalContext: hc as QualitativeConfidenceLevel,
+    outcomeFollowUp: of as QualitativeConfidenceLevel,
+    summaryExplanation: `Decision quality evaluated from ${input.evidenceStrength.toLowerCase()} evidence strength, ${input.knowCount} known factors, and ${input.optionCount} evaluated alternatives.`,
+  };
+}
+
+export function mapDecisionRow(row: any): DecisionCandidateView {
+  return {
+    id: row.id,
+    businessId: row.businessId,
+    decisionKey: row.decisionKey,
+    title: row.title,
+    category: row.category as DecisionCategory,
+    priority: row.priority as DecisionPriority,
+    priorityScore: row.priorityScore,
+    urgency: row.urgency as DecisionUrgency,
+    potentialImpact: row.potentialImpact,
+    evidenceStrength: row.evidenceStrength as DecisionEvidenceStrength,
+    confidence: row.confidence,
+    sourceType: row.sourceType,
+    relatedSituationIds: parse<number[]>(row.relatedSituationIdsJson, []),
+    relatedOpportunityIds: parse<number[]>(row.relatedOpportunityIdsJson, []),
+    relatedCompetitorIds: parse<number[]>(row.relatedCompetitorIdsJson, []),
+    relatedSignalIds: parse<number[]>(row.relatedSignalIdsJson, []),
+    relatedScenarioIds: parse<number[]>(row.relatedScenarioIdsJson, []),
+    relatedStrategyIds: parse<number[]>(row.relatedStrategyIdsJson, []),
+    evidenceChain: parse<EvidenceChainItem[]>(row.evidenceChainJson, []),
+    whyMatters: row.whyMatters,
+    whatWeKnow: parse<string[]>(row.whatWeKnowJson, []),
+    whatWeDontKnow: parse<string[]>(row.whatWeDontKnowJson, []),
+    potentialConsequences: row.potentialConsequences,
+    reversibility: row.reversibility as DecisionReversibility,
+    actionOptions: parse<DecisionActionOption[]>(row.actionOptionsJson, []),
+    tradeOffs: parse<TradeOffItem[]>(row.tradeOffsJson, buildTradeOffs(parse<DecisionActionOption[]>(row.actionOptionsJson, []))),
+    qualityMetrics: parse<DecisionQualityMetrics>(row.qualityMetricsJson, evaluateDecisionQuality({ evidenceStrength: row.evidenceStrength, knowCount: parse<string[]>(row.whatWeKnowJson, []).length, dontKnowCount: parse<string[]>(row.whatWeDontKnowJson, []).length, optionCount: parse<DecisionActionOption[]>(row.actionOptionsJson, []).length, hasStrategicAlignment: row.strategicAlignment !== "UNKNOWN", hasHistoricalContext: true })),
+    makerUserId: row.makerUserId ?? null,
+    makerNote: row.makerNote ?? null,
+    versionNumber: row.versionNumber ?? 1,
+    parentDecisionId: row.parentDecisionId ?? null,
+    recommendedNextStep: row.recommendedNextStep || undefined,
+    recommendedNextStepReason: row.recommendedNextStepReason || undefined,
+    strategicAlignment: row.strategicAlignment as StrategicAlignment,
+    strategicAlignmentReason: row.strategicAlignmentReason || undefined,
+    dependencyText: row.dependencyText || undefined,
+    conflictKeys: parse<string[]>(row.conflictKeysJson, []),
+    status: row.status as DecisionLifecycleStatus,
+    outcomeId: row.outcomeId ?? null,
+    sourceFingerprint: row.sourceFingerprint,
+    lastEvaluatedAt: row.lastEvaluatedAt ? new Date(row.lastEvaluatedAt) : undefined,
+    expiresAt: row.expiresAt ? new Date(row.expiresAt) : null,
+    createdAt: row.createdAt ? new Date(row.createdAt) : undefined,
+    updatedAt: row.updatedAt ? new Date(row.updatedAt) : undefined,
+  };
+}
