@@ -686,3 +686,11 @@
 - [x] Days 88+: Integrate execution health, overdue items, blockers, and outcome reviews into the Executive Command Center and Dashboard surfaces
 - [x] Days 88+: Add deterministic unit and integration tests; verify TypeScript compilation, production build, and responsive preview
 - [x] Days 88+: Save final Operations & Execution Intelligence checkpoint and stop
+
+## Days 92+: Advanced Executive Intelligence v2
+- [x] Days 92+: Audit existing command center, synthesis, attention, and priority contracts without duplicating engines
+- [x] Days 92+: Implement cross-domain business synthesis correlating performance, financial, customer, demand, risk, opportunity, execution, strategy, foresight, scenario, and memory domains using empirical evidence only
+- [x] Days 92+: Implement priority orchestration synthesizing what matters most into unified executive briefs and morning business views
+- [x] Days 92+: Integrate Advanced Executive Intelligence into the Executive Command Center and Dashboard surfaces with transparent unknown states
+- [x] Days 92+: Add deterministic unit and integration tests; verify TypeScript compilation, production build, and responsive preview
+- [x] Days 92+: Save final Advanced Executive Intelligence checkpoint and stop
