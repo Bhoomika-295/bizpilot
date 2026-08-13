@@ -523,14 +523,49 @@
 - [ ] Run full test suite (127+ tests passing), TypeScript type check, production build verification, and save final checkpoint
 
 ## Day 47–49: Decision Intelligence & Strategy Adaptation v2
-- [ ] Add tenant-isolated decision context, evidence, options, trade-offs, and qualitative confidence persistence
-- [ ] Add decision record, selected-option reasoning, strategy links, outcome links, and chronological timeline persistence
-- [ ] Add deterministic decision quality dimensions and targeted historical memory/pattern relevance
-- [ ] Add explicit strategy change preview and human approval flow reusing existing strategy versioning
-- [ ] Connect approved strategy changes to decision events and expected outcomes without autonomous mutation
-- [ ] Connect decision outcomes to expected-versus-actual comparison, structured learning, Business Memory, and Pattern Intelligence
-- [ ] Integrate high-value Decisions That Matter and concise Decisions Required content into the Executive Command Center
-- [ ] Add Decision Intelligence v2 UI surfaces with evidence, options, trade-offs, approval, outcome, learning, and timeline states
-- [ ] Add deterministic unit, persistence, tenant-authorization, cross-tenant, and human-approval tests for Day 47–49
-- [ ] Run full tests, TypeScript validation, production build, responsive visual verification, and document any environment limitation
-- [ ] Save the Day 47–49 checkpoint and stop without starting Day 50
+- [x] Add tenant-isolated decision context, evidence, options, trade-offs, and qualitative confidence persistence
+- [x] Add decision record, selected-option reasoning, strategy links, outcome links, and chronological timeline persistence
+- [x] Add deterministic decision quality dimensions and targeted historical memory/pattern relevance
+- [x] Add explicit strategy change preview and human approval flow reusing existing strategy versioning
+- [x] Connect approved strategy changes to decision events and expected outcomes without autonomous mutation
+- [x] Connect decision outcomes to expected-versus-actual comparison, structured learning, Business Memory, and Pattern Intelligence
+- [x] Integrate high-value Decisions That Matter and concise Decisions Required content into the Executive Command Center
+- [x] Add Decision Intelligence v2 UI surfaces with evidence, options, trade-offs, approval, outcome, learning, and timeline states
+- [x] Add deterministic unit, persistence, tenant-authorization, cross-tenant, and human-approval tests for Day 47–49
+- [x] Run full tests, TypeScript validation, production build, responsive visual verification, and document any environment limitation
+- [x] Save the Day 47–49 checkpoint and stop without starting Day 50
+
+## Days 50–52: Strategic Simulation & What-If Intelligence v2
+- [ ] Add tenant-isolated flexible scenario builder persistence with assumptions, variables, horizon, strategy, reason, baseline, and lifecycle state
+- [ ] Label every scenario assumption as USER PROVIDED, HISTORICAL, SYSTEM DERIVED, or UNKNOWN
+- [ ] Add deterministic simulation intelligence reusing existing metrics, trends, forecasts, foresight, risks, opportunities, strategies, decisions, outcomes, memory, and patterns
+- [ ] Add scenario impact, confidence dimensions, qualitative ranges, trade-offs, dependencies, unknown factors, and affected-entity evidence
+- [ ] Add executive-friendly multi-scenario comparison without fabricating numeric precision
+- [ ] Add historical scenario context with similar-versus-identical distinction and explainable relevance
+- [ ] Add explicit Scenario-to-Decision handoff requiring human continuation, connected to strategy, action, and outcome workflow
+- [ ] Add explainable simulation learning loop comparing expected versus actual outcomes, assumptions held/failed, unknowns, and lessons
+- [ ] Add scenario memory lifecycle, monitoring links, assumption observations, and deterministic deviation states
+- [ ] Integrate scenario intelligence into the Executive Command Center and relevant strategy/decision/action surfaces
+- [ ] Build responsive Scenario Builder and Simulation workspace UI with clear fact/assumption/simulation/actual-result labeling
+- [ ] Add deterministic unit, persistence, cross-tenant, authorization, approval-gating, monitoring, and learning tests
+- [ ] Run full tests, TypeScript validation, production build, and responsive visual verification
+- [ ] Save the Days 50–52 checkpoint and stop without starting Day 53
+
+## Days 50–52: Strategic Simulation & What-If Intelligence v2
+- [x] Create/refine flexible Scenario Builder supporting custom inputs, assumptions, variables, time horizons, and strategy links
+- [x] Ensure strict distinction between observed facts, modeled assumptions, simulated outcomes, and actual future results
+- [x] Implement baseline comparison (current state vs scenario state) without mutating actual business data
+- [x] Add explicit assumption provenance labeling: USER PROVIDED, HISTORICAL, SYSTEM_DERIVED, UNKNOWN
+- [x] Connect Scenario Builder to BizPilot metrics, forecasts, foresight, risks, opportunities, strategies, decisions, outcomes, memory, and patterns
+- [x] Implement scenario impact analysis (positive/negative effects, affected metrics/strategies, risks, opportunities, dependencies, unknown factors)
+- [x] Add four-pillar scenario confidence (data confidence, assumption confidence, historical relevance, model confidence) without fake numerical precision
+- [x] Add scenario range modeling supporting Best Case / Base Case / Worst Case or qualitative LOW/MEDIUM/HIGH/UNKNOWN ranges
+- [x] Implement multi-scenario comparison (Current Plan vs Price Reduction vs Marketing Expansion) covering impact, risk, strategic alignment, and evidence
+- [x] Integrate historical scenario context using Business Memory and Pattern Intelligence (Similar vs Identical historical analogues)
+- [x] Implement explicit Scenario → Decision handoff (Scenario → Decision Context → Options → Trade-offs → Human Decision → Strategy Change → Action → Outcome)
+- [x] Implement Simulation Learning Loop comparing expected vs actual outcomes, tracking assumptions held/failed, and generating explainable lessons
+- [x] Implement Scenario Monitoring detecting deviation (On Track, Deviating, Strongly Deviating, Unknown) against actual observed data
+- [x] Build executive Scenario Builder & Simulation workspace with clear visual status states (Draft, Simulated, Under Review, Decision Made, Executed, Completed, Archived)
+- [x] Add deterministic unit, persistence, tenant authorization, and deviation tests for Days 50–52
+- [x] Run full tests, TypeScript validation, production build, responsive visual verification, and document environment limitation
+- [x] Save the completed Days 50–52 checkpoint and stop without starting Day 53

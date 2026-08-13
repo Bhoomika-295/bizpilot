@@ -94,6 +94,8 @@ const scenarioAssumptionSchema = z.object({
   key: z.string().min(1).max(120),
   label: z.string().min(1).max(240),
   value: z.string().max(1000),
+  baselineValue: z.string().max(1000).optional(),
+  source: z.enum(["USER_PROVIDED", "HISTORICAL", "SYSTEM_DERIVED", "UNKNOWN"]).optional(),
   evidence: z.array(z.string().max(1000)).max(20).optional(),
   confidence: z.enum(["HIGH", "MEDIUM", "LOW", "UNKNOWN"]).optional(),
   invalidationSignal: z.string().max(240).optional(),

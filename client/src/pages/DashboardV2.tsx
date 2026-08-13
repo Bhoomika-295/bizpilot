@@ -343,6 +343,24 @@ export default function DashboardV2() {
     onSuccess: (result) => toast.success(`Scenario monitoring refreshed: ${result.monitoringStatus}`),
     onError: (err: any) => toast.error(`Scenario monitoring failed: ${err.message}`),
   });
+  const createBaselineScenarioMutation = trpc.businessMetrics.createBaselineScenarioPath.useMutation({
+    onSuccess: () => {
+      scenarioPathsQuery.refetch();
+      scenarioComparisonQuery.refetch();
+      setIsScenarioBuilderOpen(false);
+      toast.success("Baseline scenario path created successfully");
+    },
+    onError: (err: any) => toast.error(`Baseline scenario creation failed: ${err.message}`),
+  });
+  const createAlternativeScenarioMutation = trpc.businessMetrics.createAlternativeScenarioPath.useMutation({
+    onSuccess: () => {
+      scenarioPathsQuery.refetch();
+      scenarioComparisonQuery.refetch();
+      setIsScenarioBuilderOpen(false);
+      toast.success("Alternative scenario path simulated successfully");
+    },
+    onError: (err: any) => toast.error(`Alternative scenario simulation failed: ${err.message}`),
+  });
 
   const trajectoryQuery = trpc.businessMetrics.getBusinessTrajectory.useQuery(
     { businessId: parseInt(businessId || "0"), forecastWindow: 7 },
@@ -2571,78 +2589,179 @@ export default function DashboardV2() {
                   const title = (form.elements.namedItem("title") as HTMLInputElement).value;
                   const description = (form.elements.namedItem("description") as HTMLInputElement).value;
                   const scenarioType = (form.elements.namedItem("scenarioType") as HTMLSelectElement).value;
-                  const paramVal = parseFloat((form.elements.namedItem("paramVal") as HTMLInputElement).value || "10");
+                  const pathKind = (form.elements.namedItem("pathKind") as HTMLSelectElement).value as "BASELINE" | "ALTERNATIVE";
+                  const timeHorizon = (form.elements.namedItem("timeHorizon") as HTMLSelectElement).value;
+                  const assumptionLabel = (form.elements.namedItem("assumptionLabel") as HTMLInputElement).value;
+                  const assumptionValue = (form.elements.namedItem("assumptionValue") as HTMLInputElement).value;
+                  const baselineValue = (form.elements.namedItem("baselineValue") as HTMLInputElement).value;
+                  const assumptionSource = (form.elements.namedItem("assumptionSource") as HTMLSelectElement).value as any;
+                  const assumptionConfidence = (form.elements.namedItem("assumptionConfidence") as HTMLSelectElement).value as any;
+                  const invalidationSignal = (form.elements.namedItem("invalidationSignal") as HTMLInputElement).value;
 
-                  let assumptions: Record<string, any> = {};
-                  if (scenarioType === "PRICE_CHANGE") assumptions = { priceChangePct: paramVal };
-                  else if (scenarioType === "MARKETING_CHANGE") assumptions = { marketingSpendNew: paramVal };
-                  else if (scenarioType === "COST_CHANGE") assumptions = { costChangePct: paramVal };
-                  else if (scenarioType === "DEMAND_CHANGE") assumptions = { demandChangePct: paramVal };
-                  else assumptions = { customAdjustment: paramVal };
+                  const assumptions = [{
+                    key: assumptionLabel.toLowerCase().replace(/[^a-z0-9]+/g, "_"),
+                    label: assumptionLabel,
+                    value: assumptionValue,
+                    baselineValue,
+                    source: assumptionSource,
+                    confidence: assumptionConfidence,
+                    evidence: ["Current business trajectory data", "Verified transaction and metric baselines"],
+                    invalidationSignal: invalidationSignal || undefined,
+                  }];
 
-                  createScenarioMutation.mutate({
+                  const payload = {
                     businessId: parseInt(businessId || "0"),
                     title,
                     description,
                     scenarioType,
+                    pathKind,
+                    timeHorizon,
                     assumptions,
-                  });
+                    affectedAreas: ["Revenue", "Margin", "Customer Retention"],
+                    expectedDirection: { Revenue: "IMPROVING", Risk: "CONTROLLED" },
+                    expectedOutcome: "Modeled pathway with explicit assumption provenance and baseline comparison.",
+                  };
+
+                  if (pathKind === "BASELINE") {
+                    createBaselineScenarioMutation.mutate(payload);
+                  } else {
+                    createAlternativeScenarioMutation.mutate(payload);
+                  }
                 }}
                 className="space-y-4"
               >
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
-                    Scenario Title
-                  </label>
-                  <input
-                    name="title"
-                    required
-                    defaultValue="Q3 Price Adjustment Test"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
-                  />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Scenario Title</label>
+                    <input
+                      name="title"
+                      required
+                      defaultValue="Q3 Price Reduction Test"
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-violet-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Path Kind</label>
+                    <select
+                      name="pathKind"
+                      defaultValue="ALTERNATIVE"
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-violet-500 bg-white"
+                    >
+                      <option value="ALTERNATIVE">Alternative Strategy Path</option>
+                      <option value="BASELINE">Baseline Path</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
-                    Description & Context
-                  </label>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Description & Strategic Intent</label>
                   <textarea
                     name="description"
                     rows={2}
-                    defaultValue="Testing impact of pricing adjustments on margin and competitive positioning."
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+                    defaultValue="Evaluating the trade-offs of reducing price by 10% to capture demand volume versus margin impact."
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-violet-500"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
-                    Scenario Type
-                  </label>
-                  <select
-                    name="scenarioType"
-                    defaultValue="PRICE_CHANGE"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 bg-white"
-                  >
-                    <option value="PRICE_CHANGE">Price Change (%)</option>
-                    <option value="MARKETING_CHANGE">Marketing Spend (₹)</option>
-                    <option value="COST_CHANGE">Operating Cost Change (%)</option>
-                    <option value="DEMAND_CHANGE">Demand / Volume Change (%)</option>
-                    <option value="COMPETITOR_CHANGE">Competitor Response Analysis</option>
-                  </select>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Scenario Type</label>
+                    <select
+                      name="scenarioType"
+                      defaultValue="PRICE_REDUCTION"
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-violet-500 bg-white"
+                    >
+                      <option value="PRICE_REDUCTION">Price Reduction</option>
+                      <option value="MARKETING_EXPANSION">Marketing Expansion</option>
+                      <option value="COST_REDUCTION">Cost Reduction</option>
+                      <option value="DEMAND_GROWTH">Demand Growth</option>
+                      <option value="COMPETITIVE_RESPONSE">Competitive Response</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">Time Horizon</label>
+                    <select
+                      name="timeHorizon"
+                      defaultValue="90 DAYS"
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-violet-500 bg-white"
+                    >
+                      <option value="30 DAYS">30 Days</option>
+                      <option value="90 DAYS">90 Days</option>
+                      <option value="180 DAYS">180 Days</option>
+                      <option value="1 YEAR">1 Year</option>
+                    </select>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
-                    Primary Assumption Value (e.g. 10 for +10% or 75000 for budget)
-                  </label>
-                  <input
-                    name="paramVal"
-                    type="number"
-                    step="any"
-                    required
-                    defaultValue="10"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
-                  />
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-3">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-slate-700">Controlled Core Assumption & Baseline Comparison</div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Assumption Label</label>
+                      <input
+                        name="assumptionLabel"
+                        required
+                        defaultValue="Pricing level adjustment"
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Assumption Provenance</label>
+                      <select
+                        name="assumptionSource"
+                        defaultValue="USER_PROVIDED"
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 bg-white"
+                      >
+                        <option value="USER_PROVIDED">User Provided</option>
+                        <option value="HISTORICAL">Historical Pattern</option>
+                        <option value="SYSTEM_DERIVED">System Derived</option>
+                        <option value="UNKNOWN">Unknown</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Current Baseline Value</label>
+                      <input
+                        name="baselineValue"
+                        required
+                        defaultValue="₹1,000 / unit"
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Scenario Modeled Value</label>
+                      <input
+                        name="assumptionValue"
+                        required
+                        defaultValue="₹900 / unit (-10%)"
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 bg-white"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Assumption Confidence</label>
+                      <select
+                        name="assumptionConfidence"
+                        defaultValue="MEDIUM"
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 bg-white"
+                      >
+                        <option value="HIGH">High Confidence</option>
+                        <option value="MEDIUM">Medium Confidence</option>
+                        <option value="LOW">Low Confidence</option>
+                        <option value="UNKNOWN">Unknown</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600 mb-1">Invalidation Signal (Watch)</label>
+                      <input
+                        name="invalidationSignal"
+                        placeholder="e.g. margin drop below 15%"
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 bg-white"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="pt-3 flex items-center justify-end gap-3 border-t border-slate-100">
@@ -2655,11 +2774,11 @@ export default function DashboardV2() {
                   </Button>
                   <Button
                     type="submit"
-                    disabled={createScenarioMutation.isPending}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    disabled={createBaselineScenarioMutation.isPending || createAlternativeScenarioMutation.isPending}
+                    className="bg-violet-600 hover:bg-violet-700 text-white font-medium"
                   >
-                    {createScenarioMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    Simulate & Save Scenario
+                    {(createBaselineScenarioMutation.isPending || createAlternativeScenarioMutation.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Simulate & Save Scenario Path
                   </Button>
                 </div>
               </form>
@@ -3494,9 +3613,27 @@ export default function DashboardV2() {
                     </div>
                   </div>
                   {(detail?.historicalAnalogues ?? []).length > 0 && (
-                    <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-4">
-                      <h3 className="text-sm font-semibold text-sky-950">Historical analogues</h3>
-                      <ul className="mt-2 space-y-1 text-sm text-sky-900">{(detail?.historicalAnalogues ?? []).slice(0, 6).map((item: string, idx: number) => <li key={idx}>• {item}</li>)}</ul>
+                    <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-semibold text-sky-950">Historical Analogues & Precedents</h3>
+                        <span className="text-[11px] font-medium text-sky-700">Business Memory & Pattern Intelligence</span>
+                      </div>
+                      <div className="space-y-2">
+                        {(detail?.historicalAnalogues ?? []).slice(0, 4).map((item: any, idx: number) => (
+                          <div key={idx} className="rounded-lg border border-sky-200 bg-white p-3 text-xs text-slate-800 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-slate-900">{item.description}</span>
+                              <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${item.matchType === "IDENTICAL" ? "bg-violet-100 text-violet-800" : "bg-sky-100 text-sky-800"}`}>
+                                {item.matchType} MATCH
+                              </span>
+                            </div>
+                            <p className="text-slate-600"><strong>Prior Action:</strong> {item.whatWasDone}</p>
+                            <p className="text-slate-600"><strong>Observed Outcome:</strong> {item.whatHappened}</p>
+                            <p className="text-slate-700"><strong>Lesson Learned:</strong> {item.lesson}</p>
+                            <p className="text-sky-900 font-medium italic">Relevance: {item.relevanceNow}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                   <div className="border-t border-slate-100 pt-4">

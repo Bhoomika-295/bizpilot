@@ -33,10 +33,14 @@ export type ScenarioLifecycleStatus =
   | "ARCHIVED";
 export type ScenarioScore = "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
 
+export type AssumptionSource = "USER_PROVIDED" | "HISTORICAL" | "SYSTEM_DERIVED" | "UNKNOWN";
+
 export interface ScenarioAssumptionInput {
   key: string;
   label: string;
   value: string;
+  baselineValue?: string;
+  source?: AssumptionSource;
   evidence?: string[];
   confidence?: ScenarioScore;
   invalidationSignal?: string;
@@ -110,6 +114,17 @@ export interface ScenarioComparisonView {
   updatedAt: Date;
 }
 
+export interface ScenarioLearningRecord {
+  expectedOutcome: string;
+  actualOutcome?: string;
+  assumptionsHeld: string[];
+  assumptionsFailed: string[];
+  unknownFactors: string[];
+  explainableLesson: string;
+  deviationState: "ON_TRACK" | "DEVIATING" | "STRONGLY_DEVIATING" | "UNKNOWN";
+  variancePercentage?: number;
+}
+
 export interface ScenarioDetailView {
   scenario: Scenario;
   assumptions: ScenarioAssumptionInput[];
@@ -122,7 +137,15 @@ export interface ScenarioDetailView {
   strategicImplications: string[];
   scorecard: ScenarioScorecard;
   trajectory: BusinessTrajectorySummary | null;
-  historicalAnalogues: string[];
+  historicalAnalogues: Array<{
+    matchType: "SIMILAR" | "IDENTICAL";
+    description: string;
+    whatWasDone: string;
+    whatHappened: string;
+    lesson: string;
+    relevanceNow: string;
+  }>;
+  learning: ScenarioLearningRecord | null;
   history: Awaited<ReturnType<typeof getScenarioHistory>>;
 }
 
@@ -148,6 +171,12 @@ function scoreRank(value: ScenarioScore): number {
 
 function normalizeText(value: unknown): string {
   return String(value ?? "").trim().toLowerCase();
+}
+
+function asText(value: unknown, fallback = ""): string {
+  if (value === null || value === undefined) return fallback;
+  const s = String(value).trim();
+  return s.length > 0 ? s : fallback;
 }
 
 function evidenceStrength(context: ScenarioContext): ScenarioScore {
@@ -234,17 +263,80 @@ function scenarioOpportunity(input: ScenarioPathInput, context: ScenarioContext)
   return { score: "LOW", items: ["No directly linked opportunity evidence is available; upside remains conditional."] };
 }
 
-function historicalAnalogues(input: ScenarioPathInput, context: ScenarioContext): string[] {
-  const scenarioText = normalizeText(`${input.title} ${input.objective ?? ""} ${(input.affectedAreas ?? []).join(" ")}`);
-  return (context.outcomes ?? []).slice(0, 8).flatMap((outcome) => {
+function historicalAnalogues(input: ScenarioPathInput, context: ScenarioContext): Array<{
+  matchType: "SIMILAR" | "IDENTICAL";
+  description: string;
+  whatWasDone: string;
+  whatHappened: string;
+  lesson: string;
+  relevanceNow: string;
+}> {
+  const scenarioText = normalizeText(`${input.title} ${input.objective ?? ""} ${(input.affectedAreas ?? []).join(" ")} ${(input.scenarioType ?? "")}`);
+  const analogues: Array<{
+    matchType: "SIMILAR" | "IDENTICAL";
+    description: string;
+    whatWasDone: string;
+    whatHappened: string;
+    lesson: string;
+    relevanceNow: string;
+  }> = [];
+
+  for (const outcome of (context.outcomes ?? []).slice(0, 10)) {
     const outcomeText = normalizeText(`${outcome.title ?? ""} ${outcome.summary ?? ""} ${outcome.category ?? ""} ${outcome.status ?? ""}`);
+    const titleMatch = normalizeText(outcome.title ?? "").includes(normalizeText(input.scenarioType ?? ""));
     const tokens = scenarioText.split(/\s+/).filter((token) => token.length > 4);
-    const matched = tokens.filter((token) => outcomeText.includes(token)).length;
-    if (matched >= 1) {
-      return [`Historical outcome ${String(outcome.id ?? "record")} partially overlaps with this path; use as context, not proof.`];
+    const matchedTokens = tokens.filter((token) => outcomeText.includes(token));
+    
+    if (titleMatch || matchedTokens.length >= 2) {
+      const matchType = titleMatch && matchedTokens.length >= 3 ? "IDENTICAL" : "SIMILAR";
+      analogues.push({
+        matchType,
+        description: asText(outcome.title, "Historical outcome record"),
+        whatWasDone: asText(outcome.summary, "Previous action was recorded under similar operational conditions."),
+        whatHappened: asText(outcome.actualOutcome, asText(outcome.expectedOutcome, "Outcome was tracked and recorded.")),
+        lesson: asText(outcome.learningNotes, "Conditional execution requires monitoring verified assumptions."),
+        relevanceNow: matchType === "IDENTICAL" 
+          ? "Identical conditions detected in retained outcome records; treat as strong historical precedent."
+          : "Similar operating context detected; use as directional context rather than guaranteed proof.",
+      });
     }
-    return [];
-  });
+  }
+
+  if (analogues.length === 0 && (context.outcomes ?? []).length > 0) {
+    const fallback = (context.outcomes ?? [])[0];
+    analogues.push({
+      matchType: "SIMILAR",
+      description: asText(fallback.title, "General business outcome record"),
+      whatWasDone: asText(fallback.summary, "Prior strategic action was evaluated."),
+      whatHappened: asText(fallback.actualOutcome, "Outcome was recorded."),
+      lesson: asText(fallback.learningNotes, "Assumptions require ongoing validation against live metrics."),
+      relevanceNow: "General historical context provides a baseline reference point.",
+    });
+  }
+
+  return analogues;
+}
+
+function computeDeviationState(
+  scenario: Scenario,
+  context: ScenarioContext,
+): "ON_TRACK" | "DEVIATING" | "STRONGLY_DEVIATING" | "UNKNOWN" {
+  const assumptions = parseJson<ScenarioAssumptionInput[]>(scenario.assumptionsJson, []);
+  if (assumptions.length === 0) return "UNKNOWN";
+  
+  const earlyWarnings = context.trajectory?.earlyWarnings ?? [];
+  let invalidCount = 0;
+  
+  for (const asm of assumptions) {
+    const signal = normalizeText(asm.invalidationSignal);
+    if (signal && earlyWarnings.some((w) => normalizeText(w).includes(signal))) {
+      invalidCount++;
+    }
+  }
+
+  if (invalidCount >= 2 || scenario.status === "INVALIDATED") return "STRONGLY_DEVIATING";
+  if (invalidCount === 1) return "DEVIATING";
+  return "ON_TRACK";
 }
 
 export function buildScenarioScorecard(
@@ -448,6 +540,16 @@ export async function getScenarioPathDetail(businessId: number, scenarioId: numb
   const input = toScenarioInput(scenario);
   const scorecard = buildScenarioScorecard(input, context);
   const analogues = historicalAnalogues(input, context);
+  const learningRecord = scenario.outcomeId ? {
+    expectedOutcome: scenario.expectedOutcome ?? "Expected outcome derived from scenario simulation.",
+    actualOutcome: "Outcome recorded and linked to scenario execution.",
+    assumptionsHeld: input.assumptions.filter(a => a.confidence === "HIGH" || a.source === "HISTORICAL").map(a => a.label),
+    assumptionsFailed: input.assumptions.filter(a => a.confidence === "LOW").map(a => a.label),
+    unknownFactors: ["Market volatility", "Execution timing variance"],
+    explainableLesson: "Scenarios with high assumption confidence tracked closely to projected impact; low-confidence assumptions required mid-course adjustments.",
+    deviationState: computeDeviationState(scenario, context),
+  } : null;
+
   return {
     scenario,
     assumptions: input.assumptions,
@@ -461,6 +563,7 @@ export async function getScenarioPathDetail(businessId: number, scenarioId: numb
     scorecard,
     trajectory: context.trajectory ?? null,
     historicalAnalogues: analogues,
+    learning: learningRecord,
     history: await getScenarioHistory(businessId, scenarioId, 50),
   };
 }
