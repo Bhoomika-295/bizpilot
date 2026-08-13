@@ -662,10 +662,19 @@
 - [x] Days 76–79: Add deterministic unit, persistence, tenant-isolation, authorization, contradiction, effectiveness, gap, and integration tests; verify TypeScript, production build, and responsive UI
 - [x] Days 76–79: Save final checkpoint and stop before the next milestone
 
-## Days 80+: Financial Intelligence v2 (Health, Cash Pressure, Profitability Drivers, and Financial Decisions)
-- [x] Days 80+: Audit existing financial metric engines and ensure strict adherence to the "BizPilot" product naming rule and zero data fabrication rule
-- [x] Days 80+: Strengthen financial health intelligence with empirical metrics, trends, margin analysis, cash pressure detection, and profitability driver ranking without duplicating engines
-- [x] Days 80+: Implement financial decision intelligence linking financial pressures and drivers to structured decisions, actions, outcomes, and risk/opportunity evaluations
-- [x] Days 80+: Integrate financial intelligence summaries into the Executive Command Center and dashboard UI with clear insufficiency handling
-- [x] Days 80+: Add deterministic unit and integration tests; verify TypeScript validation, production build, and responsive preview
-- [x] Days 80+: Save final Financial Intelligence checkpoint and stop
+## Days 80–83: Financial Intelligence v2
+- [x] Days 80–83: Audit existing financial metric engines and ensure strict adherence to the "BizPilot" product naming rule and zero data fabrication rule
+- [x] Days 80–83: Strengthen financial health intelligence with empirical metrics, trends, margin analysis, cash pressure detection, and profitability driver ranking without duplicating engines
+- [x] Days 80–83: Implement financial decision intelligence linking financial pressures and drivers to structured decisions, actions, outcomes, and risk/opportunity evaluations
+- [x] Days 80–83: Integrate financial intelligence summaries into the Executive Command Center and dashboard UI with clear insufficiency handling
+- [x] Days 80–83: Add deterministic unit and integration tests; verify TypeScript validation, production build, and responsive preview
+- [x] Days 80–83: Save final Financial Intelligence checkpoint and stop
+
+## Days 84–87: Customer & Market Intelligence v2
+- [x] Days 84–87: Audit existing customer, demand, market, risk, opportunity, decision, and command center contracts without duplicating engines
+- [x] Days 84–87: Strengthen Customer Health Intelligence v2 with empirical retention, churn, activity, frequency, value, engagement, support pressure, and growth metrics using real records only
+- [x] Days 84–87: Implement Demand Intelligence v2 with demand trends, pressure detection, opportunity identification, product/service demand shifts, and capacity uncertainty states
+- [x] Days 84–87: Connect customer and demand intelligence to financial performance, risk, opportunity, decision chains, outcomes, and learning loops
+- [x] Days 84–87: Integrate customer watch, demand watch, market watch, and executive outlook into the Executive Command Center and Dashboard surfaces with transparent unknown and data-not-connected states
+- [x] Days 84–87: Add deterministic tests and complete schema, persistence, authorization, TypeScript, production build, and responsive verification
+- [x] Days 84–87: Save final Customer & Market Intelligence checkpoint and stop before Day 88
