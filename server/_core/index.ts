@@ -8,6 +8,8 @@ import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import * as db from "../db";
+import { evaluateBusinessChanges } from "../services/continuousMonitoringService";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -36,6 +38,22 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   registerStorageProxy(app);
   registerOAuthRoutes(app);
+  // Heartbeat scheduled monitoring endpoint (Days 53-55)
+  app.post("/api/scheduled/monitor-businesses", async (req, res) => {
+    try {
+      const businesses = await db.getAllBusinesses();
+      const results = [];
+      for (const biz of businesses) {
+        const evalResult = await evaluateBusinessChanges(biz.id);
+        results.push({ businessId: biz.id, name: biz.name, evaluated: evalResult.generatedCount });
+      }
+      res.json({ success: true, evaluatedCount: results.length, results });
+    } catch (error) {
+      console.error("[Scheduled Monitoring] Error:", error);
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : "Scheduled monitoring failed." });
+    }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",

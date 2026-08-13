@@ -520,6 +520,40 @@ function resolveCandidates(existing: any[], drafts: MonitoringDraft[]) {
   ].includes(event.eventType));
 }
 
+export interface EarlyWarningAnalytics {
+  warningsDetected: number;
+  warningsResolved: number;
+  warningsRecurring: number;
+  averageTimeToResolutionHours: number;
+  byCategory: Record<string, number>;
+}
+
+export async function getEarlyWarningAnalytics(businessId: number): Promise<EarlyWarningAnalytics> {
+  const events = await getAllMonitoringEvents(businessId);
+  const resolved = events.filter((e) => e.status === "RESOLVED" && e.resolvedAt);
+  const recurring = events.filter((e) => e.sourceType?.includes("RECURRING"));
+  const byCategory: Record<string, number> = {};
+  for (const event of events) {
+    const cat = event.eventType || "OTHER";
+    byCategory[cat] = (byCategory[cat] || 0) + 1;
+  }
+  let totalResolutionTimeHours = 0;
+  for (const event of resolved) {
+    const detected = new Date(event.detectedAt || event.createdAt).getTime();
+    const resolvedAt = new Date(event.resolvedAt!).getTime();
+    if (resolvedAt > detected) {
+      totalResolutionTimeHours += (resolvedAt - detected) / 3_600_000;
+    }
+  }
+  return {
+    warningsDetected: events.length,
+    warningsResolved: resolved.length,
+    warningsRecurring: recurring.length,
+    averageTimeToResolutionHours: resolved.length ? Math.round((totalResolutionTimeHours / resolved.length) * 10) / 10 : 0,
+    byCategory,
+  };
+}
+
 export async function evaluateBusinessChanges(businessId: number): Promise<MonitoringEvaluationResult> {
   const now = new Date();
   const [context, decisions, outcomes, existing, preference] = await Promise.all([
@@ -543,7 +577,7 @@ export async function evaluateBusinessChanges(businessId: number): Promise<Monit
 
   let resolvedCount = 0;
   for (const event of resolveCandidates(existing, enabledDrafts)) {
-    const row = await updateMonitoringEventLifecycle(businessId, event.id, "RESOLVED", JSON.stringify({ reason: "Underlying condition no longer meets the meaningful-change rule." }));
+    const row = await updateMonitoringEventLifecycle(businessId, event.id, "RESOLVED", JSON.stringify({ reason: "Underlying condition returned to normal and remained stable." }));
     if (row) resolvedCount += 1;
   }
   const alerts = await getMonitoringAlerts(businessId, { limit: 25 });

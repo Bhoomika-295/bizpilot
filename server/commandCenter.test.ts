@@ -42,6 +42,7 @@ describe("Executive Command Center deterministic helpers", () => {
 
     const sections = buildCommandCenterBriefSections(snapshot);
     expect(sections.map((section) => section.key)).toEqual([
+      "early_warnings",
       "summary",
       "changes",
       "matters",

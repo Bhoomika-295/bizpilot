@@ -262,6 +262,15 @@ export async function getBusinessesByUserId(userId: number) {
     .where(eq(businesses.userId, userId));
 }
 
+export async function getAllBusinesses() {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db
+    .select()
+    .from(businesses);
+}
+
 export async function updateBusiness(
   businessId: number,
   data: Partial<{

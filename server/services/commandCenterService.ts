@@ -19,6 +19,7 @@ import { getActionQueueForBusiness, getExecutionRiskSummary } from "./actionPlan
 import { getDecisionQueue, getDecisionDetail } from "./decisionIntelligenceService";
 import { generateOrGetDailyBrief } from "./dailyBriefService";
 import { getBusinessMemoryDetail } from "./businessMemoryService";
+import { getMonitoringAlerts } from "./continuousMonitoringService";
 
 export type CommandCenterPriorityLane = "NOW" | "NEXT" | "WATCH";
 export type CommandCenterPrioritySource =
@@ -291,7 +292,7 @@ function buildPriorities(input: {
 export async function getCommandCenterSnapshot(businessId: number): Promise<CommandCenterSnapshot> {
   const now = new Date();
   const brief = await generateOrGetDailyBrief(businessId, false);
-  const [attention, decisions, actions, situations, strategyHealth, memories, patterns, foresight, scenarios, outcomes] = await Promise.all([
+  const [attention, decisions, actions, situations, strategyHealth, memories, patterns, foresight, scenarios, outcomes, monitoringAlerts] = await Promise.all([
     getAttentionQueueForBusiness(businessId),
     getDecisionQueue(businessId, 10),
     getActionQueueForBusiness(businessId, now),
@@ -302,6 +303,7 @@ export async function getCommandCenterSnapshot(businessId: number): Promise<Comm
     getForesightSignalsForBusiness(businessId),
     getScenarios(businessId),
     getRecentOutcomes(businessId, 10),
+    getMonitoringAlerts(businessId, { limit: 10 }),
   ]);
 
   const priorityLanes = buildPriorities({ attention, decisions, actions: actions.actions, situations, foresight, scenarios });
@@ -321,7 +323,8 @@ export async function getCommandCenterSnapshot(businessId: number): Promise<Comm
   const latestBriefAt = asDate(brief.updatedAt) || asDate(brief.createdAt);
   const recurringPatternCount = patterns.filter((pattern: any) => asNumber(pattern.occurrences) >= 2).length;
   const changeCount = asNumber(briefChanges.changesCount, Array.isArray(briefChanges.changes) ? briefChanges.changes.length : 0);
-  const urgencyLevel: CommandCenterSnapshot["urgency"]["level"] = priorityLanes.now.length > 0 ? "HIGH" : priorityLanes.next.length > 0 ? "MEDIUM" : "LOW";
+  const activeWarningsCount = monitoringAlerts.filter((alert: any) => ["NEW", "ACTIVE", "ACKNOWLEDGED"].includes(alert.status)).length;
+  const urgencyLevel: CommandCenterSnapshot["urgency"]["level"] = activeWarningsCount > 0 || priorityLanes.now.length > 0 ? "HIGH" : priorityLanes.next.length > 0 ? "MEDIUM" : "LOW";
 
   return {
     businessId,
@@ -381,7 +384,15 @@ export async function getCommandCenterSnapshot(businessId: number): Promise<Comm
 export function buildCommandCenterBriefSections(snapshot: CommandCenterSnapshot): CommandCenterBrief["sections"] {
   const hasNow = snapshot.priorities.now.length > 0;
   const hasMemory = snapshot.memory.recentCount > 0 || snapshot.memory.patternCount > 0;
+  const activeWarnings = (snapshot.signals as any).activeEarlyWarningsCount || 0;
   return [
+      {
+        key: "early_warnings",
+        title: "Early warnings",
+        summary: activeWarnings > 0 ? `${activeWarnings} early warning${activeWarnings === 1 ? "" : "s"} require executive attention.` : "No active early warnings require attention.",
+        status: activeWarnings > 0 ? "WATCH" : "READY",
+        evidence: [`${activeWarnings} active early warning(s)`, snapshot.trend.summary],
+      },
       {
         key: "summary",
         title: "Executive summary",
