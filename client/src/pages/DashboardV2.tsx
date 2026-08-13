@@ -99,6 +99,11 @@ export default function DashboardV2() {
     { enabled: !!businessId && isAuthenticated }
   );
 
+  const performanceReviewQuery = trpc.businessMetrics.getPerformanceReview.useQuery(
+    { businessId: parseInt(businessId || "0") },
+    { enabled: !!businessId && isAuthenticated, refetchOnWindowFocus: false }
+  );
+
   const marketSignalsQuery = trpc.businessMetrics.getMarketSignals.useQuery(
     { businessId: parseInt(businessId || "0") },
     { enabled: !!businessId && isAuthenticated }
@@ -1722,6 +1727,56 @@ export default function DashboardV2() {
                   </div>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Business Performance Review (Days 72–75) */}
+        {performanceReviewQuery.data && (
+          <Card className="border-slate-300 bg-white shadow-sm">
+            <CardHeader className="space-y-3 border-b border-slate-100 pb-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 text-xl font-semibold text-slate-900"><TrendingUp className="h-5 w-5 text-indigo-700" />Business Performance Review</CardTitle>
+                    <Badge variant="outline" className="border-indigo-200 bg-indigo-50 font-medium text-indigo-700">PERFORMANCE INTELLIGENCE v2</Badge>
+                  </div>
+                  <CardDescription className="mt-1">Executive review for {performanceReviewQuery.data.periodLabel}. Drivers use evidence-aware language and do not imply causality without verified support.</CardDescription>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <span className={`rounded-full border px-2.5 py-1 font-semibold ${performanceReviewQuery.data.freshness.status === "CURRENT" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : performanceReviewQuery.data.freshness.status === "STALE" ? "border-amber-200 bg-amber-50 text-amber-800" : "border-slate-200 bg-slate-50 text-slate-600"}`}>{performanceReviewQuery.data.freshness.label}</span>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => performanceReviewQuery.refetch()} disabled={performanceReviewQuery.isFetching}><RefreshCw className={`h-4 w-4 ${performanceReviewQuery.isFetching ? "animate-spin" : ""}`} /></Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-5 p-5">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                {performanceReviewQuery.data.kpis.slice(0, 4).map((kpi: any) => (
+                  <div key={kpi.metricKey} className={`rounded-xl border p-4 ${kpi.healthStatus === "CRITICAL" || kpi.healthStatus === "UNDER_PRESSURE" || kpi.status === "DECLINING" ? "border-rose-200 bg-rose-50/60" : kpi.healthStatus === "HEALTHY" && kpi.status === "IMPROVING" ? "border-emerald-200 bg-emerald-50/60" : kpi.healthStatus === "UNKNOWN" ? "border-slate-200 bg-slate-50" : "border-indigo-100 bg-indigo-50/40"}`}>
+                    <div className="flex items-start justify-between gap-2"><span className="text-xs font-semibold uppercase tracking-wider text-slate-600">{kpi.label}</span><Badge variant="outline" className="text-[10px]">{String(kpi.healthStatus ?? kpi.status).replaceAll("_", " ")}</Badge></div>
+                    <div className="mt-2 text-xl font-bold text-slate-900">{kpi.hasData ? Number(kpi.currentValue).toLocaleString(undefined, { maximumFractionDigits: 2 }) : "—"}</div>
+                    <p className="mt-1 text-xs text-slate-600">{kpi.hasPreviousData ? `${kpi.percentChange >= 0 ? "+" : ""}${Number(kpi.percentChange).toFixed(1)}% vs previous period` : "Previous comparison unavailable"}</p>
+                    <p className="mt-2 text-[11px] text-slate-500">Importance: {kpi.importance} · Target: {kpi.targetValue === null || kpi.targetValue === undefined ? "not defined" : Number(kpi.targetValue).toLocaleString()}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid gap-5 xl:grid-cols-[1.05fr_1fr]">
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                    <div className="flex items-center justify-between gap-3"><h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">Most important changes</h3><Badge variant="outline" className="text-[10px]">{performanceReviewQuery.data.positiveChanges.length + performanceReviewQuery.data.negativeChanges.length} surfaced</Badge></div>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2"><div><p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">Improving</p>{performanceReviewQuery.data.positiveChanges.length > 0 ? performanceReviewQuery.data.positiveChanges.slice(0, 3).map((item: string) => <p key={item} className="mt-2 text-xs leading-5 text-slate-700">{item}</p>) : <p className="mt-2 text-xs text-slate-500">No verified positive change surfaced.</p>}</div><div><p className="text-[11px] font-semibold uppercase tracking-wider text-rose-700">Under pressure</p>{performanceReviewQuery.data.negativeChanges.length > 0 ? performanceReviewQuery.data.negativeChanges.slice(0, 3).map((item: string) => <p key={item} className="mt-2 text-xs leading-5 text-slate-700">{item}</p>) : <p className="mt-2 text-xs text-slate-500">No verified negative change surfaced.</p>}</div></div>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2"><div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4"><p className="text-[11px] font-semibold uppercase tracking-wider text-indigo-700">Strategic impact</p><p className="mt-2 text-sm leading-5 text-slate-800">{performanceReviewQuery.data.strategicImpact}</p></div><div className="rounded-xl border border-amber-100 bg-amber-50/60 p-4"><p className="text-[11px] font-semibold uppercase tracking-wider text-amber-700">Execution impact</p><p className="mt-2 text-sm leading-5 text-slate-800">{performanceReviewQuery.data.executionImpact}</p></div></div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="flex items-center justify-between gap-3"><h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">Performance drivers</h3><span className="text-[11px] text-slate-500">Ranked by magnitude and evidence</span></div>
+                  <div className="mt-3 space-y-3">{performanceReviewQuery.data.drivers.length > 0 ? performanceReviewQuery.data.drivers.slice(0, 4).map((driver: any) => <div key={driver.id} className="rounded-lg border border-slate-100 bg-slate-50/70 p-3"><div className="flex flex-wrap items-center gap-2"><Badge variant="outline" className={driver.alignment === "POSITIVE" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : driver.alignment === "NEGATIVE" ? "border-rose-200 bg-rose-50 text-rose-700" : "border-slate-200 bg-white text-slate-600"}>{driver.alignment} · {driver.confidence}</Badge><span className="text-xs font-semibold text-slate-800">{driver.title}</span></div><p className="mt-1 text-xs leading-5 text-slate-700">{driver.summary}</p><p className="mt-2 text-[11px] text-slate-500">{driver.driverType ?? "POSSIBLE_DRIVER"} · KPI: {driver.relatedKpi ?? "No verified connection"} · {driver.evidenceStrength}</p><p className="mt-1 text-[11px] text-slate-500">{driver.timeAlignment} · Source: {driver.sourceReference}</p>{driver.currentRelevance && <p className="mt-1 text-[11px] text-slate-600">Relevance: {driver.currentRelevance}</p>}{driver.supportingEvidence?.length > 0 && <p className="mt-1 text-[11px] text-emerald-700">Supporting evidence: {driver.supportingEvidence.join("; ")}</p>}{(driver.contradictionNote || driver.contradictingEvidence?.length > 0) && <p className="mt-1 text-[11px] text-amber-700">Contradicting evidence: {driver.contradictionNote ?? driver.contradictingEvidence.join("; ")}</p>}</div>) : <div className="rounded-lg border border-dashed border-slate-200 p-6 text-center text-xs text-slate-500">No verified performance driver is available for this window.</div>}</div>
+                </div>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-3"><div className="rounded-xl border border-rose-100 bg-rose-50/50 p-4"><p className="text-[11px] font-semibold uppercase tracking-wider text-rose-700">Risks & attention</p><p className="mt-2 text-sm leading-5 text-slate-800">{performanceReviewQuery.data.risks.length > 0 ? performanceReviewQuery.data.risks.slice(0, 2).join(" · ") : "No verified performance risk requires attention."}</p></div><div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4"><p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">Opportunities</p><p className="mt-2 text-sm leading-5 text-slate-800">{performanceReviewQuery.data.opportunities.slice(0, 2).join(" · ")}</p></div><div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><p className="text-[11px] font-semibold uppercase tracking-wider text-slate-700">What we learned</p><p className="mt-2 text-sm leading-5 text-slate-800">{performanceReviewQuery.data.learningSummary}</p></div></div>
+              <p className="text-[11px] text-slate-500">Freshness: {performanceReviewQuery.data.freshness.label}{performanceReviewQuery.data.freshness.lastUpdate ? ` · Last update ${new Date(performanceReviewQuery.data.freshness.lastUpdate).toLocaleString()}` : " · No verified update timestamp available"}. Unknowns remain explicit where targets, historical comparisons, or linked evidence are unavailable.</p>
             </CardContent>
           </Card>
         )}

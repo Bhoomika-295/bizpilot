@@ -13,6 +13,7 @@ import {
   calculateBusinessHealthScore,
   calculateBusinessMetrics,
   detectBusinessChanges,
+  evaluateKpiHealth,
   getSignalPriority,
 } from "./services/businessMetricEngine";
 import * as dataService from "./services/businessDataService";
@@ -325,7 +326,7 @@ describe("business metric engine", () => {
       revenue: { value: 1000, previousValue: 0, change: 1000, percentChange: 0, hasData: true, hasPreviousData: false },
       expenses: { value: 500, previousValue: 0, change: 500, percentChange: 0, hasData: true, hasPreviousData: false },
       estimatedProfit: { value: 500, previousValue: 0, change: 500, percentChange: 0, hasData: true, hasPreviousData: false },
-      transactionCount: { value: 10, previousValue: 0, change: 10, percentChange: 0, hasData: true, hasPreviousData: false },
+      transactionCount: { value: 10, previousValue: 0, change: 10, hasData: true, hasPreviousData: false },
       customers: { total: 10, active: 8, inactive: 2, previousActive: 0, activeChange: 0, activePercentChange: 0, hasData: true, hasPreviousData: false },
       averageTransactionValue: 100,
       lastUpdated: new Date(),
@@ -340,6 +341,43 @@ describe("business metric engine", () => {
     const briefing = generateBusinessIntelligenceBriefing(mockMetrics, changes);
     expect(briefing.status).toBe("insufficient_data");
     expect(briefing.headlineSummary[0]).toContain("Not enough historical data");
+  });
+
+  it("evaluates KPI health from observable movement and preserves target-not-defined state", () => {
+    const kpis = evaluateKpiHealth({
+      revenue: { value: 1200, previousValue: 1000, change: 200, percentChange: 20, hasData: true, hasPreviousData: true },
+      expenses: { value: 900, previousValue: 1000, change: -100, percentChange: -10, hasData: true, hasPreviousData: true },
+      estimatedProfit: { value: 300, previousValue: 250, change: 50, percentChange: 20, hasData: true, hasPreviousData: true },
+      transactionCount: { value: 12, previousValue: 10, change: 2, percentChange: 20, hasData: true, hasPreviousData: true },
+      customers: { total: 5, active: 4, inactive: 1, previousActive: 3, activeChange: 1, activePercentChange: 33.3, hasData: true, hasPreviousData: true },
+      averageTransactionValue: 100,
+      lastUpdated: new Date("2026-01-31T00:00:00.000Z"),
+    });
+
+    expect(kpis.find((item) => item.metricKey === "revenue")).toMatchObject({
+      status: "IMPROVING",
+      importance: "HIGH",
+      targetValue: null,
+      targetComparison: null,
+      distanceToTarget: null,
+    });
+    expect(kpis.find((item) => item.metricKey === "expenses")).toMatchObject({ status: "IMPROVING" });
+    expect(kpis.every((item) => item.evidence.length > 0)).toBe(true);
+  });
+
+  it("returns explicit unknown KPI states when the current metric has no verified data", () => {
+    const kpis = evaluateKpiHealth({
+      revenue: { value: 0, previousValue: 0, change: 0, percentChange: 0, hasData: false, hasPreviousData: false },
+      expenses: { value: 0, previousValue: 0, change: 0, percentChange: 0, hasData: false, hasPreviousData: false },
+      estimatedProfit: { value: 0, previousValue: 0, change: 0, percentChange: 0, hasData: false, hasPreviousData: false },
+      transactionCount: { value: 0, previousValue: 0, change: 0, percentChange: 0, hasData: false, hasPreviousData: false },
+      customers: { total: 0, active: 0, inactive: 0, previousActive: 0, activeChange: 0, activePercentChange: 0, hasData: false, hasPreviousData: false },
+      averageTransactionValue: 0,
+      lastUpdated: null,
+    });
+
+    expect(kpis.filter((item) => item.status === "UNKNOWN").length).toBeGreaterThanOrEqual(5);
+    expect(kpis.every((item) => item.targetValue === null)).toBe(true);
   });
 });
 

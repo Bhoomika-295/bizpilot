@@ -23,6 +23,7 @@ import { getBusinessMemoryDetail } from "./businessMemoryService";
 import { getOrganizationalLearningSnapshot } from "./organizationalLearningService";
 import { getMonitoringAlerts } from "./continuousMonitoringService";
 import { getBusinessFollowThrough } from "./intelligenceChainService";
+import { generatePerformanceReviewSnapshot } from "./businessMetricEngine";
 
 export type CommandCenterPriorityLane = "NOW" | "NEXT" | "WATCH";
 export type CommandCenterPrioritySource =
@@ -79,6 +80,15 @@ export interface CommandCenterSnapshot {
     next: CommandCenterPriority[];
     watch: CommandCenterPriority[];
     total: number;
+  };
+  performance: {
+    periodLabel: string;
+    generatedAt: Date;
+    kpis: Array<{ metricKey: string; label: string; status: string; healthStatus?: string; currentValue: number | null; percentChange: number; importance: string; targetValue: number | null; targetComparison: string | null; evidence: string[] }>;
+    topDrivers: Array<{ title: string; summary: string; alignment: string; confidence: string; relatedKpi?: string | null; sourceReference: string; currentRelevance?: string }>;
+    positiveChanges: string[];
+    negativeChanges: string[];
+    freshness: string;
   };
   execution: {
     active: number;
@@ -347,7 +357,8 @@ function buildPriorities(input: {
 export async function getCommandCenterSnapshot(businessId: number): Promise<CommandCenterSnapshot> {
   const now = new Date();
   const brief = await generateOrGetDailyBrief(businessId, false);
-  const [attention, decisions, actions, situations, strategyHealth, memories, patterns, foresight, scenarios, outcomes, monitoringAlerts, rootCauses, learningSnapshot, followThrough] = await Promise.all([
+  const performanceWindowStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const [attention, decisions, actions, situations, strategyHealth, memories, patterns, foresight, scenarios, outcomes, monitoringAlerts, rootCauses, learningSnapshot, followThrough, performanceReview] = await Promise.all([
     getAttentionQueueForBusiness(businessId),
     getDecisionQueue(businessId, 10),
     getActionQueueForBusiness(businessId, now),
@@ -362,6 +373,7 @@ export async function getCommandCenterSnapshot(businessId: number): Promise<Comm
     getRootCauseInvestigations(businessId),
     getOrganizationalLearningSnapshot(businessId, { limit: 100 }),
     getBusinessFollowThrough(businessId),
+    generatePerformanceReviewSnapshot(businessId, performanceWindowStart, now),
   ]);
 
   const priorityLanes = buildPriorities({ attention, decisions, actions: actions.actions, situations, foresight, scenarios, rootCauses });
@@ -419,6 +431,15 @@ export async function getCommandCenterSnapshot(businessId: number): Promise<Comm
       nextCount: priorityLanes.next.length,
     },
     priorities: priorityLanes,
+    performance: {
+      periodLabel: performanceReview.periodLabel,
+      generatedAt: performanceReview.generatedAt,
+      kpis: performanceReview.kpis.slice(0, 6).map((kpi: any) => ({ metricKey: kpi.metricKey, label: kpi.label, status: kpi.status, healthStatus: kpi.healthStatus, currentValue: kpi.hasData ? kpi.currentValue : null, percentChange: kpi.percentChange, importance: kpi.importance, targetValue: kpi.targetValue, targetComparison: kpi.targetComparison, evidence: kpi.evidence.slice(0, 3) })),
+      topDrivers: performanceReview.drivers.slice(0, 3).map((driver: any) => ({ title: driver.title, summary: driver.summary, alignment: driver.alignment, confidence: driver.confidence, relatedKpi: driver.relatedKpi ?? null, sourceReference: driver.sourceReference, currentRelevance: driver.currentRelevance })),
+      positiveChanges: performanceReview.positiveChanges.slice(0, 3),
+      negativeChanges: performanceReview.negativeChanges.slice(0, 3),
+      freshness: performanceReview.freshness.label || performanceReview.freshness.status,
+    },
     execution: {
       active: asNumber(actionSummary.active),
       dueToday: asNumber(actionSummary.dueToday),

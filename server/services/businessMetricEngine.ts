@@ -7,6 +7,12 @@ import {
   getLastExpenseUpdateDate,
   getLastTransactionUpdateDate,
 } from "./businessDataService";
+import {
+  getBusinessSituations,
+  getActionPlansForBusiness,
+  getRecentOutcomes,
+  getBusinessMemoriesForBusiness,
+} from "../db";
 
 /**
  * Business Metric Engine
@@ -770,5 +776,295 @@ export async function getDataFreshness(
     ...classifyDataFreshness(latestUpdate),
     lastUpdate: latestUpdate,
     dataPoints: stats,
+  };
+}
+
+export interface KpiHealthItem {
+  metricKey: "revenue" | "expenses" | "estimatedProfit" | "transactionCount" | "customers" | "averageTransactionValue";
+  label: string;
+  currentValue: number;
+  previousValue: number;
+  change: number;
+  percentChange: number;
+  hasData: boolean;
+  hasPreviousData: boolean;
+  importance: "HIGH" | "MEDIUM" | "LOW";
+  status: "IMPROVING" | "STABLE" | "DECLINING" | "UNKNOWN";
+  healthStatus?: "HEALTHY" | "WATCH" | "UNDER_PRESSURE" | "CRITICAL" | "UNKNOWN";
+  targetValue: number | null;
+  targetComparison: string | null;
+  distanceToTarget: number | null;
+  evidence: string[];
+}
+
+export interface PerformanceDriver {
+  id: string;
+  contributorType: "TRANSACTION" | "EXPENSE" | "CUSTOMER" | "PRODUCT" | "SITUATION" | "DECISION" | "ACTION" | "UNKNOWN";
+  title: string;
+  summary: string;
+  alignment: "POSITIVE" | "NEGATIVE" | "NEUTRAL";
+  magnitude: number; // absolute impact score
+  confidence: "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
+  timeAlignment: string;
+  evidenceStrength: string;
+  contradictionNote?: string;
+  sourceReference: string;
+  driverType?: "POSSIBLE_DRIVER" | "SUPPORTED_DRIVER" | "CONTRIBUTING_FACTOR" | "EXTERNAL_FACTOR" | "EXECUTION_FACTOR" | "STRATEGY_FACTOR" | "UNKNOWN";
+  relatedKpi?: KpiHealthItem["metricKey"] | null;
+  supportingEvidence?: string[];
+  contradictingEvidence?: string[];
+  currentRelevance?: string;
+  rankingFactors?: string[];
+}
+
+export interface BusinessPerformanceReviewSnapshot {
+  businessId: number;
+  generatedAt: Date;
+  periodLabel: string;
+  kpis: KpiHealthItem[];
+  drivers: PerformanceDriver[];
+  positiveChanges: string[];
+  negativeChanges: string[];
+  strategicImpact: string;
+  executionImpact: string;
+  risks: string[];
+  opportunities: string[];
+  attentionItems: string[];
+  improvements: string[];
+  learningSummary: string;
+  freshness: {
+    status: string;
+    label: string;
+    lastUpdate: Date | null;
+  };
+}
+
+export function evaluateKpiHealth(metrics: BusinessMetrics): KpiHealthItem[] {
+  const items: KpiHealthItem[] = [
+    {
+      metricKey: "revenue",
+      label: "Revenue",
+      currentValue: metrics.revenue.value,
+      previousValue: metrics.revenue.previousValue,
+      change: metrics.revenue.change,
+      percentChange: metrics.revenue.percentChange,
+      hasData: metrics.revenue.hasData,
+      hasPreviousData: metrics.revenue.hasPreviousData,
+      importance: "HIGH",
+      status: !metrics.revenue.hasData ? "UNKNOWN" : metrics.revenue.percentChange > 2 ? "IMPROVING" : metrics.revenue.percentChange < -2 ? "DECLINING" : "STABLE",
+      targetValue: null,
+      targetComparison: null,
+      distanceToTarget: null,
+      evidence: [
+        `Current: ${metrics.revenue.value.toFixed(2)}`,
+        `Previous: ${metrics.revenue.previousValue.toFixed(2)}`,
+        `Change: ${metrics.revenue.percentChange >= 0 ? "+" : ""}${metrics.revenue.percentChange.toFixed(1)}%`
+      ],
+    },
+    {
+      metricKey: "expenses",
+      label: "Operating Expenses",
+      currentValue: metrics.expenses.value,
+      previousValue: metrics.expenses.previousValue,
+      change: metrics.expenses.change,
+      percentChange: metrics.expenses.percentChange,
+      hasData: metrics.expenses.hasData,
+      hasPreviousData: metrics.expenses.hasPreviousData,
+      importance: "HIGH",
+      status: !metrics.expenses.hasData ? "UNKNOWN" : metrics.expenses.percentChange < -2 ? "IMPROVING" : metrics.expenses.percentChange > 2 ? "DECLINING" : "STABLE",
+      targetValue: null,
+      targetComparison: null,
+      distanceToTarget: null,
+      evidence: [
+        `Current: ${metrics.expenses.value.toFixed(2)}`,
+        `Previous: ${metrics.expenses.previousValue.toFixed(2)}`,
+        `Change: ${metrics.expenses.percentChange >= 0 ? "+" : ""}${metrics.expenses.percentChange.toFixed(1)}%`
+      ],
+    },
+    {
+      metricKey: "estimatedProfit",
+      label: "Estimated Profit",
+      currentValue: metrics.estimatedProfit.value,
+      previousValue: metrics.estimatedProfit.previousValue,
+      change: metrics.estimatedProfit.change,
+      percentChange: metrics.estimatedProfit.percentChange,
+      hasData: metrics.estimatedProfit.hasData,
+      hasPreviousData: metrics.estimatedProfit.hasPreviousData,
+      importance: "HIGH",
+      status: !metrics.estimatedProfit.hasData ? "UNKNOWN" : metrics.estimatedProfit.percentChange > 2 ? "IMPROVING" : metrics.estimatedProfit.percentChange < -2 ? "DECLINING" : "STABLE",
+      targetValue: null,
+      targetComparison: null,
+      distanceToTarget: null,
+      evidence: [
+        `Current Profit: ${metrics.estimatedProfit.value.toFixed(2)}`,
+        `Previous Profit: ${metrics.estimatedProfit.previousValue.toFixed(2)}`
+      ],
+    },
+    {
+      metricKey: "transactionCount",
+      label: "Transaction Volume",
+      currentValue: metrics.transactionCount.value,
+      previousValue: metrics.transactionCount.previousValue,
+      change: metrics.transactionCount.change,
+      percentChange: metrics.transactionCount.percentChange,
+      hasData: metrics.transactionCount.hasData,
+      hasPreviousData: metrics.transactionCount.hasPreviousData,
+      importance: "MEDIUM",
+      status: !metrics.transactionCount.hasData ? "UNKNOWN" : metrics.transactionCount.percentChange > 2 ? "IMPROVING" : metrics.transactionCount.percentChange < -2 ? "DECLINING" : "STABLE",
+      targetValue: null,
+      targetComparison: null,
+      distanceToTarget: null,
+      evidence: [`Count: ${metrics.transactionCount.value}`, `Previous count: ${metrics.transactionCount.previousValue}`],
+    },
+    {
+      metricKey: "customers",
+      label: "Active Customers",
+      currentValue: metrics.customers.active,
+      previousValue: metrics.customers.previousActive,
+      change: metrics.customers.activeChange,
+      percentChange: metrics.customers.activePercentChange,
+      hasData: metrics.customers.hasData,
+      hasPreviousData: metrics.customers.hasPreviousData,
+      importance: "HIGH",
+      status: !metrics.customers.hasData ? "UNKNOWN" : metrics.customers.activePercentChange > 2 ? "IMPROVING" : metrics.customers.activePercentChange < -2 ? "DECLINING" : "STABLE",
+      targetValue: null,
+      targetComparison: null,
+      distanceToTarget: null,
+      evidence: [`Active: ${metrics.customers.active}`, `Total: ${metrics.customers.total}`],
+    },
+    {
+      metricKey: "averageTransactionValue",
+      label: "Average Transaction Value",
+      currentValue: metrics.averageTransactionValue,
+      previousValue: 0,
+      change: 0,
+      percentChange: 0,
+      hasData: metrics.transactionCount.hasData,
+      hasPreviousData: false,
+      importance: "MEDIUM",
+      status: metrics.averageTransactionValue > 0 ? "STABLE" : "UNKNOWN",
+      targetValue: null,
+      targetComparison: null,
+      distanceToTarget: null,
+      evidence: [`ATV: ${metrics.averageTransactionValue.toFixed(2)}`],
+    },
+  ];
+
+  return items.map((item) => ({
+    ...item,
+    healthStatus: !item.hasData
+      ? "UNKNOWN"
+      : item.status === "DECLINING"
+        ? Math.abs(item.percentChange) >= 20 ? "CRITICAL" : "UNDER_PRESSURE"
+        : "HEALTHY",
+  }));
+}
+
+export async function generatePerformanceReviewSnapshot(
+  businessId: number,
+  periodStartDate: Date,
+  periodEndDate: Date
+): Promise<BusinessPerformanceReviewSnapshot> {
+  const [metrics, freshness, situations, actions, outcomes, memories] = await Promise.all([
+    calculateBusinessMetrics(businessId, periodStartDate, periodEndDate),
+    getDataFreshness(businessId),
+    getBusinessSituations(businessId).catch(() => []),
+    getActionPlansForBusiness(businessId).catch(() => []),
+    getRecentOutcomes(businessId, 50).catch(() => []),
+    getBusinessMemoriesForBusiness(businessId, 50).catch(() => []),
+  ]);
+
+  const kpis = evaluateKpiHealth(metrics);
+  const changes = detectBusinessChanges(metrics);
+
+  const drivers: PerformanceDriver[] = [];
+  if (metrics.revenue.hasData) {
+    drivers.push({
+      id: "driver-revenue-1",
+      contributorType: "TRANSACTION",
+      title: metrics.revenue.percentChange >= 0 ? "Revenue movement evidence" : "Revenue movement evidence",
+      summary: `Verified transaction records show revenue at ${metrics.revenue.value.toFixed(2)} (${metrics.revenue.percentChange >= 0 ? "+" : ""}${metrics.revenue.percentChange.toFixed(1)}% vs previous period); this is evidence of movement, not a causal explanation.`,
+      alignment: metrics.revenue.percentChange >= 0 ? "POSITIVE" : "NEGATIVE",
+      magnitude: Math.abs(metrics.revenue.change),
+      confidence: metrics.revenue.hasPreviousData ? "HIGH" : "MEDIUM",
+      timeAlignment: "Aligned with selected evaluation window",
+      evidenceStrength: "Verified transaction records",
+      sourceReference: "transactions table",
+      driverType: "SUPPORTED_DRIVER",
+      relatedKpi: "revenue",
+      supportingEvidence: [`Current revenue: ${metrics.revenue.value.toFixed(2)}`, `Period change: ${metrics.revenue.percentChange.toFixed(1)}%`],
+      contradictingEvidence: [],
+      currentRelevance: "Current-period transaction evidence is directly aligned with the selected KPI window.",
+      rankingFactors: ["time alignment: selected window", "magnitude: absolute period change", "evidence strength: verified records"],
+    });
+  }
+  if (metrics.expenses.hasData) {
+    drivers.push({
+      id: "driver-expense-1",
+      contributorType: "EXPENSE",
+      title: metrics.expenses.percentChange <= 0 ? "Expense movement evidence" : "Expense movement evidence",
+      summary: `Verified expense records show operating expenses at ${metrics.expenses.value.toFixed(2)} (${metrics.expenses.percentChange >= 0 ? "+" : ""}${metrics.expenses.percentChange.toFixed(1)}% vs previous period); this is evidence of movement, not a causal explanation.`,
+      alignment: metrics.expenses.percentChange <= 0 ? "POSITIVE" : "NEGATIVE",
+      magnitude: Math.abs(metrics.expenses.change),
+      confidence: metrics.expenses.hasPreviousData ? "HIGH" : "MEDIUM",
+      timeAlignment: "Aligned with selected evaluation window",
+      evidenceStrength: "Verified expense records",
+      sourceReference: "expenses table",
+      driverType: "SUPPORTED_DRIVER",
+      relatedKpi: "expenses",
+      supportingEvidence: [`Current expenses: ${metrics.expenses.value.toFixed(2)}`, `Period change: ${metrics.expenses.percentChange.toFixed(1)}%`],
+      contradictingEvidence: [],
+      currentRelevance: "Current-period expense evidence is directly aligned with the selected KPI window.",
+      rankingFactors: ["time alignment: selected window", "magnitude: absolute period change", "evidence strength: verified records"],
+    });
+  }
+
+  situations.slice(0, 3).forEach((s: any, idx: number) => {
+    drivers.push({
+      id: `driver-situation-${s.id || idx}`,
+      contributorType: "SITUATION",
+      title: String(s.title || "Business situation"),
+      summary: String(s.summary || s.description || "Evaluated operating condition."),
+      alignment: String(s.priority || "").toUpperCase() === "HIGH" ? "NEGATIVE" : "NEUTRAL",
+      magnitude: 0,
+      confidence: "LOW",
+      timeAlignment: "Current period evaluation; KPI connection is not verified",
+      evidenceStrength: "Verified situation record, relationship unknown",
+      sourceReference: "businessSituations table",
+      driverType: "POSSIBLE_DRIVER",
+      relatedKpi: null,
+      supportingEvidence: [String(s.summary || s.description || "Verified situation record")],
+      contradictingEvidence: [],
+      currentRelevance: "The situation is current, but no verified KPI relationship is available.",
+      rankingFactors: ["time alignment: current period", "magnitude: unknown", "evidence strength: verified source but relationship unknown"],
+    });
+  });
+
+  const positiveChanges = changes.changes.filter((c) => (c.metric === "revenue" && c.direction === "increase") || (c.metric === "expenses" && c.direction === "decrease") || (c.metric === "customers" && c.direction === "increase")).map((c) => c.summary);
+  const negativeChanges = changes.changes.filter((c) => (c.metric === "expenses" && c.direction === "increase") || (c.metric === "revenue" && c.direction === "decrease") || (c.metric === "customers" && c.direction === "decrease")).map((c) => c.summary);
+
+  const overdueActions = actions.filter((a: any) => a.overdue);
+  const blockedActions = actions.filter((a: any) => a.status === "BLOCKED");
+
+  return {
+    businessId,
+    generatedAt: new Date(),
+    periodLabel: changes.periodLabel,
+    kpis,
+    drivers: drivers.sort((a, b) => b.magnitude - a.magnitude),
+    positiveChanges,
+    negativeChanges,
+    strategicImpact: metrics.estimatedProfit.value >= 0 ? "Operating profit is positive for the evaluated window." : "Operating expenses exceed revenue for the evaluated window.",
+    executionImpact: `${actions.filter((a: any) => a.status === "COMPLETED").length} actions completed, ${overdueActions.length} overdue, ${blockedActions.length} blocked.`,
+    risks: overdueActions.map((a: any) => `Overdue action: ${a.title}`).concat(blockedActions.map((a: any) => `Blocked action: ${a.title}`)),
+    opportunities: positiveChanges.length > 0 ? positiveChanges : ["Maintain stable operating routines and review emerging customer demand."],
+    attentionItems: overdueActions.map((a: any) => `Action follow-through required: ${a.title}`),
+    improvements: metrics.revenue.percentChange > 0 ? ["Capitalize on current revenue growth trajectory."] : ["Review pricing and customer engagement to support revenue stability."],
+    learningSummary: `${memories.length} historical memories and ${outcomes.length} recorded outcomes inform current performance context.`,
+    freshness: {
+      status: freshness.status,
+      label: freshness.label,
+      lastUpdate: freshness.lastUpdate,
+    },
   };
 }

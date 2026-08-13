@@ -7,6 +7,7 @@ import {
   detectBusinessChanges,
   getDataFreshness,
   generateBusinessIntelligenceBriefing,
+  generatePerformanceReviewSnapshot,
 } from "../services/businessMetricEngine";
 import {
   getBusinessDataBasis,
@@ -1122,5 +1123,21 @@ export const businessMetricsRouter = router({
     .query(async ({ ctx, input }) => {
       await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
       return await getFutureReadinessWorkspaceData(input.businessId);
+    }),
+
+  /**
+   * Business Performance Review v2 (Days 72–75)
+   */
+  getPerformanceReview: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      const now = new Date();
+      const start = new Date(now.getTime() - 30 * 86400000);
+      return await generatePerformanceReviewSnapshot(input.businessId, start, now);
     }),
 });
