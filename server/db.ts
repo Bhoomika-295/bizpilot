@@ -48,6 +48,12 @@ import {
   InsertMonitoringPreference,
   InsertMonitoringEventHistory,
   signalRelationships,
+  rootCauseInvestigations,
+  RootCauseInvestigation,
+  InsertRootCauseInvestigation,
+  businessRelationships,
+  BusinessRelationship,
+  InsertBusinessRelationship,
   signalClusters,
   signalRelationshipHistory,
   SignalRelationship,
@@ -3258,4 +3264,109 @@ export async function upsertPatternIntelligence(data: InsertPatternIntelligenceR
     const [created] = await db.select().from(patternIntelligence).where(eq(patternIntelligence.id, result.insertId));
     return created;
   }
+}
+
+
+/**
+ * ============================================================
+ * DAYS 56–58: ROOT CAUSE & CAUSAL BUSINESS INTELLIGENCE PERSISTENCE
+ * ============================================================
+ */
+export type RootCauseInvestigationWrite = Omit<InsertRootCauseInvestigation, "id" | "createdAt" | "updatedAt">;
+
+export async function getRootCauseInvestigations(businessId: number, options: { limit?: number; status?: string } = {}) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(rootCauseInvestigations.businessId, businessId)];
+  if (options.status) conditions.push(eq(rootCauseInvestigations.status, options.status as any));
+  return await db
+    .select()
+    .from(rootCauseInvestigations)
+    .where(and(...conditions))
+    .orderBy(desc(rootCauseInvestigations.updatedAt), desc(rootCauseInvestigations.id))
+    .limit(Math.min(options.limit ?? 20, 50));
+}
+
+export async function getRootCauseInvestigationById(businessId: number, investigationId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(rootCauseInvestigations)
+    .where(and(eq(rootCauseInvestigations.businessId, businessId), eq(rootCauseInvestigations.id, investigationId)))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function getRootCauseInvestigationByKey(businessId: number, investigationKey: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(rootCauseInvestigations)
+    .where(and(eq(rootCauseInvestigations.businessId, businessId), eq(rootCauseInvestigations.investigationKey, investigationKey)))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function upsertRootCauseInvestigation(data: RootCauseInvestigationWrite) {
+  const db = await getDb();
+  if (!db) return { id: null, created: false, row: null };
+  const existing = await getRootCauseInvestigationByKey(data.businessId, data.investigationKey);
+  if (!existing) {
+    const res = await db.insert(rootCauseInvestigations).values(data);
+    const id = res && Array.isArray(res) && res[0]?.insertId ? Number(res[0].insertId) : null;
+    return { id, created: true, row: id ? ({ ...data, id } as RootCauseInvestigation) : null };
+  }
+  await db
+    .update(rootCauseInvestigations)
+    .set({
+      ...data,
+      id: existing.id,
+      createdAt: existing.createdAt,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(rootCauseInvestigations.businessId, data.businessId), eq(rootCauseInvestigations.id, existing.id)));
+  return { id: existing.id, created: false, row: { ...existing, ...data, id: existing.id, updatedAt: new Date() } };
+}
+
+
+export type BusinessRelationshipWrite = Omit<InsertBusinessRelationship, "id" | "createdAt" | "updatedAt">;
+
+export async function getBusinessRelationships(businessId: number, options: { limit?: number; relationshipType?: string } = {}) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(businessRelationships.businessId, businessId)];
+  if (options.relationshipType) conditions.push(eq(businessRelationships.relationshipType, options.relationshipType));
+  return db
+    .select()
+    .from(businessRelationships)
+    .where(and(...conditions))
+    .orderBy(desc(businessRelationships.updatedAt), desc(businessRelationships.id))
+    .limit(Math.min(options.limit ?? 100, 500));
+}
+
+export async function upsertBusinessRelationship(data: BusinessRelationshipWrite) {
+  const db = await getDb();
+  if (!db) return { id: null, created: false, row: null };
+  const conditions = [
+    eq(businessRelationships.businessId, data.businessId),
+    eq(businessRelationships.fromType, data.fromType),
+    eq(businessRelationships.toType, data.toType),
+    eq(businessRelationships.relationshipType, data.relationshipType),
+  ];
+  if (data.fromId !== null && data.fromId !== undefined) conditions.push(eq(businessRelationships.fromId, data.fromId));
+  if (data.toId !== null && data.toId !== undefined) conditions.push(eq(businessRelationships.toId, data.toId));
+  const existingRows = await db.select().from(businessRelationships).where(and(...conditions)).limit(1);
+  const existing = existingRows[0];
+  if (!existing) {
+    const result = await db.insert(businessRelationships).values(data);
+    const id = result && Array.isArray(result) && result[0]?.insertId ? Number(result[0].insertId) : null;
+    return { id, created: true, row: id ? ({ ...data, id } as BusinessRelationship) : null };
+  }
+  await db
+    .update(businessRelationships)
+    .set({ ...data, id: existing.id, createdAt: existing.createdAt, updatedAt: new Date() })
+    .where(and(eq(businessRelationships.businessId, data.businessId), eq(businessRelationships.id, existing.id)));
+  return { id: existing.id, created: false, row: { ...existing, ...data, id: existing.id, updatedAt: new Date() } };
 }

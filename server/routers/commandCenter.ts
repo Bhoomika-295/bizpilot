@@ -71,7 +71,7 @@ export const commandCenterRouter = router({
   getInsightDetail: protectedProcedure
     .input(z.object({
       businessId: z.number().int().positive(),
-      sourceType: z.enum(["ATTENTION", "DECISION", "ACTION", "SITUATION", "STRATEGY", "MEMORY", "PATTERN", "OUTCOME", "FORESIGHT", "SCENARIO"]),
+      sourceType: z.enum(["ATTENTION", "DECISION", "ACTION", "SITUATION", "STRATEGY", "MEMORY", "PATTERN", "OUTCOME", "FORESIGHT", "SCENARIO", "DIAGNOSTIC"]),
       sourceId: z.number().int().positive(),
     }))
     .query(async ({ ctx, input }) => {

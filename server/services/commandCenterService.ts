@@ -13,6 +13,7 @@ import {
   getScenarios,
   getStrategyById,
   getStrategies,
+  getRootCauseInvestigations,
 } from "../db";
 import { getAttentionQueueForBusiness } from "./businessAttentionService";
 import { getActionQueueForBusiness, getExecutionRiskSummary } from "./actionPlanService";
@@ -28,7 +29,8 @@ export type CommandCenterPrioritySource =
   | "ACTION"
   | "SITUATION"
   | "FORESIGHT"
-  | "SCENARIO";
+  | "SCENARIO"
+  | "DIAGNOSTIC";
 
 export interface CommandCenterPriority {
   key: string;
@@ -104,6 +106,12 @@ export interface CommandCenterSnapshot {
     activeScenarioCount: number;
     recentOutcomeCount: number;
   };
+  diagnostics: {
+    openInvestigationCount: number;
+    highestConfidence: string;
+    topContributor: string;
+    unknownFactorCount: number;
+  };
   brief: Record<string, unknown>;
 }
 
@@ -124,7 +132,9 @@ export interface CommandCenterBrief {
 }
 
 export type CommandCenterSearchResult = {
-  resultType: "MEMORY" | "PATTERN" | "DECISION" | "ACTION" | "SITUATION" | "STRATEGY" | "OUTCOME" | "FORESIGHT" | "SCENARIO";
+  resultType: "MEMORY" | "PATTERN" | "DECISION" | "ACTION" | "SITUATION" | "STRATEGY" | "OUTCOME"   | "FORESIGHT"
+  | "SCENARIO"
+  | "DIAGNOSTIC";
   recordId: number;
   title: string;
   summary: string;
@@ -186,6 +196,7 @@ function buildPriorities(input: {
   situations: any[];
   foresight: any[];
   scenarios: any[];
+  rootCauses: any[];
 }) {
   const now: CommandCenterPriority[] = input.attention.now.slice(0, 8).map((item) => priorityFromAttention(item, "NOW"));
   const next: CommandCenterPriority[] = input.attention.next.slice(0, 8).map((item) => priorityFromAttention(item, "NEXT"));
@@ -279,6 +290,28 @@ function buildPriorities(input: {
     });
   });
 
+  input.rootCauses.filter((investigation: any) => ["OPEN", "INVESTIGATING"].includes(asText(investigation.status))).slice(0, 3).forEach((investigation: any) => {
+    const contributors = Array.isArray(investigation.contributors) ? investigation.contributors : [];
+    const topContributor = contributors[0];
+    watch.push({
+      key: `diagnostic-${investigation.id ?? investigation.investigationKey}`,
+      source: "DIAGNOSTIC",
+      sourceId: investigation.id ?? null,
+      lane: "WATCH",
+      title: `WHY: ${asText(investigation.problemTitle, "Business situation")}`,
+      summary: "A structured diagnostic is available with supporting evidence, counter-evidence, and unknown factors.",
+      whyNow: topContributor ? `Highest-ranked contributor: ${asText(topContributor.title, "unresolved factor")}.` : "Review the evidence graph before making a causal claim.",
+      priority: investigation.overallConfidence === "HIGH" ? "HIGH" : "MEDIUM",
+      status: asText(investigation.status, "OPEN"),
+      freshness: asText(investigation.updatedAt, "UNKNOWN"),
+      evidence: [
+        `Evidence strength: ${asText(investigation.evidenceStrength, "UNKNOWN")}`,
+        `${Array.isArray(investigation.counterEvidence) ? investigation.counterEvidence.length : 0} counter-evidence item(s)`,
+        `${Array.isArray(investigation.unknownFactors) ? investigation.unknownFactors.length : 0} unknown factor(s)`,
+      ],
+    });
+  });
+
   const byPriority = (a: CommandCenterPriority, b: CommandCenterPriority) => {
     const rank: Record<string, number> = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
     return (rank[b.priority] || 0) - (rank[a.priority] || 0) || a.title.localeCompare(b.title);
@@ -292,7 +325,7 @@ function buildPriorities(input: {
 export async function getCommandCenterSnapshot(businessId: number): Promise<CommandCenterSnapshot> {
   const now = new Date();
   const brief = await generateOrGetDailyBrief(businessId, false);
-  const [attention, decisions, actions, situations, strategyHealth, memories, patterns, foresight, scenarios, outcomes, monitoringAlerts] = await Promise.all([
+  const [attention, decisions, actions, situations, strategyHealth, memories, patterns, foresight, scenarios, outcomes, monitoringAlerts, rootCauses] = await Promise.all([
     getAttentionQueueForBusiness(businessId),
     getDecisionQueue(businessId, 10),
     getActionQueueForBusiness(businessId, now),
@@ -304,9 +337,10 @@ export async function getCommandCenterSnapshot(businessId: number): Promise<Comm
     getScenarios(businessId),
     getRecentOutcomes(businessId, 10),
     getMonitoringAlerts(businessId, { limit: 10 }),
+    getRootCauseInvestigations(businessId),
   ]);
 
-  const priorityLanes = buildPriorities({ attention, decisions, actions: actions.actions, situations, foresight, scenarios });
+  const priorityLanes = buildPriorities({ attention, decisions, actions: actions.actions, situations, foresight, scenarios, rootCauses });
   const actionSummary = actions.summary as any;
   const briefHealth = (brief.health || {}) as any;
   const briefChanges = (brief.changes || {}) as any;
@@ -322,6 +356,10 @@ export async function getCommandCenterSnapshot(businessId: number): Promise<Comm
   const executionRisk = getExecutionRiskSummary(actions.actions as any, now);
   const latestBriefAt = asDate(brief.updatedAt) || asDate(brief.createdAt);
   const recurringPatternCount = patterns.filter((pattern: any) => asNumber(pattern.occurrences) >= 2).length;
+  const openInvestigations = rootCauses.filter((investigation: any) => ["OPEN", "INVESTIGATING"].includes(asText(investigation.status)));
+  const contributorRows = openInvestigations.flatMap((investigation: any) => Array.isArray(investigation.contributors) ? investigation.contributors : []);
+  const topContributor = contributorRows.sort((a: any, b: any) => asNumber(b.rankingScore) - asNumber(a.rankingScore))[0];
+  const unknownFactorCount = openInvestigations.reduce((total: number, investigation: any) => total + (Array.isArray(investigation.unknownFactors) ? investigation.unknownFactors.length : 0), 0);
   const changeCount = asNumber(briefChanges.changesCount, Array.isArray(briefChanges.changes) ? briefChanges.changes.length : 0);
   const activeWarningsCount = monitoringAlerts.filter((alert: any) => ["NEW", "ACTIVE", "ACKNOWLEDGED"].includes(alert.status)).length;
   const urgencyLevel: CommandCenterSnapshot["urgency"]["level"] = activeWarningsCount > 0 || priorityLanes.now.length > 0 ? "HIGH" : priorityLanes.next.length > 0 ? "MEDIUM" : "LOW";
@@ -377,6 +415,12 @@ export async function getCommandCenterSnapshot(businessId: number): Promise<Comm
       activeScenarioCount: scenarios.filter((scenario: any) => ["ACTIVE", "UNDER_REVIEW", "SELECTED"].includes(asText(scenario.status))).length,
       recentOutcomeCount: outcomes.length,
     },
+    diagnostics: {
+      openInvestigationCount: openInvestigations.length,
+      highestConfidence: asText(openInvestigations[0]?.overallConfidence, "UNKNOWN"),
+      topContributor: asText(topContributor?.title, "No ranked contributor available"),
+      unknownFactorCount,
+    },
     brief: brief as Record<string, unknown>,
   };
 }
@@ -385,7 +429,16 @@ export function buildCommandCenterBriefSections(snapshot: CommandCenterSnapshot)
   const hasNow = snapshot.priorities.now.length > 0;
   const hasMemory = snapshot.memory.recentCount > 0 || snapshot.memory.patternCount > 0;
   const activeWarnings = (snapshot.signals as any).activeEarlyWarningsCount || 0;
+  const diagnostics = snapshot.diagnostics ?? { openInvestigationCount: 0, highestConfidence: "UNKNOWN", topContributor: "No ranked contributor available", unknownFactorCount: 0 };
+  const openDiagnostics = diagnostics.openInvestigationCount;
   return [
+      {
+        key: "diagnostics",
+        title: "Root-cause diagnostics",
+        summary: openDiagnostics > 0 ? `${openDiagnostics} structured WHY investigation${openDiagnostics === 1 ? " is" : "s are"} available. Review contributors, counter-evidence, and unknowns before acting.` : "No open root-cause investigation is currently recorded.",
+        status: openDiagnostics > 0 ? "WATCH" : "EMPTY",
+        evidence: [diagnostics.topContributor, `${diagnostics.unknownFactorCount} unknown factor(s)`],
+      },
       {
         key: "early_warnings",
         title: "Early warnings",
@@ -477,7 +530,7 @@ export function scoreCommandCenterMatch(tokens: string[], title: string, summary
 export async function searchCommandCenter(businessId: number, query: string, limit = 12): Promise<CommandCenterSearchResult[]> {
   const tokens = normalizeCommandCenterQuery(query);
   if (!tokens.length) return [];
-  const [memories, patterns, decisions, actions, situations, strategies, outcomes, foresight, scenarios] = await Promise.all([
+  const [memories, patterns, decisions, actions, situations, strategies, outcomes, foresight, scenarios, rootCauses] = await Promise.all([
     getBusinessMemoriesForBusiness(businessId, 100),
     getPatternIntelligenceForBusiness(businessId),
     getAllDecisionCandidates(businessId),
@@ -487,6 +540,7 @@ export async function searchCommandCenter(businessId: number, query: string, lim
     getRecentOutcomes(businessId, 100),
     getForesightSignalsForBusiness(businessId),
     getScenarios(businessId),
+    getRootCauseInvestigations(businessId),
   ]);
   const results: CommandCenterSearchResult[] = [];
   const add = (resultType: CommandCenterSearchResult["resultType"], row: any, title: string, summary: string, status: string, href: string) => {
@@ -502,6 +556,7 @@ export async function searchCommandCenter(businessId: number, query: string, lim
   outcomes.forEach((row: any) => add("OUTCOME", row, asText(row.metric, "Outcome"), asText(row.notes, ""), "RECORDED", `/dashboard/${businessId}`));
   foresight.forEach((row: any) => add("FORESIGHT", row, asText(row.title, "Foresight signal"), asText(row.description, asText(row.summary, "")), asText(row.status, "WATCH"), `/dashboard/${businessId}`));
   scenarios.forEach((row: any) => add("SCENARIO", row, asText(row.title, "Scenario path"), asText(row.description, asText(row.expectedOutcome, "")), asText(row.status, "ACTIVE"), `/dashboard/${businessId}`));
+  rootCauses.forEach((row: any) => add("DIAGNOSTIC", row, `WHY: ${asText(row.problemTitle, "Root-cause investigation")}`, asText(row.problemDescription, "Evidence-backed diagnostic"), asText(row.status, "OPEN"), `/why/${businessId}`));
   return results.sort((a, b) => b.relevance - a.relevance || a.title.localeCompare(b.title)).slice(0, Math.min(Math.max(limit, 1), 25));
 }
 
@@ -561,6 +616,9 @@ export async function getCommandCenterInsightDetail(
       break;
     case "SCENARIO":
       record = (await getScenarios(businessId)).find((item: any) => Number(item.id) === sourceId) || null;
+      break;
+    case "DIAGNOSTIC":
+      record = (await getRootCauseInvestigations(businessId)).find((item: any) => Number(item.id) === sourceId) || null;
       break;
   }
 

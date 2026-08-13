@@ -29,7 +29,7 @@ import {
   updateDecisionLifecycle,
   linkDecisionOutcome,
 } from "../services/decisionIntelligenceService";
-import { getOutcomeByIdForBusiness, getMonitoringPreference, upsertMonitoringPreference } from "../db";
+import { getOutcomeByIdForBusiness, getMonitoringPreference, upsertMonitoringPreference, getBusinessRelationships } from "../db";
 import {
   evaluateBusinessChanges,
   getMonitoringAlerts,
@@ -82,6 +82,11 @@ import {
   updateScenarioLifecycle,
   attachScenarioOutcome,
 } from "../services/scenarioPathService";
+import {
+  fetchRootCauseInvestigations,
+  fetchRootCauseInvestigationDetail,
+  generateRootCauseInvestigation,
+} from "../services/rootCauseService";
 
 /**
  * Business Metrics Router
@@ -1041,6 +1046,50 @@ export const businessMetricsRouter = router({
     .mutation(async ({ ctx, input }) => {
       await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
       return reviewAttentionItem(input.businessId, input.itemId, input.action, input.reason, input.notes);
+    }),
+
+  /**
+   * Root Cause & Causal Business Intelligence v1 Procedures (Days 56–58)
+   */
+  getBusinessRelationships: protectedProcedure
+    .input(z.object({ businessId: z.number(), relationshipType: z.string().max(50).optional() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return getBusinessRelationships(input.businessId, { relationshipType: input.relationshipType, limit: 200 });
+    }),
+  getRootCauseInvestigations: protectedProcedure
+    .input(z.object({ businessId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return fetchRootCauseInvestigations(input.businessId);
+    }),
+
+  getRootCauseInvestigation: protectedProcedure
+    .input(z.object({ businessId: z.number(), investigationId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return fetchRootCauseInvestigationDetail(input.businessId, input.investigationId);
+    }),
+
+  refreshRootCauseInvestigation: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+        problemTitle: z.string().min(1).max(240).optional(),
+        problemDescription: z.string().max(2000).optional(),
+        sourceType: z.string().max(80).optional(),
+        sourceId: z.number().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return generateRootCauseInvestigation(
+        input.businessId,
+        input.problemTitle,
+        input.problemDescription,
+        input.sourceType,
+        input.sourceId
+      );
     }),
 
   /**

@@ -586,3 +586,20 @@
 - [x] Add deterministic unit, persistence, tenant authorization, cross-tenant, lifecycle, significance, and scheduled-handler tests
 - [x] Run full tests, TypeScript validation, production build, and responsive visual verification; document deployment-dependent schedule setup
 - [x] Save the Days 53–55 checkpoint and stop without starting Day 56
+
+## Days 56–58: Root Cause & Causal Business Intelligence v1
+- [x] Add tenant-isolated business relationship persistence linking existing entities without duplicating records
+- [x] Add explicit relationship types, evidence, confidence, source type, timestamps, and UNKNOWN support without unsupported CAUSES claims
+- [x] Add deterministic relationship graph service over metrics, signals, situations, trends, strategies, actions, outcomes, risks, opportunities, scenarios, decisions, memories, and patterns
+- [x] Add root-cause investigation service with possible contributors, supporting evidence, contradicting evidence, temporal relationships, historical precedent, and unknown factors
+- [x] Add explainable evidence strength levels STRONG, MODERATE, WEAK, UNKNOWN and conflict visibility
+- [x] Add contributor ranking based on transparent evidence, temporal, historical, strategic, magnitude, and consistency factors without opaque scores
+- [x] Add interactive WHY tree and contributor drill-down data with related strategies, actions, outcomes, and unknowns
+- [x] Add root-cause event timeline with explicit TEMPORAL RELATIONSHIP language rather than causal claims
+- [x] Add mandatory counter-evidence search and confidence reduction when evidence conflicts
+- [x] Add What We Don’t Know section for missing or unverified factors
+- [x] Integrate root-cause diagnostics into Executive Command Center, warning/situation detail, decision, strategy, action, and outcome surfaces
+- [x] Build responsive executive WHY diagnostic workspace with traceability and clear observed/correlated/contributor/supported/unknown labels
+- [x] Add deterministic unit, persistence, tenant authorization, cross-tenant, conflict, counter-evidence, causal-language, and integration tests
+- [x] Run full tests, TypeScript validation, production build, responsive visual verification, and document environment limitations
+- [x] Save the Days 56–58 checkpoint and stop without starting Day 59

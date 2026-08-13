@@ -31,6 +31,7 @@ import {
   LogOut,
   PanelLeft,
   ShieldAlert,
+  GitBranch,
   UserCircle,
   Users,
 } from "lucide-react";
@@ -49,6 +50,7 @@ function getMenuItems(businessId?: string) {
     { icon: LayoutDashboard, label: "Dashboard", path: `/dashboard/${businessId}` },
     { icon: ListChecks, label: "Actions", path: `/actions/${businessId}` },
     { icon: History, label: "Memory", path: `/memory/${businessId}` },
+    { icon: GitBranch, label: "WHY", path: `/why/${businessId}` },
     { icon: ShieldAlert, label: "Competitors", path: `/competitors/${businessId}` },
     { icon: Users, label: "Customers", path: `/customers/${businessId}` },
     { icon: Database, label: "Data", path: `/data/${businessId}` },

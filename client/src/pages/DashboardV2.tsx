@@ -2551,6 +2551,7 @@ export default function DashboardV2() {
                     {canResolve && <Button size="sm" variant="outline" onClick={() => updateMonitoringAlertStatusMutation.mutate({ businessId: parseInt(businessId || "0"), eventId: alert.id, status: "RESOLVED" })}>Resolve</Button>}
                     {canResolve && <Button size="sm" variant="outline" onClick={() => updateMonitoringAlertStatusMutation.mutate({ businessId: parseInt(businessId || "0"), eventId: alert.id, status: "DISMISSED", details: "Dismissed after human review." })}>Dismiss</Button>}
                     {canReopen && <Button size="sm" variant="outline" onClick={() => updateMonitoringAlertStatusMutation.mutate({ businessId: parseInt(businessId || "0"), eventId: alert.id, status: "ACTIVE", details: "Reopened for renewed monitoring." })}>Reopen</Button>}
+                    <Button size="sm" variant="outline" className="border-indigo-200 text-indigo-800" onClick={() => { setSelectedMonitoringAlert(null); setLocation(`/why/${businessId}`); }}>Open WHY workspace</Button>
                     <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setSelectedMonitoringAlert(null)}>Close</Button>
                   </div>
 
@@ -3149,13 +3150,23 @@ export default function DashboardV2() {
                       </Button>
                     ))}
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSelectedSituation(null)}
-                  >
-                    Close
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-indigo-200 text-indigo-800"
+                      onClick={() => { setSelectedSituation(null); setLocation(`/why/${businessId}`); }}
+                    >
+                      Open WHY workspace
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedSituation(null)}
+                    >
+                      Close
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>

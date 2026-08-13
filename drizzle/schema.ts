@@ -1776,3 +1776,71 @@ export const patternIntelligence = mysqlTable(
 );
 export type PatternIntelligenceRecord = typeof patternIntelligence.$inferSelect;
 export type InsertPatternIntelligenceRecord = typeof patternIntelligence.$inferInsert;
+
+
+/**
+ * ============================================================
+ * DAYS 56–58: ROOT CAUSE & CAUSAL BUSINESS INTELLIGENCE v1
+ * ============================================================
+ */
+export const rootCauseInvestigations = mysqlTable(
+  "rootCauseInvestigations",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    investigationKey: varchar("investigationKey", { length: 255 }).notNull(),
+    problemTitle: varchar("problemTitle", { length: 255 }).notNull(),
+    problemDescription: text("problemDescription").notNull(),
+    sourceType: varchar("sourceType", { length: 50 }).notNull(),
+    sourceId: int("sourceId"),
+    evidenceStrength: varchar("evidenceStrength", { length: 20 }).notNull().default("UNKNOWN"),
+    overallConfidence: varchar("overallConfidence", { length: 20 }).notNull().default("UNKNOWN"),
+    contributorsJson: text("contributorsJson").notNull(),
+    counterEvidenceJson: text("counterEvidenceJson").notNull(),
+    unknownFactorsJson: text("unknownFactorsJson").notNull(),
+    timelineEventsJson: text("timelineEventsJson").notNull(),
+    whyTreeJson: text("whyTreeJson").notNull(),
+    status: mysqlEnum("status", ["OPEN", "INVESTIGATING", "RESOLVED", "ARCHIVED"]).default("OPEN").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("rootCauseInvestigations_businessId_idx").on(table.businessId),
+    investigationKeyIdx: index("rootCauseInvestigations_investigationKey_idx").on(table.investigationKey),
+  })
+);
+
+export type RootCauseInvestigation = typeof rootCauseInvestigations.$inferSelect;
+export type InsertRootCauseInvestigation = typeof rootCauseInvestigations.$inferInsert;
+
+
+export const businessRelationships = mysqlTable(
+  "businessRelationships",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    businessId: int("businessId").notNull(),
+    fromType: varchar("fromType", { length: 60 }).notNull(),
+    fromId: int("fromId"),
+    toType: varchar("toType", { length: 60 }).notNull(),
+    toId: int("toId"),
+    relationshipType: varchar("relationshipType", { length: 50 }).notNull(),
+    evidenceStrength: varchar("evidenceStrength", { length: 20 }).notNull().default("UNKNOWN"),
+    confidence: varchar("confidence", { length: 20 }).notNull().default("UNKNOWN"),
+    evidenceSummary: text("evidenceSummary").notNull(),
+    sourceType: varchar("sourceType", { length: 60 }),
+    sourceId: int("sourceId"),
+    observedAt: timestamp("observedAt"),
+    status: varchar("status", { length: 20 }).notNull().default("ACTIVE"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    businessIdIdx: index("businessRelationships_businessId_idx").on(table.businessId),
+    fromIdx: index("businessRelationships_from_idx").on(table.businessId, table.fromType, table.fromId),
+    toIdx: index("businessRelationships_to_idx").on(table.businessId, table.toType, table.toId),
+    relationshipIdx: index("businessRelationships_type_idx").on(table.businessId, table.relationshipType),
+  })
+);
+
+export type BusinessRelationship = typeof businessRelationships.$inferSelect;
+export type InsertBusinessRelationship = typeof businessRelationships.$inferInsert;

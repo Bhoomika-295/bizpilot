@@ -38,12 +38,13 @@ const laneMeta = {
 } as const;
 
 type LaneKey = keyof typeof laneMeta;
-type InsightSourceType = "ATTENTION" | "DECISION" | "ACTION" | "SITUATION" | "STRATEGY" | "MEMORY" | "PATTERN" | "OUTCOME" | "FORESIGHT" | "SCENARIO";
+type InsightSourceType = "ATTENTION" | "DECISION" | "ACTION" | "SITUATION" | "STRATEGY" | "MEMORY" | "PATTERN" | "OUTCOME" | "FORESIGHT" | "SCENARIO" | "DIAGNOSTIC";
 type InsightSelection = { sourceType: InsightSourceType; sourceId: number };
 
 function sourceHref(sourceType: InsightSourceType, businessId: number) {
   if (sourceType === "ACTION") return `/actions/${businessId}`;
   if (sourceType === "MEMORY" || sourceType === "PATTERN") return `/memory/${businessId}`;
+  if (sourceType === "DIAGNOSTIC") return `/why/${businessId}`;
   return `/dashboard/${businessId}`;
 }
 
