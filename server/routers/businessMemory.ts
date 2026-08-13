@@ -8,7 +8,13 @@ import {
   searchBusinessMemories,
   queryBusinessMemory,
 } from "../services/businessMemoryService";
-import { getBusinessPatterns, detectAndUpsertPatterns } from "../services/patternIntelligenceService";
+import { getBusinessPatterns, detectAndUpsertPatterns, getConditionAwarePatternDetail } from "../services/patternIntelligenceService";
+import {
+  getOrganizationalLearningSnapshot,
+  extractLessonsFromLearningLoop,
+  validateBusinessMemoryLesson,
+  type LessonValidationStatus,
+} from "../services/organizationalLearningService";
 
 import { verifyBusinessOwnership as verifyOwnedBusiness } from "../services/businessDataService";
 
@@ -51,6 +57,48 @@ export const businessMemoryRouter = router({
       await requireBusinessMemoryAccess(ctx.user, input.businessId);
       await detectAndUpsertPatterns(input.businessId);
       return await getBusinessPatterns(input.businessId);
+    }),
+
+  getOrganizationalLearning: protectedProcedure
+    .input(z.object({ businessId: z.number().int().positive(), limit: z.number().int().min(1).max(200).optional().default(100), query: z.string().trim().max(200).optional() }))
+    .query(async ({ ctx, input }) => {
+      await requireBusinessMemoryAccess(ctx.user, input.businessId);
+      return await getOrganizationalLearningSnapshot(input.businessId, { limit: input.limit, query: input.query });
+    }),
+
+  refreshLearningLoop: protectedProcedure
+    .input(z.object({ businessId: z.number().int().positive() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireBusinessMemoryAccess(ctx.user, input.businessId);
+      const lessons = await extractLessonsFromLearningLoop(input.businessId);
+      await detectAndUpsertPatterns(input.businessId);
+      return { lessonsCreatedOrReused: lessons.length, snapshot: await getOrganizationalLearningSnapshot(input.businessId) };
+    }),
+
+  reviewLesson: protectedProcedure
+    .input(z.object({
+      businessId: z.number().int().positive(),
+      memoryId: z.number().int().positive(),
+      validationStatus: z.enum(["NEW", "SUPPORTED", "REPEATED", "CONTRADICTED", "SUPERSEDED", "UNKNOWN"]),
+      newEvidence: z.string().trim().max(2000).optional(),
+      conflictDescription: z.string().trim().max(1000).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await requireBusinessMemoryAccess(ctx.user, input.businessId);
+      return await validateBusinessMemoryLesson(
+        input.businessId,
+        input.memoryId,
+        input.validationStatus as LessonValidationStatus,
+        input.newEvidence,
+        input.conflictDescription,
+      );
+    }),
+
+  getPatternDetail: protectedProcedure
+    .input(z.object({ businessId: z.number().int().positive(), patternId: z.number().int().positive() }))
+    .query(async ({ ctx, input }) => {
+      await requireBusinessMemoryAccess(ctx.user, input.businessId);
+      return await getConditionAwarePatternDetail(input.businessId, input.patternId);
     }),
 
   search: protectedProcedure

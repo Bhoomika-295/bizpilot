@@ -3180,7 +3180,7 @@ export async function getBusinessMemoriesForBusiness(businessId: number, limit =
 export async function createBusinessMemory(data: InsertBusinessMemoryRecord) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  // Deduplicate: check if similar recent memory exists for same sourceType and sourceId within last 24h
+  // Deduplicate only the same source entity and memory type. Historical records are never overwritten.
   if (data.sourceType && data.sourceId) {
     const [existing] = await db
       .select()
@@ -3197,17 +3197,43 @@ export async function createBusinessMemory(data: InsertBusinessMemoryRecord) {
       .limit(1);
 
     if (existing) {
-      // If found within 24 hours and summary is similar or same status, return existing or update timestamp
-      const ageHours = (Date.now() - new Date(existing.createdAt).getTime()) / (1000 * 60 * 60);
-      if (ageHours < 24) {
-        return existing;
-      }
+      return existing;
     }
   }
 
   const [result] = await db.insert(businessMemories).values(data);
   const [created] = await db.select().from(businessMemories).where(eq(businessMemories.id, result.insertId));
   return created;
+}
+
+export async function updateBusinessMemoryQuality(
+  businessId: number,
+  memoryId: number,
+  data: Partial<Pick<InsertBusinessMemoryRecord, "evidenceConfidence" | "validationStatus" | "status" | "relevanceExplanation" | "contradictionDetailsJson">>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(businessMemories)
+    .set({ ...data, updatedAt: new Date() })
+    .where(and(eq(businessMemories.id, memoryId), eq(businessMemories.businessId, businessId)));
+  const [updated] = await db
+    .select()
+    .from(businessMemories)
+    .where(and(eq(businessMemories.id, memoryId), eq(businessMemories.businessId, businessId)))
+    .limit(1);
+  return updated || null;
+}
+
+export async function getBusinessMemoryById(businessId: number, memoryId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const [memory] = await db
+    .select()
+    .from(businessMemories)
+    .where(and(eq(businessMemories.businessId, businessId), eq(businessMemories.id, memoryId)))
+    .limit(1);
+  return memory || null;
 }
 
 export async function getPatternIntelligenceForBusiness(businessId: number) {

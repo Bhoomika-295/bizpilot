@@ -20,6 +20,7 @@ import { getActionQueueForBusiness, getExecutionRiskSummary } from "./actionPlan
 import { getDecisionQueue, getDecisionDetail } from "./decisionIntelligenceService";
 import { generateOrGetDailyBrief } from "./dailyBriefService";
 import { getBusinessMemoryDetail } from "./businessMemoryService";
+import { getOrganizationalLearningSnapshot } from "./organizationalLearningService";
 import { getMonitoringAlerts } from "./continuousMonitoringService";
 
 export type CommandCenterPriorityLane = "NOW" | "NEXT" | "WATCH";
@@ -97,7 +98,10 @@ export interface CommandCenterSnapshot {
     recentCount: number;
     patternCount: number;
     recurringPatternCount: number;
+    validatedLessonCount: number;
+    contradictionCount: number;
     latestMemoryAt: Date | null;
+    relevantLessons: Array<{ id: number; title: string; summary: string; sourceType: string | null; sourceId: number | null; relevance: string }>;
   };
   signals: {
     activeForesightCount: number;
@@ -325,7 +329,7 @@ function buildPriorities(input: {
 export async function getCommandCenterSnapshot(businessId: number): Promise<CommandCenterSnapshot> {
   const now = new Date();
   const brief = await generateOrGetDailyBrief(businessId, false);
-  const [attention, decisions, actions, situations, strategyHealth, memories, patterns, foresight, scenarios, outcomes, monitoringAlerts, rootCauses] = await Promise.all([
+  const [attention, decisions, actions, situations, strategyHealth, memories, patterns, foresight, scenarios, outcomes, monitoringAlerts, rootCauses, learningSnapshot] = await Promise.all([
     getAttentionQueueForBusiness(businessId),
     getDecisionQueue(businessId, 10),
     getActionQueueForBusiness(businessId, now),
@@ -338,6 +342,7 @@ export async function getCommandCenterSnapshot(businessId: number): Promise<Comm
     getRecentOutcomes(businessId, 10),
     getMonitoringAlerts(businessId, { limit: 10 }),
     getRootCauseInvestigations(businessId),
+    getOrganizationalLearningSnapshot(businessId, { limit: 100 }),
   ]);
 
   const priorityLanes = buildPriorities({ attention, decisions, actions: actions.actions, situations, foresight, scenarios, rootCauses });
@@ -356,6 +361,11 @@ export async function getCommandCenterSnapshot(businessId: number): Promise<Comm
   const executionRisk = getExecutionRiskSummary(actions.actions as any, now);
   const latestBriefAt = asDate(brief.updatedAt) || asDate(brief.createdAt);
   const recurringPatternCount = patterns.filter((pattern: any) => asNumber(pattern.occurrences) >= 2).length;
+  const relevantLessons = learningSnapshot.lessons
+    .filter((lesson) => ["HIGH", "MEDIUM"].includes(lesson.relevance.level) && ["SUPPORTED", "REPEATED", "NEW"].includes(lesson.validationStatus))
+    .sort((a, b) => b.relevance.score - a.relevance.score)
+    .slice(0, 3)
+    .map((lesson) => ({ id: lesson.id, title: lesson.title, summary: lesson.summary, sourceType: lesson.sourceType, sourceId: lesson.sourceId, relevance: lesson.relevance.level }));
   const openInvestigations = rootCauses.filter((investigation: any) => ["OPEN", "INVESTIGATING"].includes(asText(investigation.status)));
   const contributorRows = openInvestigations.flatMap((investigation: any) => Array.isArray(investigation.contributors) ? investigation.contributors : []);
   const topContributor = contributorRows.sort((a: any, b: any) => asNumber(b.rankingScore) - asNumber(a.rankingScore))[0];
@@ -406,7 +416,10 @@ export async function getCommandCenterSnapshot(businessId: number): Promise<Comm
       recentCount: memories.length,
       patternCount: patterns.length,
       recurringPatternCount,
+      validatedLessonCount: learningSnapshot.metrics.validatedLessonCount,
+      contradictionCount: learningSnapshot.metrics.contradictionCount,
       latestMemoryAt: asDate(memories[0]?.createdAt),
+      relevantLessons,
     },
     signals: {
       activeForesightCount: foresight.filter((signal: any) => ["ACTIVE", "WATCH", "CONFIRMED"].includes(asText(signal.status))).length,
@@ -427,7 +440,10 @@ export async function getCommandCenterSnapshot(businessId: number): Promise<Comm
 
 export function buildCommandCenterBriefSections(snapshot: CommandCenterSnapshot): CommandCenterBrief["sections"] {
   const hasNow = snapshot.priorities.now.length > 0;
-  const hasMemory = snapshot.memory.recentCount > 0 || snapshot.memory.patternCount > 0;
+  const validatedLessonCount = snapshot.memory.validatedLessonCount ?? 0;
+  const contradictionCount = snapshot.memory.contradictionCount ?? 0;
+  const relevantLessons = snapshot.memory.relevantLessons ?? [];
+  const hasMemory = snapshot.memory.recentCount > 0 || snapshot.memory.patternCount > 0 || validatedLessonCount > 0;
   const activeWarnings = (snapshot.signals as any).activeEarlyWarningsCount || 0;
   const diagnostics = snapshot.diagnostics ?? { openInvestigationCount: 0, highestConfidence: "UNKNOWN", topContributor: "No ranked contributor available", unknownFactorCount: 0 };
   const openDiagnostics = diagnostics.openInvestigationCount;
@@ -490,10 +506,10 @@ export function buildCommandCenterBriefSections(snapshot: CommandCenterSnapshot)
       },
       {
         key: "learning",
-        title: "Recent learning",
-        summary: hasMemory ? `${snapshot.memory.recentCount} recent memories and ${snapshot.memory.recurringPatternCount} recurring patterns are available.` : "No retained memory or recurring pattern is available for this business yet.",
+        title: "What we learned",
+        summary: hasMemory ? `${validatedLessonCount} validated lesson${validatedLessonCount === 1 ? "" : "s"} and ${snapshot.memory.recurringPatternCount} recurring pattern${snapshot.memory.recurringPatternCount === 1 ? "" : "s"} are available as context for the next decision.` : "No retained memory or recurring pattern is available for this business yet.",
         status: hasMemory ? "READY" : "EMPTY",
-        evidence: [`${snapshot.memory.recentCount} memories`, `${snapshot.memory.patternCount} patterns`],
+        evidence: [`${snapshot.memory.recentCount} memories`, `${validatedLessonCount} validated lessons`, `${contradictionCount} contradiction${contradictionCount === 1 ? "" : "s"} to review`],
       },
   ];
 }

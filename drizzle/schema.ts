@@ -1727,13 +1727,20 @@ export const businessMemories = mysqlTable(
   {
     id: int("id").autoincrement().primaryKey(),
     businessId: int("businessId").notNull(),
-    memoryType: varchar("memoryType", { length: 50 }).notNull().default("SITUATION"), // SITUATION, STRATEGY, DECISION, ACTION, OUTCOME, LEARNING, ASSUMPTION, PATTERN
+    memoryType: varchar("memoryType", { length: 50 }).notNull().default("SITUATION"), // SITUATION, STRATEGY, DECISION, ACTION, OUTCOME, LEARNING, ASSUMPTION, PATTERN, LESSON
     title: varchar("title", { length: 255 }).notNull(),
     summary: text("summary").notNull(),
     sourceType: varchar("sourceType", { length: 50 }),
     sourceId: int("sourceId"),
+    timePeriod: varchar("timePeriod", { length: 100 }), // e.g., March 2026
+    sourceOfTruth: varchar("sourceOfTruth", { length: 150 }).default("BizPilot Entity Record"),
+    evidenceConfidence: varchar("evidenceConfidence", { length: 30 }).notNull().default("MEDIUM"), // HIGH, MEDIUM, LOW, UNKNOWN
+    validationStatus: varchar("validationStatus", { length: 40 }).notNull().default("NEW"), // NEW, SUPPORTED, REPEATED, CONTRADICTED, SUPERSEDED, UNKNOWN
+    contradictionDetailsJson: text("contradictionDetailsJson"), // Stores previous lesson, new evidence, conflict, current status
+    conditionMetadataJson: text("conditionMetadataJson"), // Stores condition-aware context ("Under what conditions did this work?")
+    relevanceExplanation: text("relevanceExplanation"),
     importance: varchar("importance", { length: 30 }).notNull().default("MEDIUM"), // LOW, MEDIUM, HIGH, CRITICAL
-    status: varchar("status", { length: 30 }).notNull().default("ACTIVE"), // ACTIVE, ARCHIVED, SUPERSEDED, REQUIRES_VALIDATION
+    status: varchar("status", { length: 30 }).notNull().default("ACTIVE"), // ACTIVE, RELEVANT, AGING, ARCHIVED, SUPERSEDED, UNKNOWN
     contextJson: text("contextJson"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -1742,6 +1749,7 @@ export const businessMemories = mysqlTable(
     businessIdIdx: index("businessMemories_businessId_idx").on(table.businessId),
     typeIdx: index("businessMemories_type_idx").on(table.businessId, table.memoryType),
     sourceIdx: index("businessMemories_source_idx").on(table.businessId, table.sourceType, table.sourceId),
+    validationIdx: index("businessMemories_validation_idx").on(table.businessId, table.validationStatus),
     importanceIdx: index("businessMemories_importance_idx").on(table.businessId, table.importance),
   })
 );
@@ -1761,11 +1769,13 @@ export const patternIntelligence = mysqlTable(
     lastDetected: timestamp("lastDetected").defaultNow().notNull(),
     typicalResponse: text("typicalResponse"),
     historicalOutcome: varchar("historicalOutcome", { length: 50 }).notNull().default("MIXED"), // POSITIVE, NEGATIVE, MIXED, NEUTRAL, UNKNOWN
-    confidence: varchar("confidence", { length: 30 }).notNull().default("MEDIUM"), // LOW, MEDIUM, HIGH, INSUFFICIENT_DATA
+    confidence: varchar("confidence", { length: 30 }).notNull().default("MEDIUM"), // OBSERVED ONCE, REPEATED, STRONG PATTERN, CONTRADICTED, UNKNOWN, LOW, MEDIUM, HIGH
+    patternState: varchar("patternState", { length: 40 }).notNull().default("REPEATED"), // OBSERVED ONCE, REPEATED, STRONG PATTERN, CONTRADICTED, UNKNOWN
     currentRelevance: varchar("currentRelevance", { length: 30 }).notNull().default("HIGH"), // LOW, MEDIUM, HIGH
     lessonsLearned: text("lessonsLearned"),
     evidenceJson: text("evidenceJson"),
-    status: varchar("status", { length: 30 }).notNull().default("CONFIRMED"), // PROPOSED, CONFIRMED, QUESTIONED, OUTDATED, SUPERSEDED
+    conditionPathJson: text("conditionPathJson"), // Condition -> Decision -> Action -> Outcome chain
+    status: varchar("status", { length: 30 }).notNull().default("CONFIRMED"), // PROPOSED, CONFIRMED, QUESTIONED, OUTDATED, SUPERSEDED, CONTRADICTED
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   },

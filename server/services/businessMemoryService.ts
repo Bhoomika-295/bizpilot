@@ -17,6 +17,13 @@ export interface BusinessMemoryPayload {
   summary: string;
   sourceType: string | null;
   sourceId: number | null;
+  timePeriod: string | null;
+  sourceOfTruth: string | null;
+  evidenceConfidence: string;
+  validationStatus: string;
+  contradictionDetailsJson: string | null;
+  conditionMetadataJson: string | null;
+  relevanceExplanation: string | null;
   importance: string;
   status: string;
   contextJson: string | null;
@@ -35,8 +42,55 @@ export async function recordMemoryFromSignificantEvent(
   sourceType?: string,
   sourceId?: number,
   importance: string = "MEDIUM",
-  context?: Record<string, any>
+  context?: Record<string, any>,
+  options?: {
+    timePeriod?: string;
+    sourceOfTruth?: string;
+    evidenceConfidence?: string;
+    validationStatus?: string;
+    conditionMetadata?: Record<string, any>;
+    relevanceExplanation?: string;
+  }
 ): Promise<BusinessMemoryPayload> {
+  // Check for existing memories with the same title or source to detect contradictions instead of blind overwrites
+  const existingMemories = await getBusinessMemoriesForBusiness(businessId, 50);
+  const normalizedTitle = title.trim().toLowerCase();
+  const existingSameTopic = existingMemories.find(
+    (m) => m.title.trim().toLowerCase() === normalizedTitle && m.status === "ACTIVE"
+  );
+
+  let validationStatus = options?.validationStatus || "NEW";
+  let contradictionDetailsJson = null;
+
+  if (existingSameTopic && memoryType === "LESSON") {
+    // Mandatory contradiction handling: if new memory/lesson contradicts existing active lesson, mark contradicted
+    const existingSummary = existingSameTopic.summary.toLowerCase();
+    const newSummary = summary.toLowerCase();
+    const isContradictory =
+      (existingSummary.includes("positive") && newSummary.includes("negative")) ||
+      (existingSummary.includes("negative") && newSummary.includes("positive")) ||
+      (existingSummary.includes("increase") && newSummary.includes("decrease")) ||
+      (existingSummary.includes("decrease") && newSummary.includes("increase")) ||
+      (existingSummary.includes("effective") && newSummary.includes("ineffective"));
+
+    if (isContradictory) {
+      validationStatus = "CONTRADICTED";
+      contradictionDetailsJson = JSON.stringify({
+        previousMemoryId: existingSameTopic.id,
+        previousTitle: existingSameTopic.title,
+        previousSummary: existingSameTopic.summary,
+        previousTimePeriod: existingSameTopic.timePeriod,
+        newEvidence: summary,
+        conflictDescription: `New evidence contradicts prior lesson from ${existingSameTopic.timePeriod || "previous period"}. Both preserved for organizational learning.`,
+        detectedAt: new Date().toISOString(),
+      });
+    } else {
+      validationStatus = "SUPPORTED";
+    }
+  } else if (existingSameTopic) {
+    validationStatus = "REPEATED";
+  }
+
   const memory = await createBusinessMemory({
     businessId,
     memoryType,
@@ -44,8 +98,15 @@ export async function recordMemoryFromSignificantEvent(
     summary,
     sourceType: sourceType || null,
     sourceId: sourceId || null,
+    timePeriod: options?.timePeriod || "Current Operating Period",
+    sourceOfTruth: options?.sourceOfTruth || "BizPilot Intelligence Engine",
+    evidenceConfidence: options?.evidenceConfidence || (importance === "HIGH" ? "HIGH" : "MEDIUM"),
+    validationStatus,
+    contradictionDetailsJson,
+    conditionMetadataJson: options?.conditionMetadata ? JSON.stringify(options.conditionMetadata) : null,
+    relevanceExplanation: options?.relevanceExplanation || `Relevant to current business conditions based on ${sourceType || "system event"} analysis.`,
     importance,
-    status: "ACTIVE",
+    status: validationStatus === "CONTRADICTED" ? "ACTIVE" : "ACTIVE",
     contextJson: context ? JSON.stringify(context) : null,
   });
   return memory as BusinessMemoryPayload;

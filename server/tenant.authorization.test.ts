@@ -203,6 +203,16 @@ describe("business memory tenant authorization", () => {
       message: "You do not have access to this business.",
     });
   });
+
+  it("rejects all Organizational Learning mutations and detail reads for a business the user does not own", async () => {
+    const caller = appRouter.createCaller(createContext());
+    const expected = { code: "FORBIDDEN", message: "You do not have access to this business." };
+
+    await expect(caller.businessMemory.getOrganizationalLearning({ businessId: 999999999 })).rejects.toMatchObject(expected);
+    await expect(caller.businessMemory.refreshLearningLoop({ businessId: 999999999 })).rejects.toMatchObject(expected);
+    await expect(caller.businessMemory.reviewLesson({ businessId: 999999999, memoryId: 1, validationStatus: "SUPPORTED" })).rejects.toMatchObject(expected);
+    await expect(caller.businessMemory.getPatternDetail({ businessId: 999999999, patternId: 1 })).rejects.toMatchObject(expected);
+  });
 });
 
 describe("action plan tenant authorization", () => {
