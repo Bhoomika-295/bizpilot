@@ -1,5 +1,6 @@
 import {
   int,
+  serial,
   mysqlEnum,
   mysqlTable,
   text,
@@ -1844,3 +1845,47 @@ export const businessRelationships = mysqlTable(
 
 export type BusinessRelationship = typeof businessRelationships.$inferSelect;
 export type InsertBusinessRelationship = typeof businessRelationships.$inferInsert;
+
+export const futureOutlooks = mysqlTable("future_outlooks", {
+  id: int("id").autoincrement().primaryKey(),
+  businessId: int("business_id").notNull(),
+  signalId: int("signal_id"),
+  title: varchar("title", { length: 255 }).notNull(),
+  outlookType: varchar("outlook_type", { length: 64 }).notNull(), // ACCELERATION, CONTRACTION, SHIFT, DISRUPTION, CONSOLIDATION
+  timeHorizon: varchar("time_horizon", { length: 64 }).notNull(), // NEAR_TERM, MID_TERM, LONG_TERM
+  probability: varchar("probability", { length: 32 }).notNull(), // HIGH, MODERATE, LOW, UNKNOWN
+  uncertaintyLevel: varchar("uncertainty_level", { length: 32 }).notNull(), // HIGH, MODERATE, LOW
+  summary: text("summary").notNull(),
+  assumptionsJson: text("assumptions_json"), // Array of { assumption, provenance }
+  triggersJson: text("triggers_json"), // Array of observable triggers / leading indicators
+  timelineJson: text("timeline_json"), // Expected milestones or dates
+  scenariosJson: text("scenarios_json"), // Linked scenario IDs or references
+  evidenceJson: text("evidence_json"),
+  status: varchar("status", { length: 32 }).notNull().default("ACTIVE"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+});
+
+export const businessReadinessAssessments = mysqlTable("business_readiness_assessments", {
+  id: int("id").autoincrement().primaryKey(),
+  businessId: int("business_id").notNull(),
+  outlookId: int("outlook_id"),
+  title: varchar("title", { length: 255 }).notNull(),
+  overallReadiness: varchar("overall_readiness", { length: 32 }).notNull(), // FULLY_PREPARED, ADEQUATE, GAPS_IDENTIFIED, VULNERABLE, UNKNOWN
+  dimensionsJson: text("dimensions_json"), // Array of { dimension, status, score, notes }
+  supportingEvidenceJson: text("supporting_evidence_json"),
+  limitingEvidenceJson: text("limiting_evidence_json"),
+  unknownFactorsJson: text("unknown_factors_json"),
+  gapsJson: text("gaps_json"), // Identified readiness gaps with severity
+  decisionImplicationsJson: text("decision_implications_json"),
+  actionImplicationsJson: text("action_implications_json"),
+  monitoringLinksJson: text("monitoring_links_json"),
+  status: varchar("status", { length: 32 }).notNull().default("ACTIVE"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow(),
+});
+
+export type FutureOutlook = typeof futureOutlooks.$inferSelect;
+export type InsertFutureOutlook = typeof futureOutlooks.$inferInsert;
+export type BusinessReadinessAssessment = typeof businessReadinessAssessments.$inferSelect;
+export type InsertBusinessReadinessAssessment = typeof businessReadinessAssessments.$inferInsert;

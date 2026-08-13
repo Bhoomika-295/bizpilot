@@ -17,6 +17,7 @@ import ActionsPage from "./pages/ActionsPage";
 import MemoryPage from "./pages/MemoryPage";
 import CommandCenterPage from "./pages/CommandCenterPage";
 import RootCausePage from "./pages/RootCausePage";
+import FutureReadinessPage from "./pages/FutureReadinessPage";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -29,6 +30,7 @@ function Router() {
       <Route path={"/dashboard/:businessId"} component={DashboardV2} />
       <Route path={"/command-center/:businessId"} component={CommandCenterPage} />
       <Route path={"/why/:businessId"} component={RootCausePage} />
+      <Route path={"/readiness/:businessId"} component={FutureReadinessPage} />
       <Route path={"/actions/:businessId"} component={ActionsPage} />
       <Route path={"/memory/:businessId"} component={MemoryPage} />
       <Route path={"/competitors/:businessId"} component={CompetitorsPage} />

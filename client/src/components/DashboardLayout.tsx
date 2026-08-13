@@ -34,6 +34,7 @@ import {
   GitBranch,
   UserCircle,
   Users,
+  Compass,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "wouter";
@@ -51,6 +52,7 @@ function getMenuItems(businessId?: string) {
     { icon: ListChecks, label: "Actions", path: `/actions/${businessId}` },
     { icon: History, label: "Memory", path: `/memory/${businessId}` },
     { icon: GitBranch, label: "WHY", path: `/why/${businessId}` },
+    { icon: Compass, label: "Readiness", path: `/readiness/${businessId}` },
     { icon: ShieldAlert, label: "Competitors", path: `/competitors/${businessId}` },
     { icon: Users, label: "Customers", path: `/customers/${businessId}` },
     { icon: Database, label: "Data", path: `/data/${businessId}` },

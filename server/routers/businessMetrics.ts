@@ -38,6 +38,7 @@ import {
   updateMonitoringAlertStatus,
 } from "../services/continuousMonitoringService";
 import { refreshMarketSignalsForBusiness } from "../services/marketSignalService";
+import { getFutureReadinessWorkspaceData } from "../services/futureReadinessService";
 import { evaluateStrategyHealthForBusiness, recordStrategyReviewAction } from "../services/strategyHealthService";
 import { getOrRefreshExternalRadar, reviewExternalRadarEvent } from "../services/externalRadarService";
 import {
@@ -1107,5 +1108,19 @@ export const businessMetricsRouter = router({
     .mutation(async ({ ctx, input }) => {
       await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
       return generateOrGetDailyBrief(input.businessId, true);
+    }),
+
+  /**
+   * Get Future Outlook & Readiness workspace data
+   */
+  getFutureReadiness: protectedProcedure
+    .input(
+      z.object({
+        businessId: z.number(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      await requireMetricsBusinessAccess(ctx.user.id, input.businessId);
+      return await getFutureReadinessWorkspaceData(input.businessId);
     }),
 });

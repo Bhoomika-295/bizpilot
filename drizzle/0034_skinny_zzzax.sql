@@ -1,0 +1,40 @@
+CREATE TABLE `business_readiness_assessments` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`business_id` int NOT NULL,
+	`outlook_id` int,
+	`title` varchar(255) NOT NULL,
+	`overall_readiness` varchar(32) NOT NULL,
+	`dimensions_json` text,
+	`supporting_evidence_json` text,
+	`limiting_evidence_json` text,
+	`unknown_factors_json` text,
+	`gaps_json` text,
+	`decision_implications_json` text,
+	`action_implications_json` text,
+	`monitoring_links_json` text,
+	`status` varchar(32) NOT NULL DEFAULT 'ACTIVE',
+	`created_at` timestamp NOT NULL DEFAULT (now()),
+	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `business_readiness_assessments_id` PRIMARY KEY(`id`)
+);
+--> statement-breakpoint
+CREATE TABLE `future_outlooks` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`business_id` int NOT NULL,
+	`signal_id` int,
+	`title` varchar(255) NOT NULL,
+	`outlook_type` varchar(64) NOT NULL,
+	`time_horizon` varchar(64) NOT NULL,
+	`probability` varchar(32) NOT NULL,
+	`uncertainty_level` varchar(32) NOT NULL,
+	`summary` text NOT NULL,
+	`assumptions_json` text,
+	`triggers_json` text,
+	`timeline_json` text,
+	`scenarios_json` text,
+	`evidence_json` text,
+	`status` varchar(32) NOT NULL DEFAULT 'ACTIVE',
+	`created_at` timestamp NOT NULL DEFAULT (now()),
+	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `future_outlooks_id` PRIMARY KEY(`id`)
+);

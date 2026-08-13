@@ -603,3 +603,22 @@
 - [x] Add deterministic unit, persistence, tenant authorization, cross-tenant, conflict, counter-evidence, causal-language, and integration tests
 - [x] Run full tests, TypeScript validation, production build, responsive visual verification, and document environment limitations
 - [x] Save the Days 56–58 checkpoint and stop without starting Day 59
+
+## Days 59–61: Strategic Foresight & Future Readiness v2
+- [x] Extend existing Strategic Foresight with tenant-isolated emerging signals and explicit maturity states
+- [x] Add deterministic signal direction, persistence, acceleration, recurrence, strategic relevance, confidence, and horizon evidence
+- [x] Add strategic implication categories only when supported by actual business records
+- [x] Add possible future outlooks reusing existing Scenario Intelligence without creating a duplicate scenario engine
+- [x] Add future assumptions with DATA-BACKED, USER-PROVIDED, and UNKNOWN provenance
+- [x] Add explicit future uncertainty levels without fake probability percentages
+- [x] Add observable future triggers linked to real metrics and signals
+- [x] Add leading indicators with current status, direction, and why-it-matters evidence
+- [x] Add structured future timeline from Now through Emerging, Possible Development, and Strategic Consequence
+- [x] Add tenant-isolated readiness assessments across supported dimensions with READY, PARTIALLY READY, NOT READY, and UNKNOWN states
+- [x] Add readiness support, limiting evidence, unknowns, readiness gaps, and decision/action implications
+- [x] Link readiness to existing strategy, action, monitoring, outcome, Business Memory, and Pattern Intelligence workflows
+- [x] Integrate Future Outlook, Readiness, and Readiness Gaps into the Executive Command Center and existing foresight surfaces
+- [x] Build responsive Future Outlook & Readiness workspace with observed/projected/possible/uncertain/unknown status language
+- [x] Add deterministic unit, persistence, tenant authorization, cross-tenant, uncertainty, trigger, readiness, and integration tests
+- [x] Run full tests, TypeScript validation, production build, responsive visual verification, and document environment limitations
+- [x] Save the Days 59–61 checkpoint and stop without starting Day 62
