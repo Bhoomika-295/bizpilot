@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { canTransitionDecision, generateDecisionCandidates, type DecisionContext } from "./services/decisionIntelligenceService";
 
 vi.mock("./db", () => ({
@@ -43,7 +43,7 @@ function context(overrides: Partial<DecisionContext> = {}): DecisionContext {
   };
 }
 
-describe("Decision Intelligence Engine v1 (Day 20)", () => {
+describe("Decision Intelligence & Strategy Adaptation v2", () => {
   it("creates deterministic, explainable candidates from multiple upstream intelligence sources", () => {
     const input = context({
       situations: [{
@@ -149,5 +149,30 @@ describe("Decision Intelligence Engine v1 (Day 20)", () => {
     expect(canTransitionDecision("DISMISSED", "DECIDED")).toBe(false);
     expect(canTransitionDecision("DECIDED", "OPEN")).toBe(false);
     expect(canTransitionDecision("OPEN", "OPEN")).toBe(true);
+  });
+
+  it("generates rich action options, trade-offs, and qualitative confidence dimensions for decisions", () => {
+    const input = context({
+      situations: [{
+        situationId: 101,
+        title: "Customer retention pressure",
+        trendDirection: "WORSENING",
+        currentPriority: "HIGH",
+        currentStatus: "ACTIVE",
+        trendSummary: "Retention rates are declining across active segments.",
+        durationDays: 20,
+        timeline: [{ supportingCount: 4 }],
+      } as any],
+    });
+
+    const candidates = generateDecisionCandidates(input);
+    expect(candidates.length).toBeGreaterThan(0);
+    const candidate = candidates[0];
+    expect(candidate.actionOptions.length).toBeGreaterThanOrEqual(2);
+    expect(candidate.actionOptions[0]).toHaveProperty("expectedBenefit");
+    expect(candidate.actionOptions[0]).toHaveProperty("potentialRisk");
+    expect(candidate.actionOptions[0]).toHaveProperty("reversible");
+    expect(candidate.confidence).toBeDefined();
+    expect(candidate.reversibility).toBeDefined();
   });
 });

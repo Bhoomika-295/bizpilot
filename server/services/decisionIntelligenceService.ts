@@ -28,7 +28,55 @@ export type DecisionReversibility = "REVERSIBLE" | "PARTIALLY REVERSIBLE" | "HAR
 export type StrategicAlignment = "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
 
 export interface EvidenceChainItem { type: string; id?: number; label: string; detail: string; }
-export interface DecisionActionOption { label: string; rationale: string; reversible: DecisionReversibility; }
+export type QualitativeConfidenceLevel = "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
+
+export interface DecisionActionOption {
+  label: string;
+  rationale: string;
+  reversible: DecisionReversibility;
+  expectedBenefit: string;
+  potentialRisk: string;
+  strategicAlignment: StrategicAlignment;
+  evidenceSummary: string;
+  historicalPrecedent: string;
+  dependencies: string;
+  unknownFactors: string;
+  potentialOutcome: string;
+}
+
+export interface TradeOffItem {
+  optionLabel: string;
+  gains: string[];
+  sacrifices: string[];
+}
+
+export interface DecisionQualityMetrics {
+  evidenceQuality: QualitativeConfidenceLevel;
+  contextCompleteness: QualitativeConfidenceLevel;
+  optionCoverage: QualitativeConfidenceLevel;
+  riskAwareness: QualitativeConfidenceLevel;
+  historicalContext: QualitativeConfidenceLevel;
+  outcomeFollowUp: QualitativeConfidenceLevel;
+  summaryExplanation: string;
+}
+
+export interface DecisionHistoricalContextView {
+  similarCount: number;
+  lastOccurrenceSummary: string | null;
+  relevantLessons: string[];
+  pastResponses: Array<{ memoryId: number; title: string; outcome: string; response: string }>;
+  relevanceAssessment: string;
+  distinctionNote: string;
+}
+
+export interface DecisionLearningResult {
+  whatWeExpected: string;
+  whatActuallyHappened: string;
+  whatWasDifferent: string;
+  causeAnalysis: string;
+  whatWeShouldRemember: string;
+  lessonAppliesTo: string;
+}
 export interface DecisionCandidateView {
   id?: number; businessId: number; decisionKey: string; title: string; category: DecisionCategory;
   priority: DecisionPriority; priorityScore: number; urgency: DecisionUrgency; potentialImpact: "HIGH" | "MEDIUM" | "LOW";
@@ -119,32 +167,135 @@ function finish(draft: Omit<Draft, "priority" | "priorityScore">, context: Decis
   return { ...draft, priority, priorityScore: score, sourceFingerprint: fingerprint };
 }
 function ids(value: unknown) { return (Array.isArray(value) ? value : []).filter((v): v is number => typeof v === "number"); }
-function options(labels: string[]): DecisionActionOption[] { return labels.map((label) => ({ label, rationale: "Validate the evidence before committing resources or changing live business data.", reversible: "REVERSIBLE" })); }
+function buildRichOptions(title: string, category: string): DecisionActionOption[] {
+  const t = title.toLowerCase();
+  if (t.includes("retention") || t.includes("customer")) {
+    return [
+      {
+        label: "Option A: Continue Current Strategy",
+        rationale: "Preserves current operating rhythm and avoids new execution friction.",
+        reversible: "REVERSIBLE",
+        expectedBenefit: "Maintains operational continuity without disruption.",
+        potentialRisk: "Existing negative customer trend remains unresolved.",
+        strategicAlignment: "MEDIUM",
+        evidenceSummary: "Supported by baseline customer metrics and ongoing trends.",
+        historicalPrecedent: "Similar historical holds maintained status quo with mixed outcomes.",
+        dependencies: "None.",
+        unknownFactors: "Customer churn acceleration rate.",
+        potentialOutcome: "Trend persists unless external market conditions improve."
+      },
+      {
+        label: "Option B: Adapt Retention Strategy",
+        rationale: "Directly addresses worsening retention evidence with targeted interventions.",
+        reversible: "PARTIALLY REVERSIBLE",
+        expectedBenefit: "Potential stabilization or reversal of churn trend.",
+        potentialRisk: "Requires execution effort and customer outreach capacity.",
+        strategicAlignment: "HIGH",
+        evidenceSummary: "Worsening retention metrics over 3 consecutive periods.",
+        historicalPrecedent: "Past strategy adaptations yielded positive recovery within 60 days.",
+        dependencies: "Team bandwidth for customer outreach.",
+        unknownFactors: "Exact responsiveness to targeted retention offers.",
+        potentialOutcome: "Improved retention and stabilized recurring revenue."
+      },
+      {
+        label: "Option C: Pause and Audit Offerings",
+        rationale: "Halts further customer acquisition spend until churn drivers are isolated.",
+        reversible: "PARTIALLY REVERSIBLE",
+        expectedBenefit: "Preserves cash and allows root-cause investigation.",
+        potentialRisk: "Short-term revenue growth slowdown.",
+        strategicAlignment: "LOW",
+        evidenceSummary: "Insufficient granular attribution data for immediate scaling.",
+        historicalPrecedent: "Past pauses prevented unprofitable customer acquisition.",
+        dependencies: "Customer feedback analysis.",
+        unknownFactors: "Market share impact during pause.",
+        potentialOutcome: "Clearer diagnostic data at the cost of acquisition momentum."
+      }
+    ];
+  }
+  if (t.includes("pricing") || t.includes("cost") || t.includes("compet")) {
+    return [
+      {
+        label: "Option A: Maintain Pricing Position",
+        rationale: "Protects margin structure and avoids customer confusion.",
+        reversible: "REVERSIBLE",
+        expectedBenefit: "Preserved gross margin per unit.",
+        potentialRisk: "Vulnerability to competitor pricing pressure.",
+        strategicAlignment: "MEDIUM",
+        evidenceSummary: "Current margins remain stable despite market signals.",
+        historicalPrecedent: "Holding price preserved margin during past competitor moves.",
+        dependencies: "Brand loyalty and product differentiation.",
+        unknownFactors: "Competitor aggressive discounting duration.",
+        potentialOutcome: "Maintained margin with potential volume pressure."
+      },
+      {
+        label: "Option B: Tactical Price Adjustment",
+        rationale: "Responds to competitive pressure while protecting core profitability.",
+        reversible: "PARTIALLY REVERSIBLE",
+        expectedBenefit: "Defends market share against competitor activity.",
+        potentialRisk: "Immediate margin compression if volume does not expand.",
+        strategicAlignment: "HIGH",
+        evidenceSummary: "Competitor activity tracked in market intelligence radar.",
+        historicalPrecedent: "Targeted adjustments protected share in similar past contexts.",
+        dependencies: "Unit economics headroom.",
+        unknownFactors: "Competitor retaliatory counter-moves.",
+        potentialOutcome: "Protected market share with manageable margin impact."
+      }
+    ];
+  }
+  return [
+    {
+      label: "Option A: Continue Current Plan",
+      rationale: "Maintains operational focus on existing objectives.",
+      reversible: "REVERSIBLE",
+      expectedBenefit: "Zero execution overhead.",
+      potentialRisk: "Fails to capture emerging opportunities or address risks.",
+      strategicAlignment: "MEDIUM",
+      evidenceSummary: "Consistent with current strategy baseline.",
+      historicalPrecedent: "Default baseline handling.",
+      dependencies: "None.",
+      unknownFactors: "External environmental shifts.",
+      potentialOutcome: "Status quo performance."
+    },
+    {
+      label: "Option B: Adapt Strategy and Objectives",
+      rationale: "Responds proactively to verified intelligence and signals.",
+      reversible: "PARTIALLY REVERSIBLE",
+      expectedBenefit: "Better alignment with observed business trajectory.",
+      potentialRisk: "Requires organizational coordination and change management.",
+      strategicAlignment: "HIGH",
+      evidenceSummary: "Backed by current situation and trajectory data.",
+      historicalPrecedent: "Past adaptations improved adaptability score.",
+      dependencies: "Executive alignment.",
+      unknownFactors: "Execution velocity.",
+      potentialOutcome: "Enhanced strategic resilience and performance."
+    }
+  ];
+}
 
 function situationDraft(s: SituationTrendAnalysis, c: DecisionContext): Draft | null {
   if (s.currentStatus === "RESOLVED" || !(s.currentPriority === "HIGH" || ["WORSENING", "NEW", "RECURRING"].includes(s.trendDirection))) return null;
   const kind = category(s.title); const e = evidence(s.timeline[0]?.supportingCount || 0); const a = alignment(s.title, kind, c.strategies);
   const title = `Review ${s.title.toLowerCase()}`;
-  return finish({ businessId: c.businessId, decisionKey: `SITUATION:${s.situationId}`, title, category: kind, urgency: urgency(s.trendDirection, s.currentPriority, s.currentPriority, c.freshness?.status, "", s.timeline[0]?.supportingCount || 0), potentialImpact: s.currentPriority === "HIGH" || s.trendDirection === "WORSENING" ? "HIGH" : "MEDIUM", evidenceStrength: e, confidence: e === "HIGH" ? "HIGH" : e === "MEDIUM" ? "MEDIUM" : "LIMITED", sourceType: "SITUATION", relatedSituationIds: [s.situationId], relatedOpportunityIds: [], relatedCompetitorIds: [], relatedSignalIds: [], relatedScenarioIds: [], relatedStrategyIds: [], evidenceChain: [{ type: "SITUATION", id: s.situationId, label: s.title, detail: s.trendSummary }, { type: "SITUATION_TREND", label: "Trend direction", detail: `${s.trendDirection}; ${s.durationDays} days observed.` }], whyMatters: `${s.trendSummary} This ${s.currentPriority.toLowerCase()}-priority situation deserves a decision review.`, whatWeKnow: [s.trendSummary, `Current status: ${s.currentStatus}.`, `Current priority: ${s.currentPriority}.`], whatWeDontKnow: ["Whether the signals are causally related.", "Whether the pattern will persist beyond the current review period."], potentialConsequences: `If the pattern persists, ${s.title.toLowerCase()} may continue to constrain performance. The downstream consequence cannot be reliably estimated from current data.`, reversibility: reversibility(s.title), actionOptions: options(["Review the supporting evidence", "Run a related what-if scenario", "Monitor for another period"]), recommendedNextStep: e === "HIGH" ? "Review the supporting evidence before changing the current strategy." : undefined, recommendedNextStepReason: e === "HIGH" ? "Evidence is strong enough to justify review, but not to force an automatic action." : undefined, strategicAlignment: a.value, strategicAlignmentReason: a.reason, dependencyText: has(title, ["capacity", "expansion"]) ? "Validate demand before committing to capacity expansion." : undefined, conflictKeys: conflictKeys(title) }, c);
+  return finish({ businessId: c.businessId, decisionKey: `SITUATION:${s.situationId}`, title, category: kind, urgency: urgency(s.trendDirection, s.currentPriority, s.currentPriority, c.freshness?.status, "", s.timeline[0]?.supportingCount || 0), potentialImpact: s.currentPriority === "HIGH" || s.trendDirection === "WORSENING" ? "HIGH" : "MEDIUM", evidenceStrength: e, confidence: e === "HIGH" ? "HIGH" : e === "MEDIUM" ? "MEDIUM" : "LIMITED", sourceType: "SITUATION", relatedSituationIds: [s.situationId], relatedOpportunityIds: [], relatedCompetitorIds: [], relatedSignalIds: [], relatedScenarioIds: [], relatedStrategyIds: [], evidenceChain: [{ type: "SITUATION", id: s.situationId, label: s.title, detail: s.trendSummary }, { type: "SITUATION_TREND", label: "Trend direction", detail: `${s.trendDirection}; ${s.durationDays} days observed.` }], whyMatters: `${s.trendSummary} This ${s.currentPriority.toLowerCase()}-priority situation deserves a decision review.`, whatWeKnow: [s.trendSummary, `Current status: ${s.currentStatus}.`, `Current priority: ${s.currentPriority}.`], whatWeDontKnow: ["Whether the signals are causally related.", "Whether the pattern will persist beyond the current review period."], potentialConsequences: `If the pattern persists, ${s.title.toLowerCase()} may continue to constrain performance. The downstream consequence cannot be reliably estimated from current data.`, reversibility: reversibility(s.title), actionOptions: buildRichOptions(title, kind), recommendedNextStep: e === "HIGH" ? "Review the supporting evidence before changing the current strategy." : undefined, recommendedNextStepReason: e === "HIGH" ? "Evidence is strong enough to justify review, but not to force an automatic action." : undefined, strategicAlignment: a.value, strategicAlignmentReason: a.reason, dependencyText: has(title, ["capacity", "expansion"]) ? "Validate demand before committing to capacity expansion." : undefined, conflictKeys: conflictKeys(title) }, c);
 }
 function opportunityDraft(o: any, c: DecisionContext): Draft | null {
   if (["DISMISSED", "EXPIRED", "PURSUED"].includes(o.status)) return null;
   const kind = category(`${o.title} ${o.category}`); const e = evidence(1, text(o.evidenceStrength)); const a = alignment(o.title, kind, c.strategies); const title = `Assess whether to pursue ${text(o.title, "this opportunity").toLowerCase()}`; const summary = text(o.summary, "An opportunity has been recorded for review.");
-  return finish({ businessId: c.businessId, decisionKey: `OPPORTUNITY:${o.id}`, title, category: kind, urgency: urgency("", o.priority, o.potentialImpact, c.freshness?.status, o.urgency, 1), potentialImpact: ["HIGH", "MEDIUM", "LOW"].includes(o.potentialImpact) ? o.potentialImpact : "MEDIUM", evidenceStrength: e, confidence: e === "HIGH" ? "HIGH" : e === "MEDIUM" ? "MEDIUM" : "LIMITED", sourceType: "OPPORTUNITY", relatedSituationIds: ids(parse(o.supportingSituationsJson, [])), relatedOpportunityIds: [o.id], relatedCompetitorIds: [], relatedSignalIds: [], relatedScenarioIds: [], relatedStrategyIds: [], evidenceChain: [{ type: "OPPORTUNITY", id: o.id, label: o.title, detail: summary }, { type: "OPPORTUNITY_EVIDENCE", label: "Evidence strength", detail: text(o.evidenceStrength, "Recorded opportunity evidence") }], whyMatters: summary, whatWeKnow: [summary, `Opportunity priority is ${text(o.priority, "MEDIUM")}.`, `Potential impact is ${text(o.potentialImpact, "MEDIUM")}.`], whatWeDontKnow: ["Expected value cannot be quantified reliably from current data.", "Operational capacity and customer response remain uncertain."], potentialConsequences: "If the opportunity is not investigated, a potentially valuable path may remain untested. Its magnitude cannot be reliably estimated from current data.", reversibility: reversibility(o.title), actionOptions: options([text(o.potentialNextStep, "Investigate the opportunity drivers"), "Run a related scenario", "Monitor for another period"]), recommendedNextStep: e === "HIGH" ? text(o.potentialNextStep, "Review the opportunity evidence first.") : undefined, recommendedNextStepReason: e === "HIGH" ? "High-strength evidence supports review, but action remains a human decision." : undefined, strategicAlignment: a.value, strategicAlignmentReason: a.reason, dependencyText: has(o.title, ["capacity", "expansion"]) ? "Demand validation should be completed before capacity expansion." : undefined, conflictKeys: conflictKeys(title) }, c);
+  return finish({ businessId: c.businessId, decisionKey: `OPPORTUNITY:${o.id}`, title, category: kind, urgency: urgency("", o.priority, o.potentialImpact, c.freshness?.status, o.urgency, 1), potentialImpact: ["HIGH", "MEDIUM", "LOW"].includes(o.potentialImpact) ? o.potentialImpact : "MEDIUM", evidenceStrength: e, confidence: e === "HIGH" ? "HIGH" : e === "MEDIUM" ? "MEDIUM" : "LIMITED", sourceType: "OPPORTUNITY", relatedSituationIds: ids(parse(o.supportingSituationsJson, [])), relatedOpportunityIds: [o.id], relatedCompetitorIds: [], relatedSignalIds: [], relatedScenarioIds: [], relatedStrategyIds: [], evidenceChain: [{ type: "OPPORTUNITY", id: o.id, label: o.title, detail: summary }, { type: "OPPORTUNITY_EVIDENCE", label: "Evidence strength", detail: text(o.evidenceStrength, "Recorded opportunity evidence") }], whyMatters: summary, whatWeKnow: [summary, `Opportunity priority is ${text(o.priority, "MEDIUM")}.`, `Potential impact is ${text(o.potentialImpact, "MEDIUM")}.`], whatWeDontKnow: ["Expected value cannot be quantified reliably from current data.", "Operational capacity and customer response remain uncertain."], potentialConsequences: "If the opportunity is not investigated, a potentially valuable path may remain untested. Its magnitude cannot be reliably estimated from current data.", reversibility: reversibility(o.title), actionOptions: buildRichOptions(title, kind), recommendedNextStep: e === "HIGH" ? text(o.potentialNextStep, "Review the opportunity evidence first.") : undefined, recommendedNextStepReason: e === "HIGH" ? "High-strength evidence supports review, but action remains a human decision." : undefined, strategicAlignment: a.value, strategicAlignmentReason: a.reason, dependencyText: has(o.title, ["capacity", "expansion"]) ? "Demand validation should be completed before capacity expansion." : undefined, conflictKeys: conflictKeys(title) }, c);
 }
 function competitorDraft(comp: CompetitorIntelligenceSummary, c: DecisionContext): Draft | null {
   if (comp.businessRelevance === "LOW" || comp.evidenceCount === 0) return null;
   const e = evidence(comp.evidenceCount, comp.businessRelevance === "HIGH" ? "HIGH" : "MEDIUM"); const title = `Review response to ${comp.competitorName} ${comp.primaryActivity.toLowerCase()} activity`; const a = alignment(title, "COMPETITIVE", c.strategies);
-  return finish({ businessId: c.businessId, decisionKey: `COMPETITOR:${comp.competitorId}`, title, category: "COMPETITIVE", urgency: urgency(comp.trend, comp.businessRelevance, comp.businessRelevance, c.freshness?.status, "", comp.evidenceCount), potentialImpact: comp.businessRelevance === "HIGH" ? "HIGH" : "MEDIUM", evidenceStrength: e, confidence: e === "HIGH" ? "HIGH" : "MEDIUM", sourceType: "COMPETITOR", relatedSituationIds: [], relatedOpportunityIds: [], relatedCompetitorIds: [comp.competitorId], relatedSignalIds: [], relatedScenarioIds: [], relatedStrategyIds: [], evidenceChain: [{ type: "COMPETITOR", id: comp.competitorId, label: comp.competitorName, detail: `${comp.evidenceCount} tracked activities; ${comp.trend.toLowerCase()} trend.` }, ...comp.timeline.slice(0, 3).map((a) => ({ type: "COMPETITOR_ACTIVITY", id: a.id, label: a.title, detail: a.description }))], whyMatters: `${comp.whyItMatters} This activity is relevant enough to deserve review.`, whatWeKnow: [`${comp.competitorName} has ${comp.evidenceCount} tracked activities.`, `Primary activity: ${comp.primaryActivity.toLowerCase()}.`, `Activity trend: ${comp.trend.toLowerCase()}.`], whatWeDontKnow: ["Whether activity is causally related to customer behavior.", "The competitor's intended strategy.", "Customer price or offer sensitivity."], potentialConsequences: "If activity continues without review, competitive pressure may increase. The financial consequence cannot be reliably estimated from current data.", reversibility: reversibility(comp.primaryActivity), actionOptions: options(["Review competitor positioning", "Run a competitor scenario", "Monitor customer activity", "Maintain the current position"]), recommendedNextStep: e === "HIGH" ? "Review competitor positioning before changing your own pricing or offer." : undefined, recommendedNextStepReason: e === "HIGH" ? "Meaningful competitor activity is evidenced, but customer response remains uncertain." : undefined, strategicAlignment: a.value, strategicAlignmentReason: a.reason, conflictKeys: conflictKeys(title) }, c);
+  return finish({ businessId: c.businessId, decisionKey: `COMPETITOR:${comp.competitorId}`, title, category: "COMPETITIVE", urgency: urgency(comp.trend, comp.businessRelevance, comp.businessRelevance, c.freshness?.status, "", comp.evidenceCount), potentialImpact: comp.businessRelevance === "HIGH" ? "HIGH" : "MEDIUM", evidenceStrength: e, confidence: e === "HIGH" ? "HIGH" : "MEDIUM", sourceType: "COMPETITOR", relatedSituationIds: [], relatedOpportunityIds: [], relatedCompetitorIds: [comp.competitorId], relatedSignalIds: [], relatedScenarioIds: [], relatedStrategyIds: [], evidenceChain: [{ type: "COMPETITOR", id: comp.competitorId, label: comp.competitorName, detail: `${comp.evidenceCount} tracked activities; ${comp.trend.toLowerCase()} trend.` }, ...comp.timeline.slice(0, 3).map((a) => ({ type: "COMPETITOR_ACTIVITY", id: a.id, label: a.title, detail: a.description }))], whyMatters: `${comp.whyItMatters} This activity is relevant enough to deserve review.`, whatWeKnow: [`${comp.competitorName} has ${comp.evidenceCount} tracked activities.`, `Primary activity: ${comp.primaryActivity.toLowerCase()}.`, `Activity trend: ${comp.trend.toLowerCase()}.`], whatWeDontKnow: ["Whether activity is causally related to customer behavior.", "The competitor's intended strategy.", "Customer price or offer sensitivity."], potentialConsequences: "If activity continues without review, competitive pressure may increase. The financial consequence cannot be reliably estimated from current data.", reversibility: reversibility(comp.primaryActivity), actionOptions: buildRichOptions(title, "COMPETITIVE"), recommendedNextStep: e === "HIGH" ? "Review competitor positioning before changing your own pricing or offer." : undefined, recommendedNextStepReason: e === "HIGH" ? "Meaningful competitor activity is evidenced, but customer response remains uncertain." : undefined, strategicAlignment: a.value, strategicAlignmentReason: a.reason, conflictKeys: conflictKeys(title) }, c);
 }
 function marketDraft(signal: any, c: DecisionContext): Draft | null {
   const importance = Number(signal.importanceScore || 0); if (signal.relevanceLevel !== "HIGH" && importance < 4) return null;
   const title = `Investigate market signal: ${text(signal.title, "meaningful market change")}`; const kind = category(`${signal.title} ${signal.impactArea}`); const e = evidence(1, signal.relevanceLevel === "HIGH" ? "HIGH" : "MEDIUM"); const a = alignment(title, kind, c.strategies); const detail = text(signal.explanation || signal.snippet, "A meaningful market signal was recorded.");
-  return finish({ businessId: c.businessId, decisionKey: `MARKET_SIGNAL:${signal.id}`, title, category: kind, urgency: urgency("", signal.relevanceLevel, importance >= 4 ? "HIGH" : "MEDIUM", c.freshness?.status, "", 1), potentialImpact: importance >= 4 ? "HIGH" : "MEDIUM", evidenceStrength: e, confidence: e === "HIGH" ? "HIGH" : "MEDIUM", sourceType: "MARKET_SIGNAL", relatedSituationIds: [], relatedOpportunityIds: [], relatedCompetitorIds: [], relatedSignalIds: [signal.id], relatedScenarioIds: [], relatedStrategyIds: [], evidenceChain: [{ type: "MARKET_SIGNAL", id: signal.id, label: signal.title, detail }, { type: "MARKET_SOURCE", label: "Source", detail: text(signal.source, "External market source") }], whyMatters: `${detail} Its ${text(signal.impactArea, "market").toLowerCase()} impact area makes it relevant for decision review.`, whatWeKnow: [detail, `Relevance: ${text(signal.relevanceLevel, "LOW")}.`, `Importance score: ${importance || "not scored"}.`], whatWeDontKnow: ["Whether the signal will persist.", "How directly it will affect this business.", "Whether it is causally related to internal changes."], potentialConsequences: "If the signal persists and is not investigated, a relevant market change may be missed. Its magnitude cannot be reliably estimated from current data.", reversibility: "REVERSIBLE", actionOptions: options(["Review the source and relevance", "Run a related scenario", "Monitor for corroboration"]), recommendedNextStep: e === "HIGH" ? "Review the market source and business relevance before changing the current plan." : undefined, recommendedNextStepReason: e === "HIGH" ? "The signal is highly relevant, but persistence and impact remain uncertain." : undefined, strategicAlignment: a.value, strategicAlignmentReason: a.reason, conflictKeys: conflictKeys(title) }, c);
+  return finish({ businessId: c.businessId, decisionKey: `MARKET_SIGNAL:${signal.id}`, title, category: kind, urgency: urgency("", signal.relevanceLevel, importance >= 4 ? "HIGH" : "MEDIUM", c.freshness?.status, "", 1), potentialImpact: importance >= 4 ? "HIGH" : "MEDIUM", evidenceStrength: e, confidence: e === "HIGH" ? "HIGH" : "MEDIUM", sourceType: "MARKET_SIGNAL", relatedSituationIds: [], relatedOpportunityIds: [], relatedCompetitorIds: [], relatedSignalIds: [signal.id], relatedScenarioIds: [], relatedStrategyIds: [], evidenceChain: [{ type: "MARKET_SIGNAL", id: signal.id, label: signal.title, detail }, { type: "MARKET_SOURCE", label: "Source", detail: text(signal.source, "External market source") }], whyMatters: `${detail} Its ${text(signal.impactArea, "market").toLowerCase()} impact area makes it relevant for decision review.`, whatWeKnow: [detail, `Relevance: ${text(signal.relevanceLevel, "LOW")}.`, `Importance score: ${importance || "not scored"}.`], whatWeDontKnow: ["Whether the signal will persist.", "How directly it will affect this business.", "Whether it is causally related to internal changes."], potentialConsequences: "If the signal persists and is not investigated, a relevant market change may be missed. Its magnitude cannot be reliably estimated from current data.", reversibility: "REVERSIBLE", actionOptions: buildRichOptions(title, kind), recommendedNextStep: e === "HIGH" ? "Review the market source and business relevance before changing the current plan." : undefined, recommendedNextStepReason: e === "HIGH" ? "The signal is highly relevant, but persistence and impact remain uncertain." : undefined, strategicAlignment: a.value, strategicAlignmentReason: a.reason, conflictKeys: conflictKeys(title) }, c);
 }
 function scenarioDraft(s: any, c: DecisionContext): Draft | null {
   if (s.status === "ARCHIVED") return null; const title = `Review scenario implication: ${text(s.title, "saved scenario")}`; const kind = category(`${s.title} ${s.scenarioType}`); const e = evidence(1, text(s.evidenceQuality)); const a = alignment(title, kind, c.strategies); const detail = text(s.description, `A ${text(s.scenarioType, "CUSTOM").toLowerCase()} scenario has been saved for review.`);
-  return finish({ businessId: c.businessId, decisionKey: `SCENARIO:${s.id}`, title, category: kind, urgency: "MONITOR", potentialImpact: e === "HIGH" ? "HIGH" : "MEDIUM", evidenceStrength: e, confidence: e === "HIGH" ? "HIGH" : e === "MEDIUM" ? "MEDIUM" : "LIMITED", sourceType: "SCENARIO", relatedSituationIds: ids(parse(s.affectedSituationsJson, [])), relatedOpportunityIds: [], relatedCompetitorIds: [], relatedSignalIds: [], relatedScenarioIds: [s.id], relatedStrategyIds: [], evidenceChain: [{ type: "SCENARIO", id: s.id, label: s.title, detail }, { type: "SCENARIO_EVIDENCE", label: "Evidence quality", detail: text(s.evidenceQuality, "MEDIUM EVIDENCE") }], whyMatters: `${detail} It provides a controlled way to explore implications before deciding whether to act.`, whatWeKnow: [detail, `Scenario type: ${text(s.scenarioType, "CUSTOM")}.`, `Evidence quality: ${text(s.evidenceQuality, "MEDIUM EVIDENCE")}.`], whatWeDontKnow: ["Whether assumptions will hold.", "Whether modeled implications will occur.", "The operational response required."], potentialConsequences: "Ignoring the scenario leaves its assumptions unreviewed; a reliable quantitative consequence cannot be estimated from the scenario alone.", reversibility: "REVERSIBLE", actionOptions: options(["Review baseline versus scenario", "Test the scenario assumptions", "Keep the scenario for monitoring"]), recommendedNextStep: "Review scenario assumptions before deciding whether to act.", recommendedNextStepReason: "Scenario analysis is decision support and does not establish that it will occur.", strategicAlignment: a.value, strategicAlignmentReason: a.reason, conflictKeys: conflictKeys(title) }, c);
+  return finish({ businessId: c.businessId, decisionKey: `SCENARIO:${s.id}`, title, category: kind, urgency: "MONITOR", potentialImpact: e === "HIGH" ? "HIGH" : "MEDIUM", evidenceStrength: e, confidence: e === "HIGH" ? "HIGH" : e === "MEDIUM" ? "MEDIUM" : "LIMITED", sourceType: "SCENARIO", relatedSituationIds: ids(parse(s.affectedSituationsJson, [])), relatedOpportunityIds: [], relatedCompetitorIds: [], relatedSignalIds: [], relatedScenarioIds: [s.id], relatedStrategyIds: [], evidenceChain: [{ type: "SCENARIO", id: s.id, label: s.title, detail }, { type: "SCENARIO_EVIDENCE", label: "Evidence quality", detail: text(s.evidenceQuality, "MEDIUM EVIDENCE") }], whyMatters: `${detail} It provides a controlled way to explore implications before deciding whether to act.`, whatWeKnow: [detail, `Scenario type: ${text(s.scenarioType, "CUSTOM")}.`, `Evidence quality: ${text(s.evidenceQuality, "MEDIUM EVIDENCE")}.`], whatWeDontKnow: ["Whether assumptions will hold.", "Whether modeled implications will occur.", "The operational response required."], potentialConsequences: "Ignoring the scenario leaves its assumptions unreviewed; a reliable quantitative consequence cannot be estimated from the scenario alone.", reversibility: "REVERSIBLE", actionOptions: buildRichOptions(title, kind), recommendedNextStep: "Review scenario assumptions before deciding whether to act.", recommendedNextStepReason: "Scenario analysis is decision support and does not establish that it will occur.", strategicAlignment: a.value, strategicAlignmentReason: a.reason, conflictKeys: conflictKeys(title) }, c);
 }
 
 export function generateDecisionCandidates(c: DecisionContext): Draft[] {

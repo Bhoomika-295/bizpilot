@@ -200,11 +200,15 @@ function buildPriorities(input: {
       lane,
       title: asText(decision.title, "Decision candidate"),
       summary: asText(decision.whyMatters, "A decision is supported by verified evidence."),
-      whyNow: asText(decision.recommendedNextStep, "Review the evidence chain and record the next decision state."),
+      whyNow: asText(decision.recommendedNextStep, "Review evidence, consider options and trade-offs, and record human decision."),
       priority: asText(decision.priority, "MEDIUM"),
       status: asText(decision.status, "OPEN"),
       freshness: asText(decision.lastEvaluatedAt, "UNKNOWN"),
-      evidence: [asText(decision.evidenceStrength, "Evidence strength not recorded")],
+      evidence: [
+        `Evidence: ${asText(decision.evidenceStrength, "MEDIUM")}`,
+        `Confidence: ${asText(decision.confidence, "MEDIUM")}`,
+        `Strategic Alignment: ${asText(decision.strategicAlignment, "UNKNOWN")}`
+      ],
     });
   });
 
@@ -409,9 +413,9 @@ export function buildCommandCenterBriefSections(snapshot: CommandCenterSnapshot)
       {
         key: "decisions",
         title: "Decisions required",
-        summary: snapshot.signals.pendingDecisionCount > 0 ? `${snapshot.signals.pendingDecisionCount} decision candidate${snapshot.signals.pendingDecisionCount === 1 ? "" : "s"} remain open or in review.` : "No pending decision candidates are currently recorded.",
+        summary: snapshot.signals.pendingDecisionCount > 0 ? `${snapshot.signals.pendingDecisionCount} decision candidate${snapshot.signals.pendingDecisionCount === 1 ? "" : "s"} require executive attention based on worsening or recurring evidence.` : "No pending decision candidates require immediate review.",
         status: snapshot.signals.pendingDecisionCount > 0 ? "WATCH" : "EMPTY",
-        evidence: snapshot.priorities.next.filter((item) => item.source === "DECISION").slice(0, 3).map((item) => item.title),
+        evidence: snapshot.priorities.now.concat(snapshot.priorities.next).filter((item) => item.source === "DECISION").slice(0, 3).map((item) => `${item.title} (${item.whyNow})`),
       },
       {
         key: "actions",

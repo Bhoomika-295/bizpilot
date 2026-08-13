@@ -512,3 +512,25 @@
 - [x] Add explicit Morning Business View and Strategic Position sections using persisted snapshot signals
 - [x] Add focused tests for brief sections, priority why-now behavior, insight detail, intelligence chain, and scenario traceability
 - [x] Re-run all validation and save the final Day 44–46 checkpoint
+
+## Day 47–49: Decision Intelligence & Strategy Adaptation v2
+- [ ] Implement deterministic Decision Intelligence v2 service (`server/services/decisionIntelligenceService.ts`) providing structured decision context, option comparison, trade-off analysis, multi-dimensional confidence, and historical decision relevance without automated decision-making
+- [ ] Implement Decision-to-Strategy Adaptation flow (`server/services/strategyAdaptationV2Service.ts`) supporting human approval, strategy version preview, explicit change recording, and outcome tracking linked to existing strategy versions and outcomes
+- [ ] Implement Learning Loop & Decision Quality service (`server/services/decisionLearningService.ts`) generating structured lessons, causal analysis, pattern connection, and explainable multi-dimensional decision quality scoring
+- [ ] Expose protected tRPC procedures (`decisionIntelligence.*`) with strict tenant isolation and input validation
+- [ ] Build premium Decision Intelligence workspace (`/decisions/:businessId` or integrated decision review modal) featuring structured decision context, option comparison matrices, trade-off views, confidence dimensions, strategy change previews, and post-decision learning panels
+- [ ] Add comprehensive unit, integration, and tenant-authorization tests for decision intelligence, strategy adaptation, and learning loops (`server/decisionIntelligence.test.ts`)
+- [ ] Run full test suite (127+ tests passing), TypeScript type check, production build verification, and save final checkpoint
+
+## Day 47–49: Decision Intelligence & Strategy Adaptation v2
+- [ ] Add tenant-isolated decision context, evidence, options, trade-offs, and qualitative confidence persistence
+- [ ] Add decision record, selected-option reasoning, strategy links, outcome links, and chronological timeline persistence
+- [ ] Add deterministic decision quality dimensions and targeted historical memory/pattern relevance
+- [ ] Add explicit strategy change preview and human approval flow reusing existing strategy versioning
+- [ ] Connect approved strategy changes to decision events and expected outcomes without autonomous mutation
+- [ ] Connect decision outcomes to expected-versus-actual comparison, structured learning, Business Memory, and Pattern Intelligence
+- [ ] Integrate high-value Decisions That Matter and concise Decisions Required content into the Executive Command Center
+- [ ] Add Decision Intelligence v2 UI surfaces with evidence, options, trade-offs, approval, outcome, learning, and timeline states
+- [ ] Add deterministic unit, persistence, tenant-authorization, cross-tenant, and human-approval tests for Day 47–49
+- [ ] Run full tests, TypeScript validation, production build, responsive visual verification, and document any environment limitation
+- [ ] Save the Day 47–49 checkpoint and stop without starting Day 50
