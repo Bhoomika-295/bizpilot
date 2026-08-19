@@ -733,3 +733,12 @@
 - [x] Determine recommended Supabase connection type (Session pooler on port 5432 for migration/persistent runtime)
 - [x] Produce Supabase migration verification report (`supabase-migration-verification-report.md`) without modifying code, schema, environment variables, or data
 - [x] Verify all 146 unit tests pass and TypeScript validation remains clean (`tsc --noEmit`)
+
+## Supabase Database Ownership Migration Phase 2 (Staging Dry-Run Data Migration Rehearsal)
+- [x] Verify source database is MySQL/TiDB and remains fully operational, active, and untouched for rollback safety
+- [x] Configure target connection strategy using Supabase Session Pooler (port 5432) securely via environment variables (`DATABASE_URL` staging convention)
+- [x] Validate PostgreSQL Drizzle schema compatibility across all 20+ persistent BizPilot tables, mapping auto-increment, JSON, enums, decimals, and timestamps
+- [x] Execute rehearsal data mapping and verify 100% row counts, IDs, relationships, tenant ownership, and historical intelligence chain integrity
+- [x] Run complete test suite (146 tests passing successfully), TypeScript validation (`tsc --noEmit`), and production build verification (`pnpm build`)
+- [x] Produce comprehensive Supabase Phase 2 dry-run report (`supabase-migration-phase2-report.md`)
+- [x] Respect stopping boundary: production remains on original database; no final production cutover or credential exposure performed
