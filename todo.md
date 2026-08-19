@@ -718,3 +718,9 @@
 - [x] Audit Manus-specific dependencies versus core application logic
 - [x] Outline data migration requirements, schema dialect conversion, and Supabase PostgreSQL compatibility
 - [x] Produce comprehensive audit report (`supabase-migration-audit.md`) without modifying schema, code, environment variables, or data
+
+## Supabase Database Ownership Migration Phase 1 (Preparation & Schema Porting)
+- [x] Create PostgreSQL-compatible Drizzle schema definition (`drizzle/schema.postgres.ts`) maintaining exact table names, column semantics, and tenant isolation
+- [x] Produce Supabase migration guide (`supabase-migration-guide.md`) detailing connection strategy, environment variable handling, data migration plan, and validation checks
+- [x] Verify existing test suite passes successfully (146 tests passing) and TypeScript validation remains clean (`tsc --noEmit`)
+- [x] Preserve existing Manus database and production state without destructive cutover
