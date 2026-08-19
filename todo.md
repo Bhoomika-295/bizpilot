@@ -724,3 +724,12 @@
 - [x] Produce Supabase migration guide (`supabase-migration-guide.md`) detailing connection strategy, environment variable handling, data migration plan, and validation checks
 - [x] Verify existing test suite passes successfully (146 tests passing) and TypeScript validation remains clean (`tsc --noEmit`)
 - [x] Preserve existing Manus database and production state without destructive cutover
+
+## Supabase Database Ownership Migration Phase 1.5 (Source Verification & Migration Path Reconciliation)
+- [x] Verify current source database engine is MySQL/TiDB via `drizzle.config.ts`, `server/db.ts`, and `package.json`
+- [x] Reconcile Drizzle schema differences between MySQL core (`drizzle/schema.ts`) and PostgreSQL core (`drizzle/schema.postgres.ts`)
+- [x] Verify migration strategy preserves IDs, relationships, timestamps, enums, JSON fields, constraints, tenant ownership, and historical intelligence
+- [x] Confirm Drizzle ORM integration will be retained without introducing unnecessary Supabase client libraries or changing authentication
+- [x] Determine recommended Supabase connection type (Session pooler on port 5432 for migration/persistent runtime)
+- [x] Produce Supabase migration verification report (`supabase-migration-verification-report.md`) without modifying code, schema, environment variables, or data
+- [x] Verify all 146 unit tests pass and TypeScript validation remains clean (`tsc --noEmit`)
