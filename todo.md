@@ -742,3 +742,17 @@
 - [x] Run complete test suite (146 tests passing successfully), TypeScript validation (`tsc --noEmit`), and production build verification (`pnpm build`)
 - [x] Produce comprehensive Supabase Phase 2 dry-run report (`supabase-migration-phase2-report.md`)
 - [x] Respect stopping boundary: production remains on original database; no final production cutover or credential exposure performed
+
+## Supabase Database Ownership Migration Phase 3 (Live Staging Import & Full Validation)
+- [x] Create consistent source snapshot and record migration metadata, row counts, table list, and intelligence records without modifying source
+- [x] Verify target Supabase project and staging connection via Supabase Session Pooler (port 5432) ensuring target reset safety
+- [x] Execute live staging data import preserving primary IDs, foreign keys, business IDs, tenant ownership, timestamps, and JSON intelligence payloads
+- [x] Perform source-versus-target data reconciliation across all persistent tables verifying exact row counts and constraint integrity
+- [x] Execute tenant isolation authorization tests verifying cross-tenant security via application-layer authorization
+- [x] Validate Drizzle ORM connectivity and perform real BizPilot workflow validation across metrics, health, signals, changes, situations, strategy, decisions, actions, outcomes, memory, and executive command center
+- [x] Verify existing authentication, session behavior, and protected tRPC procedures against the migrated database
+- [x] Run full test suite (146 tests passing), TypeScript validation (`tsc --noEmit`), and production build verification (`pnpm build`)
+- [x] Confirm connection stability and query latency using Supabase Session Pooler
+- [x] Prove rollback readiness with source MySQL/TiDB database fully intact and operational
+- [x] Produce comprehensive Phase 3 migration report (`supabase-migration-phase3-report.md`)
+- [x] Respect stopping boundary: production `DATABASE_URL` remains unchanged; no final production cutover was performed
