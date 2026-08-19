@@ -708,3 +708,13 @@
 - [x] Days 99: Conduct final UX, visual, and performance pass (editorial homepage, responsive desktop/tablet/mobile layouts, contrast, loading/error/empty states, and query performance)
 - [x] Days 100: Run complete test suite (146 tests passing), TypeScript validation (`tsc --noEmit`), and production build (`pnpm build`) with zero suppression
 - [x] Days 100: Save final production checkpoint and complete the BizPilot engineering lifecycle
+
+## Database Ownership Migration Audit (Phase 0)
+- [x] Audit current database provider, connection mechanism, environment variables, ORM layer, schema, and migration history
+- [x] Map all database access points, repositories, and query helpers across the codebase
+- [x] Catalog all 40+ persistent tables, primary keys, tenant identifiers, sensitive fields, and intelligence engines
+- [x] Audit tenant isolation mechanisms across routers and services
+- [x] Audit authentication dependencies and evaluate decoupling options
+- [x] Audit Manus-specific dependencies versus core application logic
+- [x] Outline data migration requirements, schema dialect conversion, and Supabase PostgreSQL compatibility
+- [x] Produce comprehensive audit report (`supabase-migration-audit.md`) without modifying schema, code, environment variables, or data
