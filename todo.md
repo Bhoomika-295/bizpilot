@@ -786,3 +786,5 @@
 - [x] Phase 6D production database cutover — successfully switched runtime DATABASE_URL to owner's Supabase PostgreSQL instance, restarted runtime, verified running backend engine and tables, executed application smoke tests (read/write), confirmed TypeScript compilation clean, preserved legacy MySQL/TiDB as rollback source, and documented findings in `supabase-phase6d-production-cutover-report.md`.
 
 - [x] Investigated and resolved OAuth callback regression post-cutover without changing Supabase database connection or data
+
+- [ ] Diagnose and resolve continuing OAuth error reported by user post-fix
