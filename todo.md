@@ -765,3 +765,14 @@
 - [x] Confirm rollback preservation: original MySQL/TiDB database is untouched and operational as rollback source
 - [x] Produce comprehensive Phase 4 migration cutover report (`supabase-migration-phase4-report.md`)
 - [x] Save final Supabase migration checkpoint and conclude successfully
+
+## Post-Cutover Hardening (Phase 5)
+- [x] Inspect Supabase backup and Point-in-Time Recovery (PITR) configuration and document recovery procedures
+- [x] Identify and document production database signals (connection pool usage, query latency, error rates, availability)
+- [x] Verify backend application error handling and ensure complete omission of sensitive database and session secrets from logs
+- [x] Validate Supabase Session Pooler (port 5432) connection stability, transaction behavior, and representative query latency
+- [x] Perform comprehensive secret security audit across frontend bundles, backend environment config, source control, and logs
+- [x] Verify full regression test suite (146 tests passing successfully), TypeScript type compilation clean, and production build successful
+- [x] Confirm PostgreSQL database ownership and zero production dependency on legacy MySQL/TiDB database (preserved as rollback source)
+- [x] Generate comprehensive post-cutover hardening report at `supabase-post-cutover-hardening-report.md`
+- [x] Save checkpoint and stop at specification boundary
