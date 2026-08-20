@@ -1,5 +1,4 @@
 import { getDb, getForesightSignalsForBusiness, getScenarios, getBusinessTrajectories, getMarketSignals } from "../db";
-import { futureOutlooks, businessReadinessAssessments } from "../../drizzle/schema";
 import { eq, desc } from "drizzle-orm";
 
 export type OutlookType = "ACCELERATION" | "CONTRACTION" | "SHIFT" | "DISRUPTION" | "CONSOLIDATION";
@@ -43,8 +42,8 @@ export async function getFutureReadinessWorkspaceData(businessId: number) {
   if (outlooks.length === 0) {
     const defaultOutlooks = generateDefaultOutlooks(businessId, signals, scenarioList, trajectories, marketList);
     for (const outlook of defaultOutlooks) {
-      const inserted = await db.insert(futureOutlooks).values(outlook);
-      const insertedId = Number(inserted[0]?.insertId ?? 0);
+      const inserted = await db.insert(futureOutlooks).values(outlook).returning();
+      const insertedId = Number(inserted[0]?.id ?? 0);
       if (insertedId) {
         const createdAssessment = generateDefaultAssessment(businessId, insertedId, outlook.title);
         await db.insert(businessReadinessAssessments).values(createdAssessment);
