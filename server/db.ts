@@ -723,3 +723,33 @@ export async function getBusinessSituations(businessId: number) {
 export async function getBusinessMetrics(businessId: number) {
   return [];
 }
+
+export async function getRecentOutcomes(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(outcomes).where(eq(outcomes.businessId, businessId)).limit(10);
+}
+
+export async function getBusinessSituations(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return [];
+}
+
+export async function upsertBusinessSituation(data: any) {
+  return data;
+}
+
+export async function updateBusinessSituationStatus(id: number, status: string) {
+  return true;
+}
+
+export async function getSituationSnapshots(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return [];
+}
+
+export async function createSituationSnapshot(data: any) {
+  return data;
+}
