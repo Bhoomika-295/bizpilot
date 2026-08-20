@@ -235,3 +235,42 @@ export const patternIntelligence = pgTable("pattern_intelligence", {
   payload: json("payload"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export const futureOutlooks = pgTable("future_outlooks", {
+  id: serial("id").primaryKey(),
+  businessId: integer("business_id").notNull(),
+  signalId: integer("signal_id"),
+  title: varchar("title", { length: 255 }).notNull(),
+  outlookType: varchar("outlook_type", { length: 64 }).notNull(),
+  timeHorizon: varchar("time_horizon", { length: 64 }).notNull(),
+  probability: varchar("probability", { length: 32 }).notNull(),
+  uncertaintyLevel: varchar("uncertainty_level", { length: 32 }).notNull(),
+  summary: text("summary").notNull(),
+  assumptionsJson: text("assumptions_json"),
+  triggersJson: text("triggers_json"),
+  timelineJson: text("timeline_json"),
+  scenariosJson: text("scenarios_json"),
+  evidenceJson: text("evidence_json"),
+  status: varchar("status", { length: 32 }).notNull().default("ACTIVE"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const businessReadinessAssessments = pgTable("business_readiness_assessments", {
+  id: serial("id").primaryKey(),
+  businessId: integer("business_id").notNull(),
+  outlookId: integer("outlook_id"),
+  title: varchar("title", { length: 255 }).notNull(),
+  overallReadiness: varchar("overall_readiness", { length: 32 }).notNull(),
+  dimensionsJson: text("dimensions_json"),
+  supportingEvidenceJson: text("supporting_evidence_json"),
+  limitingEvidenceJson: text("limiting_evidence_json"),
+  unknownFactorsJson: text("unknown_factors_json"),
+  gapsJson: text("gaps_json"),
+  decisionImplicationsJson: text("decision_implications_json"),
+  actionImplicationsJson: text("action_implications_json"),
+  monitoringLinksJson: text("monitoring_links_json"),
+  status: varchar("status", { length: 32 }).notNull().default("ACTIVE"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});

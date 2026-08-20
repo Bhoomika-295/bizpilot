@@ -806,3 +806,5 @@
 - [x] Fix readiness outcomes query failure caused by schema/column mismatch in outcomes table query
 
 - [x] Fix readiness API returning HTML instead of JSON due to unhandled server exception during tRPC request
+
+- [ ] Fix readiness error caused by undefined futureOutlooks and businessReadinessAssessments exports in schema.postgres.ts
