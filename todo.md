@@ -803,4 +803,4 @@
 
 - [x] Fix customer insertion error during demo data seeding caused by helper signature/payload mismatch
 
-- [ ] Fix readiness outcomes query failure caused by schema/column mismatch in outcomes table query
+- [x] Fix readiness outcomes query failure caused by schema/column mismatch in outcomes table query
