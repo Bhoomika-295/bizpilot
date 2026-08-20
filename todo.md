@@ -804,3 +804,5 @@
 - [x] Fix customer insertion error during demo data seeding caused by helper signature/payload mismatch
 
 - [x] Fix readiness outcomes query failure caused by schema/column mismatch in outcomes table query
+
+- [ ] Fix readiness API returning HTML instead of JSON due to unhandled server exception during tRPC request

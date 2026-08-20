@@ -170,10 +170,13 @@ export const marketSignals = pgTable("market_signals", {
   id: serial("id").primaryKey(),
   businessId: integer("business_id").notNull(),
   title: varchar("title", { length: 255 }).notNull(),
-  category: varchar("category", { length: 100 }).notNull(),
-  sentiment: varchar("sentiment", { length: 50 }).default("neutral").notNull(),
-  payload: json("payload"),
-  timestamp: bigint("timestamp", { mode: "number" }).notNull(),
+  source: varchar("source", { length: 100 }),
+  url: varchar("url", { length: 500 }),
+  publishedAt: timestamp("published_at"),
+  relevanceLevel: varchar("relevance_level", { length: 50 }),
+  impactArea: varchar("impact_area", { length: 100 }),
+  importanceScore: decimal("importance_score", { precision: 5, scale: 2 }),
+  explanation: text("explanation"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
