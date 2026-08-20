@@ -788,3 +788,5 @@
 - [x] Investigated and resolved OAuth callback regression post-cutover without changing Supabase database connection or data
 
 - [ ] Diagnose and resolve continuing OAuth error reported by user post-fix
+
+- [x] Diagnosed and fixed preview not showing issue reported by user
