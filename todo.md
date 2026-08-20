@@ -780,3 +780,5 @@
 - [ ] Phase 6B controlled data migration — blocked by target PostgreSQL authentication failure (`28P01`); retry only after the managed Supabase secret is corrected and a fresh read-only connectivity check passes.
 
 - [x] Phase 6A.5 schema reconciliation — verified authoritative schema, deployed missing `scenarios`, `opportunities`, `business_memories`, and `pattern_intelligence` tables, verified all 19 persistent tables present in Supabase, passed TypeScript validation, confirmed zero data migrated and legacy source untouched.
+
+- [x] Phase 6B controlled real-data migration and reconciliation across all 19 tables into owner's Supabase PostgreSQL target
