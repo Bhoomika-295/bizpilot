@@ -805,4 +805,4 @@
 
 - [x] Fix readiness outcomes query failure caused by schema/column mismatch in outcomes table query
 
-- [ ] Fix readiness API returning HTML instead of JSON due to unhandled server exception during tRPC request
+- [x] Fix readiness API returning HTML instead of JSON due to unhandled server exception during tRPC request
