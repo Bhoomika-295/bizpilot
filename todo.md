@@ -807,4 +807,4 @@
 
 - [x] Fix readiness API returning HTML instead of JSON due to unhandled server exception during tRPC request
 
-- [ ] Fix readiness error caused by undefined futureOutlooks and businessReadinessAssessments exports in schema.postgres.ts
+- [x] Fix readiness error caused by undefined futureOutlooks and businessReadinessAssessments exports in schema.postgres.ts
