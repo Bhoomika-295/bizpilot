@@ -776,3 +776,7 @@
 - [x] Confirm PostgreSQL database ownership and zero production dependency on legacy MySQL/TiDB database (preserved as rollback source)
 - [x] Generate comprehensive post-cutover hardening report at `supabase-post-cutover-hardening-report.md`
 - [x] Save checkpoint and stop at specification boundary
+
+- [ ] Phase 6B controlled data migration — blocked by target PostgreSQL authentication failure (`28P01`); retry only after the managed Supabase secret is corrected and a fresh read-only connectivity check passes.
+
+- [x] Phase 6A.5 schema reconciliation — verified authoritative schema, deployed missing `scenarios`, `opportunities`, `business_memories`, and `pattern_intelligence` tables, verified all 19 persistent tables present in Supabase, passed TypeScript validation, confirmed zero data migrated and legacy source untouched.
