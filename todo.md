@@ -782,3 +782,5 @@
 - [x] Phase 6A.5 schema reconciliation — verified authoritative schema, deployed missing `scenarios`, `opportunities`, `business_memories`, and `pattern_intelligence` tables, verified all 19 persistent tables present in Supabase, passed TypeScript validation, confirmed zero data migrated and legacy source untouched.
 
 - [x] Phase 6C final pre-cutover validation completed successfully across all 19 tables into owner's Supabase PostgreSQL target
+
+- [x] Phase 6D production database cutover — successfully switched runtime DATABASE_URL to owner's Supabase PostgreSQL instance, restarted runtime, verified running backend engine and tables, executed application smoke tests (read/write), confirmed TypeScript compilation clean, preserved legacy MySQL/TiDB as rollback source, and documented findings in `supabase-phase6d-production-cutover-report.md`.
