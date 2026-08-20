@@ -798,3 +798,5 @@
 - [x] Diagnose and fix post-login redirect returning user to homepage instead of workspace
 
 - [x] Fix onboarding business creation returning undefined businessId and failing follow-up goals/seed mutations
+
+- [ ] Fix onboarding authorization error ("You do not have access to this business") during demo data seeding and follow-up mutations

@@ -11,7 +11,7 @@ import {
   type Product,
   type Transaction,
   type Expense,
-} from "../../drizzle/schema";
+} from "../../drizzle/schema.postgres";
 
 /**
  * Business Data Service
