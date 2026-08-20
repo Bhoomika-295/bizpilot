@@ -116,7 +116,7 @@ export default function Onboarding() {
         isDemo: true,
       });
 
-      const businessId = (businessResult as any).insertId;
+      const businessId = (businessResult as any).id ?? (businessResult as any).insertId;
 
       // Create goals with priority
       for (let i = 0; i < formData.selectedGoals.length; i++) {
@@ -158,7 +158,8 @@ export default function Onboarding() {
           email: customer.email,
           status: "active",
         });
-        customerIds.push((result as any).insertId);
+        const custId = (result as any).id ?? (result as any).insertId;
+        customerIds.push(custId);
       }
 
       // Create demo products
@@ -178,7 +179,8 @@ export default function Onboarding() {
           cost: product.cost,
           status: "active",
         });
-        productIds.push((result as any).insertId);
+        const prodId = (result as any).id ?? (result as any).insertId;
+        productIds.push(prodId);
       }
 
       // Create demo transactions (last 30 days)

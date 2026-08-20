@@ -796,3 +796,5 @@
 - [ ] Diagnose and fix post-login redirect returning user to homepage instead of workspace
 
 - [x] Diagnose and fix post-login redirect returning user to homepage instead of workspace
+
+- [ ] Fix onboarding business creation returning undefined businessId and failing follow-up goals/seed mutations

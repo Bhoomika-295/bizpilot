@@ -182,7 +182,7 @@ export async function createBusiness(
     currency: data.currency || "USD",
   }).returning();
 
-  return result;
+  return result.length > 0 ? result[0] : undefined;
 }
 
 export async function getBusinessById(businessId: number) {
