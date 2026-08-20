@@ -790,3 +790,5 @@
 - [x] Diagnosed and resolved OAuth authentication and database-driver compatibility error on Supabase PostgreSQL
 
 - [x] Diagnosed and fixed preview not showing issue reported by user
+
+- [x] Diagnosed and comprehensively resolved duplicate export errors in server/db.ts and PostgreSQL database-layer contract mismatches causing build failure

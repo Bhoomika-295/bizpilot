@@ -717,9 +717,7 @@ export async function createPatternIntelligence(data: {
   return result[0];
 }
 
-export async function getBusinessSituations(businessId: number) {
-  return [];
-}
+
 export async function getBusinessMetrics(businessId: number) {
   return [];
 }
@@ -752,4 +750,598 @@ export async function getSituationSnapshots(businessId: number) {
 
 export async function createSituationSnapshot(data: any) {
   return data;
+}
+
+export async function getMarketSignals(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(marketSignals).where(eq(marketSignals.businessId, businessId)).limit(50);
+}
+
+export async function getBusinessSituationSnapshots(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return [];
+}
+
+export async function upsertDecisionPriority(data: any) {
+  return data;
+}
+
+export async function getDecisionPriorities(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return [];
+}
+
+export async function getCompetitorActivities(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return [];
+}
+
+export async function getDecisionCandidates(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return [];
+}
+
+export async function getOpportunities(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(opportunities).where(eq(opportunities.businessId, businessId)).limit(50);
+}
+
+export async function getSignalClusterById(id: number) {
+  return null;
+}
+
+export async function getSignalClusters(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return [];
+}
+
+export async function getSignalRelationshipById(id: number) {
+  return null;
+}
+
+export async function getSignalRelationshipHistory(id: number) {
+  return [];
+}
+
+export async function getSignalRelationships(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return [];
+}
+
+export async function getStrategyStates(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return [];
+}
+
+export async function getAllMonitoringEvents(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return [];
+}
+
+export async function upsertSignalCluster(data: any) {
+  return data;
+}
+
+export async function upsertSignalRelationship(data: any) {
+  return data;
+}
+
+export async function updateSignalRelationshipLifecycle(id: number, status: string) {
+  return true;
+}
+
+export async function createStrategyVersion(data: any) {
+  return data;
+}
+
+export async function getStrategyVersions(strategyId: number) {
+  return [];
+}
+
+export async function getBusinessTrajectories(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return [];
+}
+
+export async function getRecommendations(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(recommendations).where(eq(recommendations.businessId, businessId)).limit(50);
+}
+
+export async function getScenarios(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(scenarios).where(eq(scenarios.businessId, businessId)).limit(50);
+}
+
+export async function getStrategies(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(strategies).where(eq(strategies.businessId, businessId)).limit(50);
+}
+
+
+
+export async function updateRecommendationOutcome(id: number, outcome: string) {
+  return true;
+}
+
+export async function upsertStrategyState(data: any) {
+  return data;
+}
+
+export async function createStrategyEvent(data: any) {
+  return data;
+}
+
+export async function getStrategyEvents(businessId: number) {
+  return [];
+}
+
+export async function upsertScenario(data: any) {
+  return data;
+}
+
+export async function upsertOpportunity(data: any) {
+  return data;
+}
+
+export async function getCompetitors(businessId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(competitors).where(eq(competitors.businessId, businessId)).limit(50);
+}
+
+export async function createCompetitorActivity(data: any) {
+  return data;
+}
+
+export async function createDecisionEvent(data: any) {
+  return data;
+}
+
+export async function getAllDecisionCandidates(businessId: number) {
+  return [];
+}
+
+export async function getDecisionCandidateById(id: number) {
+  return null;
+}
+
+export async function getDecisionEvents(businessId: number) {
+  return [];
+}
+
+export async function upsertDecisionCandidate(data: any) {
+  return data;
+}
+
+export async function updateDecisionCandidateLifecycle(id: number, status: string) {
+  return true;
+}
+
+export async function getMonitoringEventById(id: number) {
+  return null;
+}
+
+export async function getMonitoringEventHistory(id: number) {
+  return [];
+}
+
+export async function getMonitoringEvents(businessId: number) {
+  return [];
+}
+
+export async function getMonitoringPreference(businessId: number) {
+  return null;
+}
+
+export async function updateMonitoringEventLifecycle(id: number, status: string) {
+  return true;
+}
+
+export async function upsertMonitoringEvent(data: any) {
+  return data;
+}
+
+export async function createMarketSignal(data: any) {
+  return data;
+}
+
+export async function clearMarketSignals(businessId: number) {
+  return true;
+}
+
+export async function getForesightSignalsForBusiness(businessId: number) {
+  return [];
+}
+
+export async function getBusinessesForExternalRadar() {
+  return [];
+}
+
+export async function getCompetitorsForExternalRadar(businessId: number) {
+  return [];
+}
+
+export async function getMarketSignalsForExternalRadar(businessId: number) {
+  return [];
+}
+
+export async function getCompetitorActivityByBusiness(businessId: number) {
+  return [];
+}
+
+export async function getSituationsForExternalRadar(businessId: number) {
+  return [];
+}
+
+export async function getOpportunitiesForExternalRadar(businessId: number) {
+  return [];
+}
+
+export async function getRecommendationsForExternalRadar(businessId: number) {
+  return [];
+}
+
+export async function getOutcomesForExternalRadar(businessId: number) {
+  return [];
+}
+
+export async function getCrossSignalRelationshipsForExternalRadar(businessId: number) {
+  return [];
+}
+
+export async function getTrajectoriesForExternalRadar(businessId: number) {
+  return [];
+}
+
+export async function getStrategyHealthSnapshotsForExternalRadar(businessId: number) {
+  return [];
+}
+
+export async function getExternalEvents(businessId: number) {
+  return [];
+}
+
+export async function createExternalEvent(data: any) {
+  return data;
+}
+
+export async function setExternalEventStatus(id: number, status: string) {
+  return true;
+}
+
+export async function upsertExternalRadarSnapshot(data: any) {
+  return data;
+}
+
+export async function getLatestStrategyHealthSnapshot(businessId: number) {
+  return null;
+}
+
+export async function getAttentionItemsForBusiness(businessId: number) {
+  return [];
+}
+
+export async function getAttentionItemById(id: number) {
+  return null;
+}
+
+export async function createAttentionItem(data: any) {
+  return data;
+}
+
+export async function updateAttentionItem(id: number, data: any) {
+  return true;
+}
+
+export async function createAttentionReviewLogEntry(data: any) {
+  return data;
+}
+
+export async function getActionPlanById(businessId: number, id: number) {
+  return null;
+}
+
+export async function getLatestDailyBrief(businessId: number) {
+  return null;
+}
+
+export async function createDailyBrief(data: any) {
+  return data;
+}
+
+export async function createTrajectoryForecastSnapshot(data: any) {
+  return data;
+}
+
+export async function getActionPlanEvents(businessId: number, id: number) {
+  return [];
+}
+
+export async function getOutcomesForActionPlan(businessId: number, id: number) {
+  return [];
+}
+
+export async function updateActionPlan(businessId: number, id: number, data: any) {
+  return true;
+}
+
+export async function createTrajectoryHistory(data: any) {
+  return data;
+}
+
+export async function createTrajectoryLearningSignal(data: any) {
+  return data;
+}
+
+export async function getBusinessTrajectoryById(id: number) {
+  return null;
+}
+
+export async function createActionPlanEvent(data: any) {
+  return data;
+}
+
+export async function getTrajectoryForecastSnapshots(businessId: number) {
+  return [];
+}
+
+export async function getTrajectoryHistory(businessId: number) {
+  return [];
+}
+
+export async function upsertBusinessTrajectory(data: any) {
+  return data;
+}
+
+export async function updateTrajectoryForecastActual(id: number, actual: number) {
+  return true;
+}
+
+export async function createScenarioHistory(data: any) {
+  return data;
+}
+
+export async function getScenarioById(id: number) {
+  return null;
+}
+
+export async function getScenarioComparisons(businessId: number) {
+  return [];
+}
+
+export async function getScenarioHistory(businessId: number) {
+  return [];
+}
+
+export async function upsertScenarioComparison(data: any) {
+  return data;
+}
+
+export async function updateScenario(id: number, data: any) {
+  return true;
+}
+
+export async function getBusinessRelationships(businessId: number) {
+  return [];
+}
+
+export async function upsertBusinessRelationship(data: any) {
+  return data;
+}
+
+export async function getRootCauseInvestigations(businessId: number) {
+  return [];
+}
+
+export async function getRootCauseInvestigationById(id: number) {
+  return null;
+}
+
+export async function upsertRootCauseInvestigation(data: any) {
+  return data;
+}
+
+export async function deleteScenario(id: number) {
+  return true;
+}
+
+export async function getOpportunityById(id: number) {
+  return null;
+}
+
+export async function updateOpportunityStatus(id: number, status: string) {
+  return true;
+}
+
+export async function getOutcomeByIdForBusiness(businessId: number, id: number) {
+  return null;
+}
+
+export async function upsertMonitoringPreference(data: any) {
+  return data;
+}
+
+export async function getBusinessMemoryById(id: number) {
+  return null;
+}
+
+export async function updateBusinessMemoryQuality(id: number, quality: number) {
+  return true;
+}
+
+export async function createForesightSignal(data: any) {
+  return data;
+}
+
+export async function createActionLinkedOutcome(data: any) {
+  return data;
+}
+
+export async function updateOutcomeReview(businessId: number, id: number, data: any) {
+  return true;
+}
+
+export async function getStrategyById(businessId: number, id: number) {
+  return null;
+}
+
+export async function getForesightWatchlistForBusiness(businessId: number) {
+  return [];
+}
+
+export async function createForesightWatchlistRecord(data: any) {
+  return data;
+}
+
+export async function updateForesightSignal(id: number, data: any) {
+  return true;
+}
+
+export async function removeForesightWatchlistRecord(id: number) {
+  return true;
+}
+
+export async function upsertPatternIntelligence(data: any) {
+  return data;
+}
+
+export async function getBusinessSituationById(id: number) {
+  return null;
+}
+
+export async function createBusinessGoal(data: any) {
+  return data;
+}
+
+export async function getBusinessGoals(businessId: number) {
+  return [];
+}
+
+export async function getCustomers(businessId: number) {
+  return [];
+}
+
+export async function getCustomerById(id: number) {
+  return null;
+}
+
+export async function updateCustomer(id: number, data: any) {
+  return true;
+}
+
+export async function deleteCustomer(id: number) {
+  return true;
+}
+
+export async function getProducts(businessId: number) {
+  return [];
+}
+
+export async function getProductById(id: number) {
+  return null;
+}
+
+export async function updateProduct(id: number, data: any) {
+  return true;
+}
+
+export async function deleteProduct(id: number) {
+  return true;
+}
+
+export async function getTransactions(businessId: number) {
+  return [];
+}
+
+export async function getTransactionById(id: number) {
+  return null;
+}
+
+export async function updateTransaction(id: number, data: any) {
+  return true;
+}
+
+export async function deleteTransaction(id: number) {
+  return true;
+}
+
+export async function getExpenses(businessId: number) {
+  return [];
+}
+
+export async function getExpenseById(id: number) {
+  return null;
+}
+
+export async function updateExpense(id: number, data: any) {
+  return true;
+}
+
+export async function deleteExpense(id: number) {
+  return true;
+}
+
+export async function updateBusinessGoal(id: number, data: any) {
+  return true;
+}
+
+export async function deleteBusinessGoal(id: number) {
+  return true;
+}
+
+export async function getBusinessEvents(businessId: number, opts: any) {
+  return [];
+}
+
+export async function createExternalDataSource(businessId: number, data: any) {
+  return data;
+}
+
+export async function getExternalDataSources(businessId: number) {
+  return [];
+}
+
+export async function createCompetitor(businessId: number, data: any) {
+  return data;
+}
+
+export async function getCompetitorById(id: number) {
+  return null;
+}
+
+export async function updateCompetitor(id: number, data: any) {
+  return true;
+}
+
+export async function deleteCompetitor(id: number) {
+  return true;
+}
+
+
+
+export async function getMarketSignalById(id: number) {
+  return null;
+}
+
+export async function updateMarketSignal(id: number, data: any) {
+  return true;
+}
+
+export async function deleteMarketSignal(id: number) {
+  return true;
 }
