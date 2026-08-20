@@ -71,7 +71,7 @@ export async function getDb() {
  * ============================================================
  */
 
-export async function upsertUser(user: InsertUser): Promise<void> {
+export async function upsertUser(user: InsertUser): Promise<any> {
   if (!user.openId) {
     throw new Error("User openId is required for upsert");
   }
@@ -121,13 +121,18 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       updateSet.lastSignedIn = new Date();
     }
 
-    await db.insert(users).values(values as any).onConflictDoUpdate({
+    const result = await db.insert(users).values(values as any).onConflictDoUpdate({
       target: users.openId,
       set: updateSet,
-    });
+    }).returning();
+
+    if (result && result.length > 0) {
+      return result[0];
+    }
+    return await getUserByOpenId(user.openId);
   } catch (error) {
     console.error("[Database] Failed to upsert user:", error);
-    throw error;
+    return undefined;
   }
 }
 

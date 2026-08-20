@@ -40,7 +40,7 @@ export function registerOAuthRoutes(app: Express) {
         return;
       }
 
-      await db.upsertUser({
+      const userRecord = await db.upsertUser({
         openId: userInfo.openId,
         name: userInfo.name || null,
         email: userInfo.email ?? null,
@@ -56,7 +56,18 @@ export function registerOAuthRoutes(app: Express) {
       const cookieOptions = getSessionCookieOptions(req);
       res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
 
-      res.redirect(302, "/");
+      // Determine post-login redirect destination based on user's businesses
+      let userId = userRecord?.id;
+      if (!userId && userInfo.openId) {
+        const existingUser = await db.getUserByOpenId(userInfo.openId);
+        userId = existingUser?.id;
+      }
+      const businesses = await db.getBusinessesByUserId(userId ?? 0);
+      if (businesses && businesses.length > 0) {
+        res.redirect(302, `/dashboard/${businesses[0].id}`);
+      } else {
+        res.redirect(302, "/onboarding");
+      }
     } catch (error) {
       console.error("[OAuth] Callback failed", error);
       res.status(500).json({ error: "OAuth callback failed" });
