@@ -793,7 +793,7 @@
 
 - [x] Diagnosed and comprehensively resolved duplicate export errors in server/db.ts and PostgreSQL database-layer contract mismatches causing build failure
 
-- [ ] Diagnose and fix post-login redirect returning user to homepage instead of workspace
+- [x] Diagnose and fix post-login redirect returning user to homepage instead of workspace
 
 - [x] Diagnose and fix post-login redirect returning user to homepage instead of workspace
 
