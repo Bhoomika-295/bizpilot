@@ -162,7 +162,7 @@ export const appRouter = router({
       )
       .mutation(async ({ ctx, input }) => {
         await requireBusinessAccess(ctx.user.id, input.businessId);
-        return await db.createCustomer(input.businessId, input);
+        return await db.createCustomer(input);
       }),
 
     list: protectedProcedure
@@ -229,7 +229,7 @@ export const appRouter = router({
       )
       .mutation(async ({ ctx, input }) => {
         await requireBusinessAccess(ctx.user.id, input.businessId);
-        return await db.createProduct(input.businessId, input);
+        return await db.createProduct(input);
       }),
 
     list: protectedProcedure
@@ -297,7 +297,7 @@ export const appRouter = router({
       )
       .mutation(async ({ ctx, input }) => {
         await requireBusinessAccess(ctx.user.id, input.businessId);
-        return await db.createTransaction(input.businessId, input);
+        return await db.createTransaction(input);
       }),
 
     list: protectedProcedure
@@ -343,7 +343,7 @@ export const appRouter = router({
       )
       .mutation(async ({ ctx, input }) => {
         await requireBusinessAccess(ctx.user.id, input.businessId);
-        return await db.createExpense(input.businessId, input);
+        return await db.createExpense(input);
       }),
 
     list: protectedProcedure
