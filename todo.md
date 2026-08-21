@@ -812,3 +812,8 @@
 - [x] Perform strict read-only audit of demo/sample data functionality and generate demo-data-audit-report.md
 
 - [x] Perform strict read-only audit of production Supabase database for demo data and generate production-demo-data-presence-audit.md
+
+- [x] Re-verify Business ID 1 demo records and execute atomic targeted cleanup
+- [x] Remove automatic seedDemoData() from client/src/pages/Onboarding.tsx
+- [x] Run test suite, TypeScript validation, and production build verification
+- [x] Generate demo-data-removal-report.md

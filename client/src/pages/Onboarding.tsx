@@ -127,8 +127,7 @@ export default function Onboarding() {
         });
       }
 
-      // Seed demo data
-      await seedDemoData(businessId);
+      // Automatic demo data seeding removed per requirements. New businesses start clean.
 
       toast.success("Business created successfully!");
       setLocation(`/dashboard/${businessId}`);
