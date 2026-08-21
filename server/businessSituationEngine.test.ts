@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { evaluateAndUpsertBusinessSituations } from "./services/businessSituationEngine";
 
-describe("Business Situation Engine v1", () => {
+const describeIfDatabase = process.env.DATABASE_URL ? describe : describe.skip;
+
+describeIfDatabase("Business Situation Engine v1", () => {
   it("should evaluate business situations deterministically for a valid businessId", async () => {
     const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const endDate = new Date();

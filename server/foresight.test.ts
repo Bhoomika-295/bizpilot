@@ -2,7 +2,9 @@ import { describe, it, expect } from "vitest";
 import { evaluateAndSyncForesight } from "./services/foresightService";
 import { getForesightSignalsForBusiness, getForesightWatchlistForBusiness } from "./db";
 
-describe("Strategic Foresight & Risk Radar Engine", () => {
+const describeIfDatabase = process.env.DATABASE_URL ? describe : describe.skip;
+
+describeIfDatabase("Strategic Foresight & Risk Radar Engine", () => {
   it("evaluates and syncs foresight signals and watchlist for a business", async () => {
     const businessId = 999; // test tenant ID
     const result = await evaluateAndSyncForesight(businessId);
