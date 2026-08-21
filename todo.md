@@ -808,3 +808,5 @@
 - [x] Fix readiness API returning HTML instead of JSON due to unhandled server exception during tRPC request
 
 - [x] Fix readiness error caused by undefined futureOutlooks and businessReadinessAssessments exports in schema.postgres.ts
+
+- [x] Perform strict read-only audit of demo/sample data functionality and generate demo-data-audit-report.md
