@@ -23,7 +23,7 @@ import {
 } from "../drizzle/schema.postgres";
 import type { InferInsertModel } from "drizzle-orm";
 export type InsertUser = InferInsertModel<typeof users>;
-import { eq, desc } from "drizzle-orm";
+import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -304,14 +304,31 @@ export async function createProduct(data: {
  * ============================================================
  */
 
-export async function getTransactionsForBusiness(businessId: number, limit?: number) {
+export type BusinessDateRange = {
+  startTimestamp?: number;
+  endTimestamp?: number;
+};
+
+export async function getTransactionsForBusiness(
+  businessId: number,
+  limit?: number,
+  dateRange?: BusinessDateRange,
+) {
   const db = await getDb();
   if (!db) return [];
+
+  let condition = eq(transactions.businessId, businessId);
+  if (dateRange?.startTimestamp !== undefined) {
+    condition = and(condition, gte(transactions.timestamp, dateRange.startTimestamp)) ?? condition;
+  }
+  if (dateRange?.endTimestamp !== undefined) {
+    condition = and(condition, lte(transactions.timestamp, dateRange.endTimestamp)) ?? condition;
+  }
 
   const query = db
     .select()
     .from(transactions)
-    .where(eq(transactions.businessId, businessId))
+    .where(condition)
     .orderBy(desc(transactions.timestamp));
 
   return limit === undefined ? query : query.limit(limit);
@@ -343,14 +360,26 @@ export async function createTransaction(data: {
  * ============================================================
  */
 
-export async function getExpensesForBusiness(businessId: number, limit?: number) {
+export async function getExpensesForBusiness(
+  businessId: number,
+  limit?: number,
+  dateRange?: BusinessDateRange,
+) {
   const db = await getDb();
   if (!db) return [];
+
+  let condition = eq(expenses.businessId, businessId);
+  if (dateRange?.startTimestamp !== undefined) {
+    condition = and(condition, gte(expenses.timestamp, dateRange.startTimestamp)) ?? condition;
+  }
+  if (dateRange?.endTimestamp !== undefined) {
+    condition = and(condition, lte(expenses.timestamp, dateRange.endTimestamp)) ?? condition;
+  }
 
   const query = db
     .select()
     .from(expenses)
-    .where(eq(expenses.businessId, businessId))
+    .where(condition)
     .orderBy(desc(expenses.timestamp));
 
   return limit === undefined ? query : query.limit(limit);

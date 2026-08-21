@@ -11,7 +11,11 @@ import { foresightRouter } from "./routers/foresight";
 import { businessMemoryRouter } from "./routers/businessMemory";
 import { commandCenterRouter } from "./routers/commandCenter";
 import { verifyBusinessOwnership } from "./services/businessDataService";
-import { buildCsvContent } from "./services/csvExportService";
+import {
+  buildCsvContent,
+  CsvDateRangeValidationError,
+  parseCsvDateRange,
+} from "./services/csvExportService";
 
 async function requireBusinessAccess(userId: number, businessId: number) {
   try {
@@ -33,6 +37,27 @@ async function requireRecordBusiness(
   }
   await requireBusinessAccess(userId, record.businessId);
   return record;
+}
+
+const exportDateRangeInput = z.object({
+  businessId: z.number(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+});
+
+function getValidatedExportDateRange(startDate?: string, endDate?: string) {
+  try {
+    const dateRange = parseCsvDateRange(startDate, endDate);
+    return dateRange.startTimestamp === undefined && dateRange.endTimestamp === undefined
+      ? undefined
+      : dateRange;
+  } catch (error) {
+    const message =
+      error instanceof CsvDateRangeValidationError
+        ? error.message
+        : "The export date range is invalid.";
+    throw new TRPCError({ code: "BAD_REQUEST", message });
+  }
 }
 
 export const appRouter = router({
@@ -363,10 +388,11 @@ export const appRouter = router({
       }),
 
     exportCsv: protectedProcedure
-      .input(z.object({ businessId: z.number() }))
+      .input(exportDateRangeInput)
       .query(async ({ ctx, input }) => {
         await requireBusinessAccess(ctx.user.id, input.businessId);
-        const transactions = await db.getTransactionsForBusiness(input.businessId);
+        const dateRange = getValidatedExportDateRange(input.startDate, input.endDate);
+        const transactions = await db.getTransactionsForBusiness(input.businessId, undefined, dateRange);
         const headers = ["ID", "Type", "Amount", "Source", "Timestamp", "Customer ID", "Product ID", "Created At"];
         const rows = transactions.map((transaction) => [
           transaction.id,
@@ -429,10 +455,11 @@ export const appRouter = router({
       }),
 
     exportCsv: protectedProcedure
-      .input(z.object({ businessId: z.number() }))
+      .input(exportDateRangeInput)
       .query(async ({ ctx, input }) => {
         await requireBusinessAccess(ctx.user.id, input.businessId);
-        const expenses = await db.getExpensesForBusiness(input.businessId);
+        const dateRange = getValidatedExportDateRange(input.startDate, input.endDate);
+        const expenses = await db.getExpensesForBusiness(input.businessId, undefined, dateRange);
         const headers = ["ID", "Category", "Amount", "Description", "Timestamp", "Source", "Created At"];
         const rows = expenses.map((expense) => [
           expense.id,

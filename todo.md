@@ -846,3 +846,11 @@
 - [x] Verify Customers and Transactions exports plus creation, import, dashboard, intelligence, authentication, and tenant-isolation regressions
 - [x] Run complete test suite, focused export tests, tenant authorization tests, TypeScript validation, and production build
 - [x] Create data-export-v1.1-report.md and confirm Supabase/PostgreSQL was unchanged and no demo data was introduced
+
+## Data Export V1.2 — Date-Range Filtering
+- [x] Implement query-level date range filtering for transactions and expenses in `server/db.ts` and `server/routers.ts`
+- [x] Add date validation logic (valid date checks, startDate <= endDate) returning clear TRPC errors
+- [x] Add lightweight date-range controls and clear/reset filter buttons to Transactions and Expenses tabs in `DataManagement.tsx`
+- [x] Add comprehensive test suite for all 15 V1.2 test requirements (boundary, invalid ranges, security, regression)
+- [x] Run full test suite, TypeScript validation, and production build
+- [x] Create `data-export-v1.2-report.md` confirming Supabase PostgreSQL, Drizzle, and authentication remain unchanged

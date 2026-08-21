@@ -8,16 +8,89 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, Loader2, Plus, Trash2 } from "lucide-react";
+import { CalendarDays, Download, Loader2, Plus, Trash2, X } from "lucide-react";
 import { useParams } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
+
+type DateRangeValue = {
+  startDate: string;
+  endDate: string;
+};
+
+type DateRangeControlsProps = {
+  idPrefix: string;
+  value: DateRangeValue;
+  onChange: (field: keyof DateRangeValue, value: string) => void;
+  onClear: () => void;
+  disabled?: boolean;
+};
+
+function DateRangeControls({
+  idPrefix,
+  value,
+  onChange,
+  onClear,
+  disabled = false,
+}: DateRangeControlsProps) {
+  const hasFilter = Boolean(value.startDate || value.endDate);
+
+  return (
+    <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3">
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+          <CalendarDays className="h-4 w-4" aria-hidden="true" />
+          Optional date filter
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor={`${idPrefix}-start`} className="text-xs text-slate-600">
+            Start date
+          </Label>
+          <Input
+            id={`${idPrefix}-start`}
+            type="date"
+            value={value.startDate}
+            onChange={(event) => onChange("startDate", event.target.value)}
+            disabled={disabled}
+            className="h-9 w-[150px] bg-white"
+          />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor={`${idPrefix}-end`} className="text-xs text-slate-600">
+            End date
+          </Label>
+          <Input
+            id={`${idPrefix}-end`}
+            type="date"
+            value={value.endDate}
+            onChange={(event) => onChange("endDate", event.target.value)}
+            disabled={disabled}
+            className="h-9 w-[150px] bg-white"
+          />
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onClear}
+          disabled={disabled || !hasFilter}
+          className="h-9 text-slate-600"
+        >
+          <X className="mr-1.5 h-4 w-4" aria-hidden="true" />
+          Clear filter
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export default function DataManagement() {
   const { businessId } = useParams<{ businessId: string }>();
   const { user } = useAuth({ redirectOnUnauthenticated: true });
   const bid = parseInt(businessId || "0");
+  const [transactionExportRange, setTransactionExportRange] = useState<DateRangeValue>({ startDate: "", endDate: "" });
+  const [expenseExportRange, setExpenseExportRange] = useState<DateRangeValue>({ startDate: "", endDate: "" });
 
   const customersQuery = trpc.customers.list.useQuery({ businessId: bid }, { enabled: !!bid });
   const productsQuery = trpc.products.list.useQuery({ businessId: bid }, { enabled: !!bid });
@@ -27,16 +100,32 @@ export default function DataManagement() {
     { businessId: bid },
     { enabled: false }
   );
+  const transactionsExportInput = useMemo(
+    () => ({
+      businessId: bid,
+      startDate: transactionExportRange.startDate || undefined,
+      endDate: transactionExportRange.endDate || undefined,
+    }),
+    [bid, transactionExportRange],
+  );
   const transactionsExportQuery = trpc.transactions.exportCsv.useQuery(
-    { businessId: bid },
+    transactionsExportInput,
     { enabled: false }
   );
   const productsExportQuery = trpc.products.exportCsv.useQuery(
     { businessId: bid },
     { enabled: false }
   );
+  const expensesExportInput = useMemo(
+    () => ({
+      businessId: bid,
+      startDate: expenseExportRange.startDate || undefined,
+      endDate: expenseExportRange.endDate || undefined,
+    }),
+    [bid, expenseExportRange],
+  );
   const expensesExportQuery = trpc.expenses.exportCsv.useQuery(
-    { businessId: bid },
+    expensesExportInput,
     { enabled: false }
   );
 
@@ -58,6 +147,20 @@ export default function DataManagement() {
   const [productForm, setProductForm] = useState({ name: "", type: "product", price: "", cost: "" });
   const [transactionForm, setTransactionForm] = useState({ amount: "", description: "", date: "" });
   const [expenseForm, setExpenseForm] = useState({ category: "", amount: "", date: "" });
+
+  const handleDateRangeChange = (
+    type: "transactions" | "expenses",
+    field: keyof DateRangeValue,
+    value: string,
+  ) => {
+    const setter = type === "transactions" ? setTransactionExportRange : setExpenseExportRange;
+    setter((current) => ({ ...current, [field]: value }));
+  };
+
+  const handleClearDateRange = (type: "transactions" | "expenses") => {
+    const setter = type === "transactions" ? setTransactionExportRange : setExpenseExportRange;
+    setter({ startDate: "", endDate: "" });
+  };
 
   const handleExportCsv = async (
     type: "customers" | "products" | "transactions" | "expenses"
@@ -443,6 +546,14 @@ export default function DataManagement() {
               </div>
             </div>
 
+            <DateRangeControls
+              idPrefix="transactions-export"
+              value={transactionExportRange}
+              onChange={(field, value) => handleDateRangeChange("transactions", field, value)}
+              onClear={() => handleClearDateRange("transactions")}
+              disabled={exporting !== null}
+            />
+
             <Card>
               <CardContent className="pt-6">
                 {transactionsQuery.isLoading ? (
@@ -513,6 +624,14 @@ export default function DataManagement() {
                 </Button>
               </div>
             </div>
+
+            <DateRangeControls
+              idPrefix="expenses-export"
+              value={expenseExportRange}
+              onChange={(field, value) => handleDateRangeChange("expenses", field, value)}
+              onClear={() => handleClearDateRange("expenses")}
+              disabled={exporting !== null}
+            />
 
             <Card>
               <CardContent className="pt-6">
