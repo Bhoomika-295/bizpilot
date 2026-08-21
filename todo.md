@@ -836,3 +836,13 @@
 - [x] Add unit and tenant-isolation coverage for CSV export procedures
 - [x] Run full tests, TypeScript validation, and production build
 - [x] Create data-export-v1-report.md with implementation and verification results
+
+## Data Export V1.1 — Products + Expenses
+- [x] Review existing CSV export architecture and current Products/Expenses UI
+- [x] Add protected products.exportCsv using the existing CSV serializer and tenant authorization
+- [x] Add protected expenses.exportCsv using the existing CSV serializer and tenant authorization
+- [x] Add Products and Expenses Export CSV actions without redesigning DataManagement.tsx
+- [x] Add product/expense export security and serialization tests, including unauthenticated rejection
+- [x] Verify Customers and Transactions exports plus creation, import, dashboard, intelligence, authentication, and tenant-isolation regressions
+- [x] Run complete test suite, focused export tests, tenant authorization tests, TypeScript validation, and production build
+- [x] Create data-export-v1.1-report.md and confirm Supabase/PostgreSQL was unchanged and no demo data was introduced

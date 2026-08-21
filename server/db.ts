@@ -343,15 +343,17 @@ export async function createTransaction(data: {
  * ============================================================
  */
 
-export async function getExpensesForBusiness(businessId: number, limit = 100) {
+export async function getExpensesForBusiness(businessId: number, limit?: number) {
   const db = await getDb();
   if (!db) return [];
-  return await db
+
+  const query = db
     .select()
     .from(expenses)
     .where(eq(expenses.businessId, businessId))
-    .orderBy(desc(expenses.expenseDate))
-    .limit(limit);
+    .orderBy(desc(expenses.timestamp));
+
+  return limit === undefined ? query : query.limit(limit);
 }
 
 export async function createExpense(data: {

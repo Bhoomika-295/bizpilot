@@ -31,6 +31,14 @@ export default function DataManagement() {
     { businessId: bid },
     { enabled: false }
   );
+  const productsExportQuery = trpc.products.exportCsv.useQuery(
+    { businessId: bid },
+    { enabled: false }
+  );
+  const expensesExportQuery = trpc.expenses.exportCsv.useQuery(
+    { businessId: bid },
+    { enabled: false }
+  );
 
   const createCustomerMutation = trpc.customers.create.useMutation();
   const deleteCustomerMutation = trpc.customers.delete.useMutation();
@@ -44,21 +52,28 @@ export default function DataManagement() {
   const [activeTab, setActiveTab] = useState("customers");
   const [openDialog, setOpenDialog] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [exporting, setExporting] = useState<"customers" | "transactions" | null>(null);
+  const [exporting, setExporting] = useState<"customers" | "products" | "transactions" | "expenses" | null>(null);
 
   const [customerForm, setCustomerForm] = useState({ name: "", email: "", phone: "", company: "" });
   const [productForm, setProductForm] = useState({ name: "", type: "product", price: "", cost: "" });
   const [transactionForm, setTransactionForm] = useState({ amount: "", description: "", date: "" });
   const [expenseForm, setExpenseForm] = useState({ category: "", amount: "", date: "" });
 
-  const handleExportCsv = async (type: "customers" | "transactions") => {
+  const handleExportCsv = async (
+    type: "customers" | "products" | "transactions" | "expenses"
+  ) => {
     if (!bid || exporting) return;
 
     setExporting(type);
     try {
-      const result = type === "customers"
-        ? await customersExportQuery.refetch()
-        : await transactionsExportQuery.refetch();
+      const result =
+        type === "customers"
+          ? await customersExportQuery.refetch()
+          : type === "products"
+            ? await productsExportQuery.refetch()
+            : type === "transactions"
+              ? await transactionsExportQuery.refetch()
+              : await expensesExportQuery.refetch();
 
       if (result.error) throw result.error;
       if (!result.data) throw new Error("Export returned no data");
@@ -72,7 +87,8 @@ export default function DataManagement() {
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
-      toast.success(`${type === "customers" ? "Customers" : "Transactions"} exported successfully`);
+      const label = type[0].toUpperCase() + type.slice(1);
+      toast.success(`${label} exported successfully`);
     } catch {
       toast.error(`Failed to export ${type}`);
     } finally {
@@ -335,10 +351,25 @@ export default function DataManagement() {
                 <h2 className="text-xl font-semibold">Products & Services</h2>
                 <p className="text-sm text-slate-600">Total: {productsQuery.data?.length || 0}</p>
               </div>
-              <Button onClick={() => setOpenDialog(true)} className="bg-slate-900 hover:bg-slate-800">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Product
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => handleExportCsv("products")}
+                  disabled={exporting !== null}
+                  className="bg-white"
+                >
+                  {exporting === "products" ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4 mr-2" />
+                  )}
+                  Export CSV
+                </Button>
+                <Button onClick={() => setOpenDialog(true)} className="bg-slate-900 hover:bg-slate-800">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Product
+                </Button>
+              </div>
             </div>
 
             <Card>
@@ -462,10 +493,25 @@ export default function DataManagement() {
                 <h2 className="text-xl font-semibold">Expenses</h2>
                 <p className="text-sm text-slate-600">Total: {expensesQuery.data?.length || 0}</p>
               </div>
-              <Button onClick={() => setOpenDialog(true)} className="bg-slate-900 hover:bg-slate-800">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Expense
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => handleExportCsv("expenses")}
+                  disabled={exporting !== null}
+                  className="bg-white"
+                >
+                  {exporting === "expenses" ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4 mr-2" />
+                  )}
+                  Export CSV
+                </Button>
+                <Button onClick={() => setOpenDialog(true)} className="bg-slate-900 hover:bg-slate-800">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Expense
+                </Button>
+              </div>
             </div>
 
             <Card>

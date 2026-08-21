@@ -293,6 +293,26 @@ export const appRouter = router({
         await requireRecordBusiness(ctx.user.id, product);
         return await db.deleteProduct(input.productId);
       }),
+
+    exportCsv: protectedProcedure
+      .input(z.object({ businessId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        await requireBusinessAccess(ctx.user.id, input.businessId);
+        const products = await db.getProductsForBusiness(input.businessId);
+        const headers = ["ID", "Name", "Description", "Price", "Cost", "Category", "Created At", "Updated At"];
+        const rows = products.map((product) => [
+          product.id,
+          product.name,
+          product.description,
+          product.price,
+          product.cost,
+          product.category,
+          product.createdAt,
+          product.updatedAt,
+        ]);
+        const csvContent = buildCsvContent(headers, rows);
+        return { csvContent, filename: `products_business_${input.businessId}_${Date.now()}.csv` };
+      }),
   }),
 
   /**
@@ -406,6 +426,25 @@ export const appRouter = router({
         const expense = await db.getExpenseById(input.expenseId);
         await requireRecordBusiness(ctx.user.id, expense);
         return await db.deleteExpense(input.expenseId);
+      }),
+
+    exportCsv: protectedProcedure
+      .input(z.object({ businessId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        await requireBusinessAccess(ctx.user.id, input.businessId);
+        const expenses = await db.getExpensesForBusiness(input.businessId);
+        const headers = ["ID", "Category", "Amount", "Description", "Timestamp", "Source", "Created At"];
+        const rows = expenses.map((expense) => [
+          expense.id,
+          expense.category,
+          expense.amount,
+          expense.description,
+          new Date(expense.timestamp),
+          expense.source,
+          expense.createdAt,
+        ]);
+        const csvContent = buildCsvContent(headers, rows);
+        return { csvContent, filename: `expenses_business_${input.businessId}_${Date.now()}.csv` };
       }),
   }),
 
