@@ -168,7 +168,7 @@ describe("CSV export routes", () => {
     });
 
     expect(result.csvContent).toBe(
-      '"ID","Type","Amount","Source","Timestamp","Customer ID","Product ID","Created At"\r\n',
+      '"ID","Type","Amount","Transaction Date","Customer ID","Product ID","Status","Created At"\r\n',
     );
   });
 

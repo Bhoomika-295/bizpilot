@@ -418,7 +418,7 @@ export default function DataManagement() {
                           <TableHead>Name</TableHead>
                           <TableHead>Email</TableHead>
                           <TableHead>Phone</TableHead>
-                          <TableHead>Company</TableHead>
+                          <TableHead>Status</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -428,7 +428,7 @@ export default function DataManagement() {
                             <TableCell className="font-medium">{customer.name}</TableCell>
                             <TableCell>{customer.email || "—"}</TableCell>
                             <TableCell>{customer.phone || "—"}</TableCell>
-                            <TableCell>{customer.company || "—"}</TableCell>
+                            <TableCell>{customer.status}</TableCell>
                             <TableCell className="text-right">
                               <Button variant="ghost" size="sm" onClick={() => handleDeleteCustomer(customer.id)}>
                                 <Trash2 className="w-4 h-4" />
@@ -487,9 +487,8 @@ export default function DataManagement() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Name</TableHead>
-                          <TableHead>Type</TableHead>
+                          <TableHead>Category</TableHead>
                           <TableHead>Price</TableHead>
-                          <TableHead>Cost</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -497,9 +496,8 @@ export default function DataManagement() {
                         {productsQuery.data.map((product) => (
                           <TableRow key={product.id}>
                             <TableCell className="font-medium">{product.name}</TableCell>
-                            <TableCell>{product.type}</TableCell>
-                            <TableCell>{product.price ? formatCurrency(product.price) : "—"}</TableCell>
-                            <TableCell>{product.cost ? formatCurrency(product.cost) : "—"}</TableCell>
+                            <TableCell>{product.category || "—"}</TableCell>
+                            <TableCell>{formatCurrency(product.price)}</TableCell>
                             <TableCell className="text-right">
                               <Button variant="ghost" size="sm" onClick={() => handleDeleteProduct(product.id)}>
                                 <Trash2 className="w-4 h-4" />
@@ -566,8 +564,8 @@ export default function DataManagement() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Date</TableHead>
-                          <TableHead>Description</TableHead>
                           <TableHead>Type</TableHead>
+                          <TableHead>Status</TableHead>
                           <TableHead>Amount</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
@@ -576,8 +574,8 @@ export default function DataManagement() {
                         {transactionsQuery.data.map((transaction) => (
                           <TableRow key={transaction.id}>
                             <TableCell>{new Date(transaction.transactionDate).toLocaleDateString()}</TableCell>
-                            <TableCell>{transaction.description || "—"}</TableCell>
                             <TableCell>{transaction.type}</TableCell>
+                            <TableCell>{transaction.status}</TableCell>
                             <TableCell className="font-medium">{formatCurrency(transaction.amount)}</TableCell>
                             <TableCell className="text-right">
                               <Button variant="ghost" size="sm" onClick={() => handleDeleteTransaction(transaction.id)}>

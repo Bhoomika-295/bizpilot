@@ -32,7 +32,7 @@ let _sql: ReturnType<typeof postgres> | null = null;
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _sql = postgres(process.env.DATABASE_URL, { max: 10, idle_timeout: 20 });
+      _sql = postgres(process.env.DATABASE_URL, { max: 3, idle_timeout: 10, max_lifetime: 30 });
       _db = drizzle(_sql, {
         schema: {
           users,
@@ -262,7 +262,14 @@ export async function createCustomer(data: {
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(customers).values(data).returning();
+  const result = await db.insert(customers).values({
+    businessId: data.businessId,
+    name: data.name,
+    email: data.email,
+    phone: data.phone,
+    status: data.status,
+    totalSpent: data.totalSpent,
+  }).returning();
   return result[0];
 }
 
@@ -294,7 +301,13 @@ export async function createProduct(data: {
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(products).values(data).returning();
+  const result = await db.insert(products).values({
+    businessId: data.businessId,
+    name: data.name,
+    price: data.price,
+    category: data.category,
+    status: data.status || "active",
+  }).returning();
   return result[0];
 }
 
@@ -319,17 +332,17 @@ export async function getTransactionsForBusiness(
 
   let condition = eq(transactions.businessId, businessId);
   if (dateRange?.startTimestamp !== undefined) {
-    condition = and(condition, gte(transactions.timestamp, dateRange.startTimestamp)) ?? condition;
+    condition = and(condition, gte(transactions.transactionDate, new Date(dateRange.startTimestamp))) ?? condition;
   }
   if (dateRange?.endTimestamp !== undefined) {
-    condition = and(condition, lte(transactions.timestamp, dateRange.endTimestamp)) ?? condition;
+    condition = and(condition, lte(transactions.transactionDate, new Date(dateRange.endTimestamp))) ?? condition;
   }
 
   const query = db
     .select()
     .from(transactions)
     .where(condition)
-    .orderBy(desc(transactions.timestamp));
+    .orderBy(desc(transactions.transactionDate));
 
   return limit === undefined ? query : query.limit(limit);
 }
@@ -348,7 +361,12 @@ export async function createTransaction(data: {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const result = await db.insert(transactions).values({
-    ...data,
+    businessId: data.businessId,
+    customerId: data.customerId,
+    productId: data.productId,
+    amount: data.amount,
+    type: data.type || "sale",
+    status: data.status || "completed",
     transactionDate: data.transactionDate || new Date(),
   }).returning();
   return result[0];
@@ -370,17 +388,17 @@ export async function getExpensesForBusiness(
 
   let condition = eq(expenses.businessId, businessId);
   if (dateRange?.startTimestamp !== undefined) {
-    condition = and(condition, gte(expenses.timestamp, dateRange.startTimestamp)) ?? condition;
+    condition = and(condition, gte(expenses.expenseDate, new Date(dateRange.startTimestamp))) ?? condition;
   }
   if (dateRange?.endTimestamp !== undefined) {
-    condition = and(condition, lte(expenses.timestamp, dateRange.endTimestamp)) ?? condition;
+    condition = and(condition, lte(expenses.expenseDate, new Date(dateRange.endTimestamp))) ?? condition;
   }
 
   const query = db
     .select()
     .from(expenses)
     .where(condition)
-    .orderBy(desc(expenses.timestamp));
+    .orderBy(desc(expenses.expenseDate));
 
   return limit === undefined ? query : query.limit(limit);
 }
@@ -398,7 +416,11 @@ export async function createExpense(data: {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const result = await db.insert(expenses).values({
-    ...data,
+    businessId: data.businessId,
+    category: data.category,
+    amount: data.amount,
+    description: data.description,
+    vendor: data.vendor,
     expenseDate: data.expenseDate || new Date(),
   }).returning();
   return result[0];
@@ -417,7 +439,7 @@ export async function getBusinessEventsForBusiness(businessId: number) {
     .select()
     .from(businessEvents)
     .where(eq(businessEvents.businessId, businessId))
-    .orderBy(desc(businessEvents.timestamp));
+    .orderBy(desc(businessEvents.createdAt));
 }
 
 export async function createBusinessEvent(data: {
@@ -431,8 +453,10 @@ export async function createBusinessEvent(data: {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const result = await db.insert(businessEvents).values({
-    ...data,
-    metadata: data.metadata ? JSON.stringify(data.metadata) : null,
+    businessId: data.businessId,
+    eventType: data.eventType,
+    title: data.title,
+    payload: data.metadata ?? null,
   }).returning();
   return result[0];
 }
@@ -465,7 +489,15 @@ export async function createRecommendation(data: {
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(recommendations).values(data).returning();
+  const result = await db.insert(recommendations).values({
+    businessId: data.businessId,
+    title: data.title,
+    description: data.description,
+    category: data.category || "general",
+    priority: data.impact || "medium",
+    status: data.status || "open",
+    impactScore: data.confidenceScore ?? null,
+  }).returning();
   return result[0];
 }
 
@@ -507,7 +539,19 @@ export async function createStrategy(data: {
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(strategies).values(data).returning();
+  const result = await db.insert(strategies).values({
+    businessId: data.businessId,
+    title: data.title,
+    objective: data.description || data.title,
+    status: data.status || "planned",
+    metricsSnapshot: {
+      category: data.category ?? null,
+      targetMetric: data.targetMetric ?? null,
+      expectedImpact: data.expectedImpact ?? null,
+      timeframe: data.timeframe ?? null,
+      progress: data.progress ?? null,
+    },
+  }).returning();
   return result[0];
 }
 
@@ -539,7 +583,14 @@ export async function createOutcome(data: {
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(outcomes).values(data).returning();
+  const result = await db.insert(outcomes).values({
+    businessId: data.businessId,
+    strategyId: data.strategyId,
+    resultSummary: `${data.title}: ${data.metricName}`,
+    successMetricDelta: data.actualValue && data.expectedValue
+      ? Number(data.actualValue) - Number(data.expectedValue)
+      : null,
+  }).returning();
   return result[0];
 }
 
@@ -622,9 +673,11 @@ export async function createScenario(data: {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const result = await db.insert(scenarios).values({
-    ...data,
-    assumptions: data.assumptions ? JSON.stringify(data.assumptions) : null,
-    projectedOutcome: data.projectedOutcome ? JSON.stringify(data.projectedOutcome) : null,
+    businessId: data.businessId,
+    name: data.title,
+    description: data.description,
+    assumptions: data.assumptions ?? null,
+    results: data.projectedOutcome ?? null,
   }).returning();
   return result[0];
 }
@@ -656,7 +709,17 @@ export async function createOpportunity(data: {
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(opportunities).values(data).returning();
+  const result = await db.insert(opportunities).values({
+    businessId: data.businessId,
+    title: data.title,
+    description: data.description,
+    potentialValue: data.potentialValue ? Number(data.potentialValue) : null,
+    status: data.status || "open",
+    payload: {
+      category: data.category ?? null,
+      probability: data.probability ?? null,
+    },
+  }).returning();
   return result[0];
 }
 
@@ -686,7 +749,16 @@ export async function createActionPlan(data: {
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(actionPlans).values(data).returning();
+  const result = await db.insert(actionPlans).values({
+    businessId: data.businessId,
+    title: data.title,
+    status: data.status || "planned",
+    steps: {
+      description: data.description ?? null,
+      dueDate: data.dueDate?.toISOString() ?? null,
+      assignee: data.assignee ?? null,
+    },
+  }).returning();
   return result[0];
 }
 
@@ -716,8 +788,12 @@ export async function createBusinessMemory(data: {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const result = await db.insert(businessMemories).values({
-    ...data,
-    metadata: data.metadata ? JSON.stringify(data.metadata) : null,
+    businessId: data.businessId,
+    title: data.memoryType,
+    content: data.content,
+    category: data.memoryType,
+    payload: data.metadata ?? null,
+    timestamp: Date.now(),
   }).returning();
   return result[0];
 }
@@ -749,8 +825,11 @@ export async function createPatternIntelligence(data: {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const result = await db.insert(patternIntelligence).values({
-    ...data,
-    signalData: data.signalData ? JSON.stringify(data.signalData) : null,
+    businessId: data.businessId,
+    patternName: data.title,
+    description: data.description,
+    confidence: data.confidence ?? null,
+    payload: data.signalData ?? null,
   }).returning();
   return result[0];
 }
@@ -1090,6 +1169,10 @@ export async function createAttentionReviewLogEntry(data: any) {
   return data;
 }
 
+export async function getAttentionReviewLogsForBusiness(businessId: number) {
+  return [];
+}
+
 export async function getActionPlanById(businessId: number, id: number) {
   return null;
 }
@@ -1167,6 +1250,10 @@ export async function getScenarioHistory(businessId: number) {
 }
 
 export async function upsertScenarioComparison(data: any) {
+  return data;
+}
+
+export async function createScenarioAssumption(data: any) {
   return data;
 }
 
@@ -1271,7 +1358,7 @@ export async function getBusinessGoals(businessId: number) {
 }
 
 export async function getCustomers(businessId: number) {
-  return [];
+  return getCustomersForBusiness(businessId);
 }
 
 export async function getCustomerById(id: number) {
@@ -1287,7 +1374,7 @@ export async function deleteCustomer(id: number) {
 }
 
 export async function getProducts(businessId: number) {
-  return [];
+  return getProductsForBusiness(businessId);
 }
 
 export async function getProductById(id: number) {
@@ -1303,7 +1390,7 @@ export async function deleteProduct(id: number) {
 }
 
 export async function getTransactions(businessId: number) {
-  return [];
+  return getTransactionsForBusiness(businessId);
 }
 
 export async function getTransactionById(id: number) {
@@ -1319,7 +1406,7 @@ export async function deleteTransaction(id: number) {
 }
 
 export async function getExpenses(businessId: number) {
-  return [];
+  return getExpensesForBusiness(businessId);
 }
 
 export async function getExpenseById(id: number) {
@@ -1342,8 +1429,9 @@ export async function deleteBusinessGoal(id: number) {
   return true;
 }
 
-export async function getBusinessEvents(businessId: number, opts: any) {
-  return [];
+export async function getBusinessEvents(businessId: number, opts: { limit?: number } = {}) {
+  const events = await getBusinessEventsForBusiness(businessId);
+  return opts.limit === undefined ? events : events.slice(0, opts.limit);
 }
 
 export async function createExternalDataSource(businessId: number, data: any) {

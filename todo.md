@@ -854,3 +854,11 @@
 - [x] Add comprehensive test suite for all 15 V1.2 test requirements (boundary, invalid ranges, security, regression)
 - [x] Run full test suite, TypeScript validation, and production build
 - [x] Create `data-export-v1.2-report.md` confirming Supabase PostgreSQL, Drizzle, and authentication remain unchanged
+
+## PostgreSQL Schema/Type Drift Remediation
+- [ ] Audit all current TypeScript errors and test failures
+- [ ] Classify schema and type mismatches against `drizzle/schema.postgres.ts`
+- [ ] Apply safe, non-destructive type and query corrections without database modifications
+- [ ] Verify core data, CSV imports, exports, filtering, security, and intelligence
+- [ ] Run full test suite, TypeScript validation, and production build
+- [ ] Create `postgres-schema-type-drift-remediation-report.md`

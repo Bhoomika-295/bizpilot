@@ -30,7 +30,7 @@ async function requireBusinessAccess(userId: number, businessId: number) {
 
 async function requireRecordBusiness(
   userId: number,
-  record: { businessId: number } | undefined
+  record: { businessId: number } | null | undefined
 ) {
   if (!record) {
     throw new TRPCError({ code: "NOT_FOUND", message: "Record not found." });
@@ -152,11 +152,14 @@ export const appRouter = router({
       )
       .mutation(async ({ ctx, input }) => {
         await requireBusinessAccess(ctx.user.id, input.businessId);
-        return await db.createBusinessGoal(
-          input.businessId,
-          input.goal,
-          input.priority || 0
-        );
+        return await db.createBusinessGoal({
+          businessId: input.businessId,
+          goalType: "general",
+          title: input.goal,
+          description: undefined,
+          priority: input.priority ?? 0,
+          status: "open",
+        });
       }),
 
     list: protectedProcedure
@@ -324,14 +327,14 @@ export const appRouter = router({
       .query(async ({ ctx, input }) => {
         await requireBusinessAccess(ctx.user.id, input.businessId);
         const products = await db.getProductsForBusiness(input.businessId);
-        const headers = ["ID", "Name", "Description", "Price", "Cost", "Category", "Created At", "Updated At"];
+        const headers = ["ID", "Name", "Description", "Price", "Category", "Status", "Created At", "Updated At"];
         const rows = products.map((product) => [
           product.id,
           product.name,
           product.description,
           product.price,
-          product.cost,
           product.category,
+          product.status,
           product.createdAt,
           product.updatedAt,
         ]);
@@ -393,15 +396,15 @@ export const appRouter = router({
         await requireBusinessAccess(ctx.user.id, input.businessId);
         const dateRange = getValidatedExportDateRange(input.startDate, input.endDate);
         const transactions = await db.getTransactionsForBusiness(input.businessId, undefined, dateRange);
-        const headers = ["ID", "Type", "Amount", "Source", "Timestamp", "Customer ID", "Product ID", "Created At"];
+        const headers = ["ID", "Type", "Amount", "Transaction Date", "Customer ID", "Product ID", "Status", "Created At"];
         const rows = transactions.map((transaction) => [
           transaction.id,
           transaction.type,
           transaction.amount,
-          transaction.source,
-          new Date(transaction.timestamp),
+          transaction.transactionDate,
           transaction.customerId,
           transaction.productId,
+          transaction.status,
           transaction.createdAt,
         ]);
         const csvContent = buildCsvContent(headers, rows);
@@ -460,14 +463,14 @@ export const appRouter = router({
         await requireBusinessAccess(ctx.user.id, input.businessId);
         const dateRange = getValidatedExportDateRange(input.startDate, input.endDate);
         const expenses = await db.getExpensesForBusiness(input.businessId, undefined, dateRange);
-        const headers = ["ID", "Category", "Amount", "Description", "Timestamp", "Source", "Created At"];
+        const headers = ["ID", "Category", "Amount", "Description", "Vendor", "Expense Date", "Created At"];
         const rows = expenses.map((expense) => [
           expense.id,
           expense.category,
           expense.amount,
           expense.description,
-          new Date(expense.timestamp),
-          expense.source,
+          expense.vendor,
+          expense.expenseDate,
           expense.createdAt,
         ]);
         const csvContent = buildCsvContent(headers, rows);
@@ -508,14 +511,14 @@ export const appRouter = router({
       )
       .mutation(async ({ ctx, input }) => {
         await requireBusinessAccess(ctx.user.id, input.businessId);
-        return await db.createBusinessEvent(input.businessId, input);
+        return await db.createBusinessEvent(input);
       }),
 
     list: protectedProcedure
       .input(z.object({ businessId: z.number(), limit: z.number().optional() }))
       .query(async ({ ctx, input }) => {
         await requireBusinessAccess(ctx.user.id, input.businessId);
-        return await db.getBusinessEvents(input.businessId, input.limit);
+        return await db.getBusinessEvents(input.businessId, { limit: input.limit });
       }),
   }),
 
@@ -541,7 +544,7 @@ export const appRouter = router({
       )
       .mutation(async ({ ctx, input }) => {
         await requireBusinessAccess(ctx.user.id, input.businessId);
-        return await db.createRecommendation(input.businessId, input);
+        return await db.createRecommendation(input);
       }),
 
     list: protectedProcedure
@@ -575,7 +578,16 @@ export const appRouter = router({
       )
       .mutation(async ({ ctx, input }) => {
         await requireBusinessAccess(ctx.user.id, input.businessId);
-        return await db.createStrategy(input.businessId, input);
+        return await db.createStrategy({
+          businessId: input.businessId,
+          title: input.objective,
+          description: input.objective,
+          category: input.targetMetric,
+          targetMetric: input.targetMetric,
+          expectedImpact: input.expectedOutcome,
+          timeframe: input.timeframe,
+          status: "planned",
+        });
       }),
 
     list: protectedProcedure

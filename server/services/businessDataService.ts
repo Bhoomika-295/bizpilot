@@ -186,8 +186,7 @@ export async function getBusinessExpenses(
       and(
         eq(expenses.businessId, businessId),
         gte(expenses.expenseDate, startDate),
-        lte(expenses.expenseDate, endDate),
-        eq(expenses.status, "completed")
+        lte(expenses.expenseDate, endDate)
       )
     )
     .orderBy((e) => e.expenseDate);

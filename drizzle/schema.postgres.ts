@@ -1,12 +1,9 @@
 /**
- * BizPilot PostgreSQL / Supabase Schema (Phase 1 Migration Preparation)
- * 
- * Converted from MySQL schema (drizzle/schema.ts) to PostgreSQL (pg-core)
- * maintaining exact table names, column semantics, primary keys, relationships,
- * and tenant ownership fields (`businessId`).
- * 
- * NOTE: This schema file is prepared for Supabase PostgreSQL migration
- * but is not active until the final cutover phase.
+ * BizPilot PostgreSQL / Supabase schema.
+ *
+ * This file mirrors the already-deployed public-schema objects discovered by
+ * the read-only Phase 1 inspection. It is intentionally code-only: no
+ * migration or database write is performed by this change.
  */
 
 import {
@@ -15,9 +12,10 @@ import {
   varchar,
   text,
   timestamp,
-  decimal,
+  numeric,
   boolean,
   json,
+  jsonb,
   integer,
   bigint,
 } from "drizzle-orm/pg-core";
@@ -40,7 +38,7 @@ export const businesses = pgTable("businesses", {
   name: varchar("name", { length: 255 }).notNull(),
   currency: varchar("currency", { length: 10 }).default("USD").notNull(),
   industry: varchar("industry", { length: 255 }),
-  monthlyRevenueTarget: decimal("monthly_revenue_target", { precision: 15, scale: 2 }),
+  monthlyRevenueTarget: numeric("monthly_revenue_target", { precision: 15, scale: 2, mode: "number" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -52,7 +50,7 @@ export const customers = pgTable("customers", {
   email: varchar("email", { length: 255 }),
   phone: varchar("phone", { length: 50 }),
   status: varchar("status", { length: 50 }).default("active").notNull(),
-  totalSpent: decimal("total_spent", { precision: 15, scale: 2 }).default("0").notNull(),
+  totalSpent: numeric("total_spent", { precision: 15, scale: 2, mode: "number" }).default("0").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -62,9 +60,9 @@ export const products = pgTable("products", {
   businessId: integer("business_id").notNull(),
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
-  price: decimal("price", { precision: 15, scale: 2 }).notNull(),
-  cost: decimal("cost", { precision: 15, scale: 2 }),
+  price: numeric("price", { precision: 15, scale: 2, mode: "number" }).notNull(),
   category: varchar("category", { length: 100 }),
+  status: varchar("status", { length: 50 }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -74,45 +72,59 @@ export const transactions = pgTable("transactions", {
   businessId: integer("business_id").notNull(),
   customerId: integer("customer_id"),
   productId: integer("product_id"),
-  amount: decimal("amount", { precision: 15, scale: 2 }).notNull(),
-  type: varchar("type", { length: 50 }).default("sale").notNull(),
-  source: varchar("source", { length: 50 }).default("manual").notNull(),
-  timestamp: bigint("timestamp", { mode: "number" }).notNull(),
+  amount: numeric("amount", { precision: 15, scale: 2, mode: "number" }).notNull(),
+  type: varchar("type", { length: 50 }).notNull(),
+  status: varchar("status", { length: 50 }).notNull(),
+  transactionDate: timestamp("transaction_date").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const expenses = pgTable("expenses", {
   id: serial("id").primaryKey(),
   businessId: integer("business_id").notNull(),
   category: varchar("category", { length: 100 }).notNull(),
-  amount: decimal("amount", { precision: 15, scale: 2 }).notNull(),
+  amount: numeric("amount", { precision: 15, scale: 2, mode: "number" }).notNull(),
   description: text("description"),
-  timestamp: bigint("timestamp", { mode: "number" }).notNull(),
-  source: varchar("source", { length: 50 }).default("manual").notNull(),
+  vendor: varchar("vendor", { length: 255 }),
+  expenseDate: timestamp("expense_date").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const businessEvents = pgTable("business_events", {
   id: serial("id").primaryKey(),
   businessId: integer("business_id").notNull(),
-  type: varchar("type", { length: 100 }).notNull(),
+  eventType: varchar("event_type", { length: 100 }).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  payload: jsonb("payload"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const businessGoals = pgTable("business_goals", {
+  id: serial("id").primaryKey(),
+  businessId: integer("business_id").notNull(),
+  goalType: varchar("goal_type", { length: 100 }).notNull(),
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description"),
-  payload: json("payload"),
-  timestamp: bigint("timestamp", { mode: "number" }).notNull(),
+  priority: integer("priority").notNull(),
+  status: varchar("status", { length: 50 }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const recommendations = pgTable("recommendations", {
   id: serial("id").primaryKey(),
   businessId: integer("business_id").notNull(),
   title: varchar("title", { length: 255 }).notNull(),
-  description: text("description"),
-  category: varchar("category", { length: 100 }),
-  priority: varchar("priority", { length: 50 }).default("medium").notNull(),
-  status: varchar("status", { length: 50 }).default("pending").notNull(),
-  payload: json("payload"),
+  description: text("description").notNull(),
+  category: varchar("category", { length: 100 }).notNull(),
+  priority: varchar("priority", { length: 50 }).notNull(),
+  status: varchar("status", { length: 50 }).notNull(),
+  impactScore: integer("impact_score"),
+  actionPayload: jsonb("action_payload"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const strategies = pgTable("strategies", {
@@ -120,40 +132,40 @@ export const strategies = pgTable("strategies", {
   businessId: integer("business_id").notNull(),
   title: varchar("title", { length: 255 }).notNull(),
   objective: text("objective").notNull(),
-  status: varchar("status", { length: 50 }).default("active").notNull(),
-  progress: integer("progress").default(0).notNull(),
-  payload: json("payload"),
+  status: varchar("status", { length: 50 }).notNull(),
+  metricsSnapshot: jsonb("metrics_snapshot"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const outcomes = pgTable("outcomes", {
   id: serial("id").primaryKey(),
-  businessId: integer("business_id").notNull(),
   strategyId: integer("strategy_id"),
-  title: varchar("title", { length: 255 }).notNull(),
-  result: text("result").notNull(),
-  metrics: json("metrics"),
-  timestamp: bigint("timestamp", { mode: "number" }).notNull(),
+  businessId: integer("business_id").notNull(),
+  resultSummary: text("result_summary").notNull(),
+  successMetricDelta: numeric("success_metric_delta", { precision: 15, scale: 2, mode: "number" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const externalDataSources = pgTable("external_data_sources", {
   id: serial("id").primaryKey(),
   businessId: integer("business_id").notNull(),
-  provider: varchar("provider", { length: 100 }).notNull(),
-  status: varchar("status", { length: 50 }).default("connected").notNull(),
-  config: json("config"),
-  lastSyncedAt: timestamp("last_synced_at"),
+  sourceName: varchar("source_name", { length: 255 }).notNull(),
+  sourceType: varchar("source_type", { length: 100 }).notNull(),
+  payload: jsonb("payload"),
+  freshnessTimestamp: timestamp("freshness_timestamp").notNull(),
+  reliabilityScore: numeric("reliability_score", { precision: 5, scale: 2, mode: "number" }),
+  provenance: text("provenance"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const csvImports = pgTable("csv_imports", {
   id: serial("id").primaryKey(),
   businessId: integer("business_id").notNull(),
-  filename: varchar("filename", { length: 255 }).notNull(),
-  recordCount: integer("record_count").notNull(),
-  status: varchar("status", { length: 50 }).default("success").notNull(),
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  status: varchar("status", { length: 50 }).notNull(),
+  importedRows: integer("imported_rows").notNull(),
+  skippedRows: integer("skipped_rows").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -161,21 +173,24 @@ export const competitors = pgTable("competitors", {
   id: serial("id").primaryKey(),
   businessId: integer("business_id").notNull(),
   name: varchar("name", { length: 255 }).notNull(),
-  website: varchar("website", { length: 255 }),
-  notes: text("notes"),
+  website: text("website"),
+  strengths: text("strengths"),
+  weaknesses: text("weaknesses"),
+  marketShare: numeric("market_share", { precision: 5, scale: 2, mode: "number" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const marketSignals = pgTable("market_signals", {
   id: serial("id").primaryKey(),
   businessId: integer("business_id").notNull(),
   title: varchar("title", { length: 255 }).notNull(),
-  source: varchar("source", { length: 100 }),
-  url: varchar("url", { length: 500 }),
-  publishedAt: timestamp("published_at"),
-  relevanceLevel: varchar("relevance_level", { length: 50 }),
+  source: varchar("source", { length: 255 }).notNull(),
+  url: text("url"),
+  publishedAt: timestamp("published_at").notNull(),
+  relevanceLevel: varchar("relevance_level", { length: 50 }).notNull(),
   impactArea: varchar("impact_area", { length: 100 }),
-  importanceScore: decimal("importance_score", { precision: 5, scale: 2 }),
+  importanceScore: integer("importance_score").notNull(),
   explanation: text("explanation"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -196,8 +211,8 @@ export const opportunities = pgTable("opportunities", {
   businessId: integer("business_id").notNull(),
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description"),
-  potentialValue: decimal("potential_value", { precision: 15, scale: 2 }),
-  status: varchar("status", { length: 50 }).default("identified").notNull(),
+  potentialValue: numeric("potential_value", { precision: 15, scale: 2, mode: "number" }),
+  status: varchar("status", { length: 50 }).notNull(),
   payload: json("payload"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -206,11 +221,8 @@ export const actionPlans = pgTable("action_plans", {
   id: serial("id").primaryKey(),
   businessId: integer("business_id").notNull(),
   title: varchar("title", { length: 255 }).notNull(),
-  description: text("description"),
-  status: varchar("status", { length: 50 }).default("not_started").notNull(),
-  owner: varchar("owner", { length: 255 }),
-  dueDate: timestamp("due_date"),
-  payload: json("payload"),
+  status: varchar("status", { length: 50 }).notNull(),
+  steps: jsonb("steps"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -231,46 +243,39 @@ export const patternIntelligence = pgTable("pattern_intelligence", {
   businessId: integer("business_id").notNull(),
   patternName: varchar("pattern_name", { length: 255 }).notNull(),
   description: text("description"),
-  confidence: decimal("confidence", { precision: 5, scale: 2 }),
+  confidence: numeric("confidence", { precision: 5, scale: 2, mode: "number" }),
   payload: json("payload"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const futureOutlooks = pgTable("future_outlooks", {
+export const dailyBriefs = pgTable("daily_briefs", {
   id: serial("id").primaryKey(),
   businessId: integer("business_id").notNull(),
-  signalId: integer("signal_id"),
-  title: varchar("title", { length: 255 }).notNull(),
-  outlookType: varchar("outlook_type", { length: 64 }).notNull(),
-  timeHorizon: varchar("time_horizon", { length: 64 }).notNull(),
-  probability: varchar("probability", { length: 32 }).notNull(),
-  uncertaintyLevel: varchar("uncertainty_level", { length: 32 }).notNull(),
+  briefDate: timestamp("brief_date").notNull(),
   summary: text("summary").notNull(),
-  assumptionsJson: text("assumptions_json"),
-  triggersJson: text("triggers_json"),
-  timelineJson: text("timeline_json"),
-  scenariosJson: text("scenarios_json"),
-  evidenceJson: text("evidence_json"),
-  status: varchar("status", { length: 32 }).notNull().default("ACTIVE"),
+  metricsSnapshot: jsonb("metrics_snapshot"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const businessReadinessAssessments = pgTable("business_readiness_assessments", {
-  id: serial("id").primaryKey(),
-  businessId: integer("business_id").notNull(),
-  outlookId: integer("outlook_id"),
-  title: varchar("title", { length: 255 }).notNull(),
-  overallReadiness: varchar("overall_readiness", { length: 32 }).notNull(),
-  dimensionsJson: text("dimensions_json"),
-  supportingEvidenceJson: text("supporting_evidence_json"),
-  limitingEvidenceJson: text("limiting_evidence_json"),
-  unknownFactorsJson: text("unknown_factors_json"),
-  gapsJson: text("gaps_json"),
-  decisionImplicationsJson: text("decision_implications_json"),
-  actionImplicationsJson: text("action_implications_json"),
-  monitoringLinksJson: text("monitoring_links_json"),
-  status: varchar("status", { length: 32 }).notNull().default("ACTIVE"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+export type User = typeof users.$inferSelect;
+export type InsertUser = typeof users.$inferInsert;
+export type Business = typeof businesses.$inferSelect;
+export type Customer = typeof customers.$inferSelect;
+export type Product = typeof products.$inferSelect;
+export type Transaction = typeof transactions.$inferSelect;
+export type Expense = typeof expenses.$inferSelect;
+export type BusinessEvent = typeof businessEvents.$inferSelect;
+export type BusinessGoal = typeof businessGoals.$inferSelect;
+export type Recommendation = typeof recommendations.$inferSelect;
+export type Strategy = typeof strategies.$inferSelect;
+export type Outcome = typeof outcomes.$inferSelect;
+export type ExternalDataSource = typeof externalDataSources.$inferSelect;
+export type CsvImport = typeof csvImports.$inferSelect;
+export type Competitor = typeof competitors.$inferSelect;
+export type MarketSignal = typeof marketSignals.$inferSelect;
+export type Scenario = typeof scenarios.$inferSelect;
+export type Opportunity = typeof opportunities.$inferSelect;
+export type ActionPlan = typeof actionPlans.$inferSelect;
+export type BusinessMemory = typeof businessMemories.$inferSelect;
+export type PatternIntelligence = typeof patternIntelligence.$inferSelect;
+export type DailyBrief = typeof dailyBriefs.$inferSelect;
