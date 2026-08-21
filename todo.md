@@ -862,3 +862,10 @@
 - [ ] Verify core data, CSV imports, exports, filtering, security, and intelligence
 - [ ] Run full test suite, TypeScript validation, and production build
 - [ ] Create `postgres-schema-type-drift-remediation-report.md`
+
+- [x] Final read-only verification: inspect repository state and stale watcher/cache artifacts
+- [x] Final read-only verification: run full test suite and critical regression checks
+- [x] Final read-only verification: run clean TypeScript validation
+- [x] Final read-only verification: run clean TypeScript validation and production build
+- [x] Final read-only verification: document database, pool, tenant-isolation, secret, authentication, and production-data boundaries
+- [x] Final read-only verification: create bizpilot-stability-verification-report.md and save final checkpoint
