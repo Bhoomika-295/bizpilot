@@ -817,3 +817,9 @@
 - [x] Remove automatic seedDemoData() from client/src/pages/Onboarding.tsx
 - [x] Run test suite, TypeScript validation, and production build verification
 - [x] Generate demo-data-removal-report.md
+
+- [x] Inventory empty-state handling across dashboard, customers, products, transactions, expenses, intelligence, CSV import, and navigation
+- [x] Verify empty-workspace behavior without creating production records
+- [x] Apply minimal targeted empty-state improvements if needed
+- [x] Run test suite, TypeScript validation, and production build
+- [x] Generate empty-workspace-ux-verification-report.md
