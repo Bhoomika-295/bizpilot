@@ -823,3 +823,9 @@
 - [x] Apply minimal targeted empty-state improvements if needed
 - [x] Run test suite, TypeScript validation, and production build
 - [x] Generate empty-workspace-ux-verification-report.md
+
+- [x] Verify real-data customer, product, transaction, and expense flows against PostgreSQL
+- [x] Verify dashboard calculations and intelligence handling with real data
+- [x] Verify CSV import pipeline, tenant isolation, error handling, and no-demo-data behavior
+- [x] Run test suite, TypeScript validation, and production build
+- [x] Generate real-data-ingestion-verification-report.md
