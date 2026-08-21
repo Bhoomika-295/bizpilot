@@ -266,3 +266,23 @@ describe("command center tenant authorization", () => {
     });
   });
 });
+
+describe("CSV export tenant authorization", () => {
+  it("rejects customer CSV export for a business the user does not own", async () => {
+    const caller = appRouter.createCaller(createContext());
+
+    await expect(caller.customers.exportCsv({ businessId: 999999999 })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: "You do not have access to this business.",
+    });
+  });
+
+  it("rejects transaction CSV export for a business the user does not own", async () => {
+    const caller = appRouter.createCaller(createContext());
+
+    await expect(caller.transactions.exportCsv({ businessId: 999999999 })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: "You do not have access to this business.",
+    });
+  });
+});

@@ -11,6 +11,7 @@ import { foresightRouter } from "./routers/foresight";
 import { businessMemoryRouter } from "./routers/businessMemory";
 import { commandCenterRouter } from "./routers/commandCenter";
 import { verifyBusinessOwnership } from "./services/businessDataService";
+import { buildCsvContent } from "./services/csvExportService";
 
 async function requireBusinessAccess(userId: number, businessId: number) {
   try {
@@ -207,6 +208,25 @@ export const appRouter = router({
         await requireRecordBusiness(ctx.user.id, customer);
         return await db.deleteCustomer(input.customerId);
       }),
+
+    exportCsv: protectedProcedure
+      .input(z.object({ businessId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        await requireBusinessAccess(ctx.user.id, input.businessId);
+        const customers = await db.getCustomersForBusiness(input.businessId);
+        const headers = ["ID", "Name", "Email", "Phone", "Status", "Total Spent", "Created At"];
+        const rows = customers.map((customer) => [
+          customer.id,
+          customer.name,
+          customer.email,
+          customer.phone,
+          customer.status,
+          customer.totalSpent,
+          customer.createdAt,
+        ]);
+        const csvContent = buildCsvContent(headers, rows);
+        return { csvContent, filename: `customers_business_${input.businessId}_${Date.now()}.csv` };
+      }),
   }),
 
   /**
@@ -320,6 +340,26 @@ export const appRouter = router({
         const transaction = await db.getTransactionById(input.transactionId);
         await requireRecordBusiness(ctx.user.id, transaction);
         return await db.deleteTransaction(input.transactionId);
+      }),
+
+    exportCsv: protectedProcedure
+      .input(z.object({ businessId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        await requireBusinessAccess(ctx.user.id, input.businessId);
+        const transactions = await db.getTransactionsForBusiness(input.businessId);
+        const headers = ["ID", "Type", "Amount", "Source", "Timestamp", "Customer ID", "Product ID", "Created At"];
+        const rows = transactions.map((transaction) => [
+          transaction.id,
+          transaction.type,
+          transaction.amount,
+          transaction.source,
+          new Date(transaction.timestamp),
+          transaction.customerId,
+          transaction.productId,
+          transaction.createdAt,
+        ]);
+        const csvContent = buildCsvContent(headers, rows);
+        return { csvContent, filename: `transactions_business_${input.businessId}_${Date.now()}.csv` };
       }),
   }),
 

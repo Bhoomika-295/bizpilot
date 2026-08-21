@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Download, Loader2, Plus, Trash2 } from "lucide-react";
 import { useParams } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
@@ -23,6 +23,14 @@ export default function DataManagement() {
   const productsQuery = trpc.products.list.useQuery({ businessId: bid }, { enabled: !!bid });
   const transactionsQuery = trpc.transactions.list.useQuery({ businessId: bid }, { enabled: !!bid });
   const expensesQuery = trpc.expenses.list.useQuery({ businessId: bid }, { enabled: !!bid });
+  const customersExportQuery = trpc.customers.exportCsv.useQuery(
+    { businessId: bid },
+    { enabled: false }
+  );
+  const transactionsExportQuery = trpc.transactions.exportCsv.useQuery(
+    { businessId: bid },
+    { enabled: false }
+  );
 
   const createCustomerMutation = trpc.customers.create.useMutation();
   const deleteCustomerMutation = trpc.customers.delete.useMutation();
@@ -36,11 +44,41 @@ export default function DataManagement() {
   const [activeTab, setActiveTab] = useState("customers");
   const [openDialog, setOpenDialog] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState<"customers" | "transactions" | null>(null);
 
   const [customerForm, setCustomerForm] = useState({ name: "", email: "", phone: "", company: "" });
   const [productForm, setProductForm] = useState({ name: "", type: "product", price: "", cost: "" });
   const [transactionForm, setTransactionForm] = useState({ amount: "", description: "", date: "" });
   const [expenseForm, setExpenseForm] = useState({ category: "", amount: "", date: "" });
+
+  const handleExportCsv = async (type: "customers" | "transactions") => {
+    if (!bid || exporting) return;
+
+    setExporting(type);
+    try {
+      const result = type === "customers"
+        ? await customersExportQuery.refetch()
+        : await transactionsExportQuery.refetch();
+
+      if (result.error) throw result.error;
+      if (!result.data) throw new Error("Export returned no data");
+
+      const blob = new Blob([result.data.csvContent], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = result.data.filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast.success(`${type === "customers" ? "Customers" : "Transactions"} exported successfully`);
+    } catch {
+      toast.error(`Failed to export ${type}`);
+    } finally {
+      setExporting(null);
+    }
+  };
 
   const handleAddCustomer = async () => {
     if (!customerForm.name) {
@@ -226,10 +264,25 @@ export default function DataManagement() {
                 <h2 className="text-xl font-semibold">Customers</h2>
                 <p className="text-sm text-slate-600">Total: {customersQuery.data?.length || 0}</p>
               </div>
-              <Button onClick={() => setOpenDialog(true)} className="bg-slate-900 hover:bg-slate-800">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Customer
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => handleExportCsv("customers")}
+                  disabled={exporting !== null}
+                  className="bg-white"
+                >
+                  {exporting === "customers" ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4 mr-2" />
+                  )}
+                  Export CSV
+                </Button>
+                <Button onClick={() => setOpenDialog(true)} className="bg-slate-900 hover:bg-slate-800">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Customer
+                </Button>
+              </div>
             </div>
 
             <Card>
@@ -338,10 +391,25 @@ export default function DataManagement() {
                 <h2 className="text-xl font-semibold">Transactions</h2>
                 <p className="text-sm text-slate-600">Total: {transactionsQuery.data?.length || 0}</p>
               </div>
-              <Button onClick={() => setOpenDialog(true)} className="bg-slate-900 hover:bg-slate-800">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Transaction
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => handleExportCsv("transactions")}
+                  disabled={exporting !== null}
+                  className="bg-white"
+                >
+                  {exporting === "transactions" ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4 mr-2" />
+                  )}
+                  Export CSV
+                </Button>
+                <Button onClick={() => setOpenDialog(true)} className="bg-slate-900 hover:bg-slate-800">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Transaction
+                </Button>
+              </div>
             </div>
 
             <Card>

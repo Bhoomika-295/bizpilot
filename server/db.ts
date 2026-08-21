@@ -304,15 +304,17 @@ export async function createProduct(data: {
  * ============================================================
  */
 
-export async function getTransactionsForBusiness(businessId: number, limit = 100) {
+export async function getTransactionsForBusiness(businessId: number, limit?: number) {
   const db = await getDb();
   if (!db) return [];
-  return await db
+
+  const query = db
     .select()
     .from(transactions)
     .where(eq(transactions.businessId, businessId))
-    .orderBy(desc(transactions.transactionDate))
-    .limit(limit);
+    .orderBy(desc(transactions.timestamp));
+
+  return limit === undefined ? query : query.limit(limit);
 }
 
 export async function createTransaction(data: {

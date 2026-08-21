@@ -829,3 +829,10 @@
 - [x] Verify CSV import pipeline, tenant isolation, error handling, and no-demo-data behavior
 - [x] Run test suite, TypeScript validation, and production build
 - [x] Generate real-data-ingestion-verification-report.md
+
+## Data Export V1
+- [x] Add Export CSV actions to the Customers and Transactions tabs
+- [x] Trigger secure tenant-scoped customer and transaction CSV downloads through tRPC
+- [x] Add unit and tenant-isolation coverage for CSV export procedures
+- [x] Run full tests, TypeScript validation, and production build
+- [x] Create data-export-v1-report.md with implementation and verification results
