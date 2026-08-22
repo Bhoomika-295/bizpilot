@@ -886,3 +886,9 @@
 - [x] Build clean, keyboard-friendly global search modal / dropdown UI
 - [x] Add unit, tenant isolation, and search regression tests
 - [x] Create unified-global-search-v1-report.md and save feature checkpoint
+
+- [x] Audit authentication, onboarding, core data, dashboard, and import/export flows
+- [x] Audit intelligence, evidence chains, command center, search, persistence, security, and UI/UX
+- [x] Fix any verified existing-feature bugs or incomplete behaviors
+- [x] Run full test suite, TypeScript check, and production build validation
+- [x] Create bizpilot-complete-audit-stabilization-report.md and save checkpoint
