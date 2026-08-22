@@ -879,3 +879,10 @@
 - [x] Audit BizPilot against the complete product roadmap and project requirements
 - [x] Classify all 27 functional areas by implementation status and evidence
 - [x] Produce bizpilot-post-stability-roadmap-audit.md with prioritized next step
+
+- [x] Inspect existing search entry point, schema, routes, and UI components
+- [x] Implement global search service with database-level filtering and tenant authorization
+- [x] Add tRPC search procedure in routers.ts
+- [x] Build clean, keyboard-friendly global search modal / dropdown UI
+- [x] Add unit, tenant isolation, and search regression tests
+- [x] Create unified-global-search-v1-report.md and save feature checkpoint

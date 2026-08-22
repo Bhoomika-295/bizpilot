@@ -16,6 +16,7 @@ import {
   CsvDateRangeValidationError,
   parseCsvDateRange,
 } from "./services/csvExportService";
+import { executeGlobalSearch } from "./services/globalSearchService";
 
 async function requireBusinessAccess(userId: number, businessId: number) {
   try {
@@ -700,6 +701,13 @@ export const appRouter = router({
         return await db.deleteCompetitor(input.competitorId);
       }),
   }),
+
+  globalSearch: protectedProcedure
+    .input(z.object({ businessId: z.number(), query: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      await requireBusinessAccess(ctx.user.id, input.businessId);
+      return await executeGlobalSearch(input.businessId, input.query);
+    }),
 });
 
 export type AppRouter = typeof appRouter;
